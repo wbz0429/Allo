@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -204,3 +204,51 @@ class KnowledgeChunk(Base):
 
     def __repr__(self) -> str:
         return f"<KnowledgeChunk(id={self.id!r}, doc_id={self.doc_id!r}, chunk_index={self.chunk_index!r})>"
+
+
+class UsageRecord(Base):
+    """Usage tracking record for API calls, LLM tokens, sandbox time, and storage.
+
+    Each record captures one usage event tied to an organization and user.
+
+    Attributes:
+        id: UUID primary key.
+        org_id: Foreign key to organizations.id.
+        user_id: The user who triggered the usage.
+        record_type: One of "llm_token", "api_call", "sandbox_time", "storage".
+        model_name: LLM model name (nullable, for llm_token type).
+        input_tokens: Input token count (for llm_token type).
+        output_tokens: Output token count (for llm_token type).
+        endpoint: API endpoint path (for api_call type).
+        duration_seconds: Duration in seconds (for sandbox_time type).
+        created_at: Timestamp of the usage event.
+    """
+
+    __tablename__ = "usage_records"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    org_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    record_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    model_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, insert_default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, insert_default=0)
+    endpoint: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, insert_default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    organization: Mapped["Organization"] = relationship("Organization")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "input_tokens" not in kwargs:
+            kwargs["input_tokens"] = 0
+        if "output_tokens" not in kwargs:
+            kwargs["output_tokens"] = 0
+        if "duration_seconds" not in kwargs:
+            kwargs["duration_seconds"] = 0.0
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<UsageRecord(id={self.id!r}, org_id={self.org_id!r}, record_type={self.record_type!r})>"
