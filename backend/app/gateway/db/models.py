@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -252,3 +252,163 @@ class UsageRecord(Base):
 
     def __repr__(self) -> str:
         return f"<UsageRecord(id={self.id!r}, org_id={self.org_id!r}, record_type={self.record_type!r})>"
+
+
+# ---------------------------------------------------------------------------
+# Marketplace models
+# ---------------------------------------------------------------------------
+
+
+class MarketplaceTool(Base):
+    """A tool available in the MCP tool marketplace.
+
+    Stores the tool's metadata and MCP server configuration template.
+    Tools can be public (visible to all orgs) or private.
+
+    Attributes:
+        id: UUID primary key.
+        name: Display name of the tool.
+        description: Human-readable description.
+        category: One of "search", "code", "data", "communication".
+        icon: Icon identifier or URL.
+        mcp_config_json: MCP server config template (JSON string).
+        is_public: Whether the tool is visible in the public catalog.
+        created_at: Timestamp of creation.
+    """
+
+    __tablename__ = "marketplace_tools"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
+    category: Mapped[str] = mapped_column(String(50), nullable=False, insert_default="search")
+    icon: Mapped[str] = mapped_column(String(512), nullable=False, insert_default="")
+    mcp_config_json: Mapped[str] = mapped_column(Text, nullable=False, insert_default="{}")
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, insert_default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "description" not in kwargs:
+            kwargs["description"] = ""
+        if "category" not in kwargs:
+            kwargs["category"] = "search"
+        if "icon" not in kwargs:
+            kwargs["icon"] = ""
+        if "mcp_config_json" not in kwargs:
+            kwargs["mcp_config_json"] = "{}"
+        if "is_public" not in kwargs:
+            kwargs["is_public"] = True
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<MarketplaceTool(id={self.id!r}, name={self.name!r}, category={self.category!r})>"
+
+
+class OrgInstalledTool(Base):
+    """Tracks which marketplace tools an organization has installed.
+
+    Stores org-specific configuration (e.g. API keys) for each installed tool.
+
+    Attributes:
+        id: UUID primary key.
+        org_id: Foreign key to organizations.id.
+        tool_id: Foreign key to marketplace_tools.id.
+        config_json: Org-specific config overrides (API keys, etc).
+        installed_at: Timestamp of installation.
+    """
+
+    __tablename__ = "org_installed_tools"
+    __table_args__ = (UniqueConstraint("org_id", "tool_id", name="uq_org_tool"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    org_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    tool_id: Mapped[str] = mapped_column(String(36), ForeignKey("marketplace_tools.id", ondelete="CASCADE"), nullable=False, index=True)
+    config_json: Mapped[str] = mapped_column(Text, nullable=False, insert_default="{}")
+    installed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    organization: Mapped["Organization"] = relationship("Organization")
+    tool: Mapped["MarketplaceTool"] = relationship("MarketplaceTool")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "config_json" not in kwargs:
+            kwargs["config_json"] = "{}"
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<OrgInstalledTool(id={self.id!r}, org_id={self.org_id!r}, tool_id={self.tool_id!r})>"
+
+
+class MarketplaceSkill(Base):
+    """A skill available in the skills marketplace.
+
+    Stores the skill's metadata and SKILL.md content template.
+
+    Attributes:
+        id: UUID primary key.
+        name: Display name of the skill.
+        description: Human-readable description.
+        category: Skill category (e.g. "research", "coding", "writing").
+        skill_content: The SKILL.md content for this skill.
+        is_public: Whether the skill is visible in the public catalog.
+        created_at: Timestamp of creation.
+    """
+
+    __tablename__ = "marketplace_skills"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
+    category: Mapped[str] = mapped_column(String(50), nullable=False, insert_default="research")
+    skill_content: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, insert_default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "description" not in kwargs:
+            kwargs["description"] = ""
+        if "category" not in kwargs:
+            kwargs["category"] = "research"
+        if "skill_content" not in kwargs:
+            kwargs["skill_content"] = ""
+        if "is_public" not in kwargs:
+            kwargs["is_public"] = True
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<MarketplaceSkill(id={self.id!r}, name={self.name!r}, category={self.category!r})>"
+
+
+class OrgInstalledSkill(Base):
+    """Tracks which marketplace skills an organization has installed.
+
+    Attributes:
+        id: UUID primary key.
+        org_id: Foreign key to organizations.id.
+        skill_id: Foreign key to marketplace_skills.id.
+        installed_at: Timestamp of installation.
+    """
+
+    __tablename__ = "org_installed_skills"
+    __table_args__ = (UniqueConstraint("org_id", "skill_id", name="uq_org_skill"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    org_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    skill_id: Mapped[str] = mapped_column(String(36), ForeignKey("marketplace_skills.id", ondelete="CASCADE"), nullable=False, index=True)
+    installed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    organization: Mapped["Organization"] = relationship("Organization")
+    skill: Mapped["MarketplaceSkill"] = relationship("MarketplaceSkill")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<OrgInstalledSkill(id={self.id!r}, org_id={self.org_id!r}, skill_id={self.skill_id!r})>"
