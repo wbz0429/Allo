@@ -56,6 +56,7 @@ export async function uploadFiles(
     `${getBackendBaseURL()}/api/threads/${threadId}/uploads`,
     {
       method: "POST",
+      credentials: "include",
       body: formData,
     },
   );
@@ -75,6 +76,7 @@ export async function listUploadedFiles(
 ): Promise<ListFilesResponse> {
   const response = await fetch(
     `${getBackendBaseURL()}/api/threads/${threadId}/uploads/list`,
+    { credentials: "include" },
   );
 
   if (!response.ok) {
@@ -97,6 +99,7 @@ export async function deleteUploadedFile(
     `${getBackendBaseURL()}/api/threads/${threadId}/uploads/${filename}`,
     {
       method: "DELETE",
+      credentials: "include",
     },
   );
 

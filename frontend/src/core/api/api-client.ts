@@ -9,6 +9,9 @@ import { sanitizeRunStreamOptions } from "./stream-mode";
 function createCompatibleClient(isMock?: boolean): LangGraphClient {
   const client = new LangGraphClient({
     apiUrl: getLangGraphBaseURL(isMock),
+    fetchOptions: {
+      credentials: "include",
+    },
   });
 
   const originalRunStream = client.runs.stream.bind(client.runs);

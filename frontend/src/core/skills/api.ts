@@ -3,7 +3,9 @@ import { getBackendBaseURL } from "@/core/config";
 import type { Skill } from "./type";
 
 export async function loadSkills() {
-  const skills = await fetch(`${getBackendBaseURL()}/api/skills`);
+  const skills = await fetch(`${getBackendBaseURL()}/api/skills`, {
+    credentials: "include",
+  });
   const json = await skills.json();
   return json.skills as Skill[];
 }
@@ -16,6 +18,7 @@ export async function enableSkill(skillName: string, enabled: boolean) {
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       body: JSON.stringify({
         enabled,
       }),
@@ -43,6 +46,7 @@ export async function installSkill(
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     body: JSON.stringify(request),
   });
 
