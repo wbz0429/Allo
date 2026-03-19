@@ -1,6 +1,12 @@
 import { getBackendBaseURL } from "@/core/config";
 
-import type { Agent, CreateAgentRequest, UpdateAgentRequest } from "./types";
+import type {
+  Agent,
+  AgentTemplate,
+  CreateAgentFromTemplateRequest,
+  CreateAgentRequest,
+  UpdateAgentRequest,
+} from "./types";
 
 export async function listAgents(): Promise<Agent[]> {
   const res = await fetch(`${getBackendBaseURL()}/api/agents`, {
@@ -72,4 +78,43 @@ export async function checkAgentName(
     );
   }
   return res.json() as Promise<{ available: boolean; name: string }>;
+}
+
+export async function listAgentTemplates(): Promise<AgentTemplate[]> {
+  const res = await fetch(`${getBackendBaseURL()}/api/agent-templates`, {
+    credentials: "include",
+  });
+  if (!res.ok)
+    throw new Error(`Failed to load templates: ${res.statusText}`);
+  const data = (await res.json()) as { templates: AgentTemplate[] };
+  return data.templates;
+}
+
+export async function getAgentTemplate(
+  templateId: string,
+): Promise<AgentTemplate> {
+  const res = await fetch(
+    `${getBackendBaseURL()}/api/agent-templates/${templateId}`,
+    { credentials: "include" },
+  );
+  if (!res.ok) throw new Error(`Template '${templateId}' not found`);
+  return res.json() as Promise<AgentTemplate>;
+}
+
+export async function createAgentFromTemplate(
+  request: CreateAgentFromTemplateRequest,
+): Promise<Agent> {
+  const res = await fetch(`${getBackendBaseURL()}/api/agents/from-template`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(request),
+  });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { detail?: string };
+    throw new Error(
+      err.detail ?? `Failed to create agent from template: ${res.statusText}`,
+    );
+  }
+  return res.json() as Promise<Agent>;
 }
