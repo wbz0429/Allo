@@ -8,10 +8,13 @@ from app.gateway.config import get_gateway_config
 from app.gateway.db.database import async_engine
 from app.gateway.db.models import Base
 from app.gateway.routers import (
+    admin,
     agents,
     artifacts,
     channels,
+    config,
     knowledge_bases,
+    marketplace,
     mcp,
     memory,
     models,
@@ -151,6 +154,14 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
                 "description": "Manage IM channel integrations (Feishu, Slack, Telegram)",
             },
             {
+                "name": "admin",
+                "description": "Platform and enterprise administration",
+            },
+            {
+                "name": "marketplace",
+                "description": "MCP tool and skill marketplace",
+            },
+            {
                 "name": "health",
                 "description": "Health check and system status endpoints",
             },
@@ -189,6 +200,15 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
 
     # Knowledge Bases API is mounted at /api/knowledge-bases
     app.include_router(knowledge_bases.router)
+
+    # Config API is mounted at /api/config
+    app.include_router(config.router)
+
+    # Admin API is mounted at /api/admin
+    app.include_router(admin.router)
+
+    # Marketplace API is mounted at /api/marketplace
+    app.include_router(marketplace.router)
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict:

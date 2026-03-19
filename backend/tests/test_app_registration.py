@@ -103,14 +103,20 @@ class TestRouteRegistration:
         paths = _get_route_paths(app)
         assert "/health" in paths
 
-    # BUG: config router not registered in app.py
-    # The config router exists at app.gateway.routers.config but is NOT
-    # included via app.include_router() in create_app().
-    @pytest.mark.xfail(reason="BUG: config router not registered in app.py", strict=True)
     def test_config_routes_registered(self):
         app = create_app()
         prefixes = _get_route_prefixes(app)
         assert "/api/config" in prefixes
+
+    def test_admin_routes_registered(self):
+        app = create_app()
+        prefixes = _get_route_prefixes(app)
+        assert "/api/admin" in prefixes
+
+    def test_marketplace_routes_registered(self):
+        app = create_app()
+        prefixes = _get_route_prefixes(app)
+        assert "/api/marketplace" in prefixes
 
 
 # ---------------------------------------------------------------------------
@@ -163,12 +169,8 @@ class TestRouterImports:
 
         assert hasattr(knowledge_bases, "router")
 
-    # BUG: admin router file was never created
-    @pytest.mark.xfail(reason="BUG: admin router file was never created", raises=ImportError, strict=True)
     def test_admin_router_importable(self):
         from app.gateway.routers import admin  # noqa: F401
 
-    # BUG: marketplace router file was never created
-    @pytest.mark.xfail(reason="BUG: marketplace router file was never created", raises=ImportError, strict=True)
     def test_marketplace_router_importable(self):
         from app.gateway.routers import marketplace  # noqa: F401
