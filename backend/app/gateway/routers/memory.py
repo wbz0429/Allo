@@ -1,10 +1,12 @@
 """Memory API router for retrieving and managing global memory data."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from deerflow.agents.memory.updater import get_memory_data, reload_memory_data
 from deerflow.config.memory_config import get_memory_config
+
+from app.gateway.auth import AuthContext, get_auth_context
 
 router = APIRouter(prefix="/api", tags=["memory"])
 
@@ -78,7 +80,7 @@ class MemoryStatusResponse(BaseModel):
     summary="Get Memory Data",
     description="Retrieve the current global memory data including user context, history, and facts.",
 )
-async def get_memory() -> MemoryResponse:
+async def get_memory(auth: AuthContext = Depends(get_auth_context)) -> MemoryResponse:
     """Get the current global memory data.
 
     Returns:
@@ -122,7 +124,7 @@ async def get_memory() -> MemoryResponse:
     summary="Reload Memory Data",
     description="Reload memory data from the storage file, refreshing the in-memory cache.",
 )
-async def reload_memory() -> MemoryResponse:
+async def reload_memory(auth: AuthContext = Depends(get_auth_context)) -> MemoryResponse:
     """Reload memory data from file.
 
     This forces a reload of the memory data from the storage file,
@@ -141,7 +143,7 @@ async def reload_memory() -> MemoryResponse:
     summary="Get Memory Configuration",
     description="Retrieve the current memory system configuration.",
 )
-async def get_memory_config_endpoint() -> MemoryConfigResponse:
+async def get_memory_config_endpoint(auth: AuthContext = Depends(get_auth_context)) -> MemoryConfigResponse:
     """Get the memory system configuration.
 
     Returns:
@@ -178,7 +180,7 @@ async def get_memory_config_endpoint() -> MemoryConfigResponse:
     summary="Get Memory Status",
     description="Retrieve both memory configuration and current data in a single request.",
 )
-async def get_memory_status() -> MemoryStatusResponse:
+async def get_memory_status(auth: AuthContext = Depends(get_auth_context)) -> MemoryStatusResponse:
     """Get the memory system status including configuration and data.
 
     Returns:
