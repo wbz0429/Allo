@@ -21,6 +21,14 @@ echo "Cleaning up sandbox containers with prefix: ${PREFIX}"
 # Function to clean up Docker containers
 cleanup_docker() {
     if command -v docker &> /dev/null; then
+        # Quick check: skip if Docker daemon is not running (avoids hanging on macOS)
+        docker info &> /dev/null &
+        local dpid=$!
+        ( sleep 3 && kill $dpid 2>/dev/null ) &
+        if ! wait $dpid 2>/dev/null; then
+            echo "Docker daemon not running, skipping..."
+            return
+        fi
         echo -n "Checking Docker containers... "
         DOCKER_CONTAINERS=$(docker ps -q --filter "name=${PREFIX}" 2>/dev/null || echo "")
 

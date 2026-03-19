@@ -165,11 +165,10 @@ async def test_get_auth_context_bearer_api_key_not_yet_supported() -> None:
 
     request = MagicMock()
     request.cookies = {}
-    request.headers = {"Authorization": "Bearer df-my-key", "X-API-Key": ""}
+    mock_headers = MagicMock()
+    mock_headers.get = lambda key, default="": {"Authorization": "Bearer df-my-key", "X-API-Key": ""}.get(key, default)
+    request.headers = mock_headers
     mock_db = AsyncMock()
-
-    # Ensure X-API-Key is falsy so it falls through to Authorization header
-    request.headers.get = lambda key, default="": {"Authorization": "Bearer df-my-key", "X-API-Key": ""}.get(key, default)
 
     with patch("app.gateway.auth.SKIP_AUTH", False):
         with pytest.raises(HTTPException) as exc_info:

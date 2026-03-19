@@ -22,13 +22,18 @@ class Organization(Base):
 
     __tablename__ = "organizations"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     members: Mapped[list["OrganizationMember"]] = relationship("OrganizationMember", back_populates="organization", cascade="all, delete-orphan")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        super().__init__(**kwargs)
 
     def __repr__(self) -> str:
         return f"<Organization(id={self.id!r}, name={self.name!r}, slug={self.slug!r})>"
@@ -42,10 +47,18 @@ class OrganizationMember(Base):
 
     __tablename__ = "organization_members"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
     org_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
     user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
-    role: Mapped[str] = mapped_column(String(50), nullable=False, default="member")
+    role: Mapped[str] = mapped_column(String(50), nullable=False, insert_default="member")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "role" not in kwargs:
+            kwargs["role"] = "member"
+        super().__init__(**kwargs)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     organization: Mapped["Organization"] = relationship("Organization", back_populates="members")
