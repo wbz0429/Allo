@@ -22,17 +22,15 @@ async def test_embed_texts_no_api_key_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_embed_texts_calls_openai_api() -> None:
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.raise_for_status = lambda: None
-    mock_response.json = MagicMock(
-        return_value={
-            "data": [
-                {"index": 0, "embedding": [0.1, 0.2, 0.3]},
-                {"index": 1, "embedding": [0.4, 0.5, 0.6]},
-            ]
-        }
-    )
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json.return_value = {
+        "data": [
+            {"index": 0, "embedding": [0.1, 0.2, 0.3]},
+            {"index": 1, "embedding": [0.4, 0.5, 0.6]},
+        ]
+    }
 
     mock_client = AsyncMock()
     mock_client.post.return_value = mock_response
@@ -52,17 +50,15 @@ async def test_embed_texts_calls_openai_api() -> None:
 
 @pytest.mark.asyncio
 async def test_embed_texts_sorts_by_index() -> None:
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.raise_for_status = lambda: None
-    mock_response.json = MagicMock(
-        return_value={
-            "data": [
-                {"index": 1, "embedding": [0.4, 0.5]},
-                {"index": 0, "embedding": [0.1, 0.2]},
-            ]
-        }
-    )
+    mock_response.raise_for_status = MagicMock()
+    mock_response.json.return_value = {
+        "data": [
+            {"index": 1, "embedding": [0.4, 0.5]},
+            {"index": 0, "embedding": [0.1, 0.2]},
+        ]
+    }
 
     mock_client = AsyncMock()
     mock_client.post.return_value = mock_response
