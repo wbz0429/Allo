@@ -98,7 +98,19 @@ SEED_SKILLS: list[dict] = [
         "name": "Deep Research",
         "description": "Conducts multi-step research by breaking complex questions into sub-queries, searching multiple sources, and synthesizing findings into a comprehensive report with citations.",
         "category": "research",
-        "skill_content": "# Deep Research Skill\n\nYou are a research assistant that performs deep, multi-step research.\n\n## Process\n1. Break the user's question into 3-5 sub-queries\n2. Search each sub-query using available tools\n3. Cross-reference findings across sources\n4. Synthesize a comprehensive answer with citations\n\n## Output Format\n- Executive summary (2-3 sentences)\n- Detailed findings with source links\n- Confidence assessment\n",
+        "skill_content": (
+            "# Deep Research Skill\n\n"
+            "You are a research assistant that performs deep, multi-step research.\n\n"
+            "## Process\n"
+            "1. Break the user's question into 3-5 sub-queries\n"
+            "2. Search each sub-query using available tools\n"
+            "3. Cross-reference findings across sources\n"
+            "4. Synthesize a comprehensive answer with citations\n\n"
+            "## Output Format\n"
+            "- Executive summary (2-3 sentences)\n"
+            "- Detailed findings with source links\n"
+            "- Confidence assessment\n"
+        ),
         "is_public": True,
     },
     {
@@ -106,7 +118,20 @@ SEED_SKILLS: list[dict] = [
         "name": "Code Review",
         "description": "Performs thorough code review with focus on security vulnerabilities, performance bottlenecks, code style consistency, and best practices. Provides actionable suggestions with code examples.",
         "category": "coding",
-        "skill_content": "# Code Review Skill\n\nYou are a senior code reviewer.\n\n## Review Checklist\n1. Security: injection, auth, data exposure\n2. Performance: N+1 queries, unnecessary allocations, caching\n3. Correctness: edge cases, error handling, race conditions\n4. Style: naming, structure, documentation\n\n## Output Format\n- Severity: critical / warning / suggestion\n- File and line reference\n- Problem description\n- Suggested fix with code snippet\n",
+        "skill_content": (
+            "# Code Review Skill\n\n"
+            "You are a senior code reviewer.\n\n"
+            "## Review Checklist\n"
+            "1. Security: injection, auth, data exposure\n"
+            "2. Performance: N+1 queries, unnecessary allocations, caching\n"
+            "3. Correctness: edge cases, error handling, race conditions\n"
+            "4. Style: naming, structure, documentation\n\n"
+            "## Output Format\n"
+            "- Severity: critical / warning / suggestion\n"
+            "- File and line reference\n"
+            "- Problem description\n"
+            "- Suggested fix with code snippet\n"
+        ),
         "is_public": True,
     },
     {
@@ -114,7 +139,21 @@ SEED_SKILLS: list[dict] = [
         "name": "Data Analysis",
         "description": "Analyzes datasets by generating Python code for statistical analysis, visualization, and insight extraction. Supports CSV, JSON, and SQL data sources with pandas and matplotlib.",
         "category": "data",
-        "skill_content": "# Data Analysis Skill\n\nYou are a data analyst that writes Python code to analyze data.\n\n## Capabilities\n- Load data from CSV, JSON, or SQL\n- Statistical summaries and distributions\n- Correlation analysis\n- Time series analysis\n- Generate matplotlib/seaborn visualizations\n\n## Process\n1. Understand the data schema\n2. Ask clarifying questions if needed\n3. Write analysis code in a sandbox\n4. Present findings with charts\n",
+        "skill_content": (
+            "# Data Analysis Skill\n\n"
+            "You are a data analyst that writes Python code to analyze data.\n\n"
+            "## Capabilities\n"
+            "- Load data from CSV, JSON, or SQL\n"
+            "- Statistical summaries and distributions\n"
+            "- Correlation analysis\n"
+            "- Time series analysis\n"
+            "- Generate matplotlib/seaborn visualizations\n\n"
+            "## Process\n"
+            "1. Understand the data schema\n"
+            "2. Ask clarifying questions if needed\n"
+            "3. Write analysis code in a sandbox\n"
+            "4. Present findings with charts\n"
+        ),
         "is_public": True,
     },
 ]

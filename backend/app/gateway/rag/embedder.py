@@ -3,7 +3,6 @@
 Calls the OpenAI embeddings endpoint directly via httpx (no langchain dependency).
 """
 
-import json
 import logging
 import os
 
@@ -48,8 +47,8 @@ async def embed_texts(texts: list[str], model: str = "text-embedding-3-small") -
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(url, headers=headers, json=payload)
         response.raise_for_status()
+        data = response.json()
 
-    data = response.json()
     # Sort by index to ensure correct ordering
     embeddings_data = sorted(data["data"], key=lambda x: x["index"])
     return [item["embedding"] for item in embeddings_data]

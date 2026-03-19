@@ -1,10 +1,8 @@
 """Tests for the database models: Organization and OrganizationMember."""
 
 import uuid
-from datetime import datetime, timezone
 
 from app.gateway.db.models import Base, Organization, OrganizationMember
-
 
 # ---------------------------------------------------------------------------
 # Organization model tests

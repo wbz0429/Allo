@@ -5,8 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.gateway.auth import AuthContext, get_auth_context, get_optional_auth_context
-
+from app.gateway.auth import AuthContext, get_auth_context
 
 # ---------------------------------------------------------------------------
 # Helper: check that a router function has an auth parameter with the right default

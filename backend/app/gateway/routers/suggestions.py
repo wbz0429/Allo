@@ -4,9 +4,8 @@ import logging
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from deerflow.models import create_chat_model
-
 from app.gateway.auth import AuthContext, get_auth_context
+from deerflow.models import create_chat_model
 
 logger = logging.getLogger(__name__)
 

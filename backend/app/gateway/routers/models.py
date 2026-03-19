@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from deerflow.config import get_app_config
-
 from app.gateway.auth import AuthContext, get_auth_context
+from deerflow.config import get_app_config
 
 router = APIRouter(prefix="/api", tags=["models"])
 

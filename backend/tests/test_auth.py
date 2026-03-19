@@ -4,8 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.gateway.auth import AuthContext, _DEV_ORG_ID, _DEV_ROLE, _DEV_USER_ID, _resolve_session_from_db, get_auth_context, get_optional_auth_context
-
+from app.gateway.auth import _DEV_ORG_ID, _DEV_ROLE, _DEV_USER_ID, AuthContext, _resolve_session_from_db, get_auth_context, get_optional_auth_context
 
 # ---------------------------------------------------------------------------
 # AuthContext model tests

@@ -7,9 +7,8 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 
-from app.gateway.path_utils import resolve_thread_virtual_path
-
 from app.gateway.auth import AuthContext, get_auth_context
+from app.gateway.path_utils import resolve_thread_virtual_path
 
 logger = logging.getLogger(__name__)
 

@@ -5,8 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.gateway.middleware.rate_limiter import TokenBucket, RateLimiterMiddleware
-
+from app.gateway.middleware.rate_limiter import RateLimiterMiddleware, TokenBucket
 
 # ---------------------------------------------------------------------------
 # TokenBucket unit tests
@@ -89,7 +88,7 @@ class TestRateLimiterMiddleware:
         request = self._make_request(path="/health")
         call_next = AsyncMock(return_value=MagicMock(status_code=200))
 
-        response = await mw.dispatch(request, call_next)
+        await mw.dispatch(request, call_next)
         call_next.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -99,7 +98,7 @@ class TestRateLimiterMiddleware:
         request = self._make_request(path="/docs")
         call_next = AsyncMock(return_value=MagicMock(status_code=200))
 
-        response = await mw.dispatch(request, call_next)
+        await mw.dispatch(request, call_next)
         call_next.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -109,7 +108,7 @@ class TestRateLimiterMiddleware:
         request = self._make_request(org_id=None)
         call_next = AsyncMock(return_value=MagicMock(status_code=200))
 
-        response = await mw.dispatch(request, call_next)
+        await mw.dispatch(request, call_next)
         call_next.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -119,7 +118,7 @@ class TestRateLimiterMiddleware:
         request = self._make_request()
         call_next = AsyncMock(return_value=MagicMock(status_code=200))
 
-        response = await mw.dispatch(request, call_next)
+        await mw.dispatch(request, call_next)
         call_next.assert_awaited_once()
 
     @pytest.mark.asyncio

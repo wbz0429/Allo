@@ -6,7 +6,6 @@ import pytest
 
 from app.gateway.middleware.usage_tracking import UsageTrackingMiddleware, set_request_auth_state
 
-
 # ---------------------------------------------------------------------------
 # set_request_auth_state
 # ---------------------------------------------------------------------------
@@ -44,7 +43,7 @@ class TestUsageTrackingMiddleware:
         request = self._make_request(path="/health")
         call_next = AsyncMock(return_value=MagicMock(status_code=200))
 
-        response = await mw.dispatch(request, call_next)
+        await mw.dispatch(request, call_next)
         call_next.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -54,7 +53,7 @@ class TestUsageTrackingMiddleware:
         request = self._make_request(path="/docs")
         call_next = AsyncMock(return_value=MagicMock(status_code=200))
 
-        response = await mw.dispatch(request, call_next)
+        await mw.dispatch(request, call_next)
         call_next.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -65,7 +64,7 @@ class TestUsageTrackingMiddleware:
         call_next = AsyncMock(return_value=MagicMock(status_code=200))
 
         with patch("app.gateway.middleware.usage_tracking.async_session_factory") as mock_factory:
-            response = await mw.dispatch(request, call_next)
+            await mw.dispatch(request, call_next)
             mock_factory.assert_not_called()
 
     @pytest.mark.asyncio
@@ -81,7 +80,7 @@ class TestUsageTrackingMiddleware:
         mock_ctx.__aexit__ = AsyncMock(return_value=False)
 
         with patch("app.gateway.middleware.usage_tracking.async_session_factory", return_value=mock_ctx):
-            response = await mw.dispatch(request, call_next)
+            await mw.dispatch(request, call_next)
 
         mock_session.add.assert_called_once()
         mock_session.commit.assert_awaited_once()

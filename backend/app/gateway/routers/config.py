@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.gateway.auth import AuthContext, get_auth_context
 from app.gateway.db.database import get_db_session
 from app.gateway.db.models import TenantConfig
-
 from deerflow.config.app_config import get_app_config
 
 logger = logging.getLogger(__name__)

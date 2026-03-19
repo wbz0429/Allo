@@ -3,10 +3,9 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from app.gateway.auth import AuthContext, get_auth_context
 from deerflow.agents.memory.updater import get_memory_data, reload_memory_data
 from deerflow.config.memory_config import get_memory_config
-
-from app.gateway.auth import AuthContext, get_auth_context
 
 router = APIRouter(prefix="/api", tags=["memory"])
 

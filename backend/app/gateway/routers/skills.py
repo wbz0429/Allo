@@ -9,13 +9,12 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.gateway.auth import AuthContext, get_auth_context
 from app.gateway.path_utils import resolve_thread_virtual_path
 from deerflow.config.extensions_config import ExtensionsConfig, SkillStateConfig, get_extensions_config, reload_extensions_config
 from deerflow.skills import Skill, load_skills
 from deerflow.skills.loader import get_skills_root_path
 from deerflow.skills.validation import _validate_skill_frontmatter
-
-from app.gateway.auth import AuthContext, get_auth_context
 
 logger = logging.getLogger(__name__)
 

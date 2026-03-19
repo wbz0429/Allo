@@ -6,9 +6,8 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from deerflow.config.extensions_config import ExtensionsConfig, get_extensions_config, reload_extensions_config
-
 from app.gateway.auth import AuthContext, get_auth_context
+from deerflow.config.extensions_config import ExtensionsConfig, get_extensions_config, reload_extensions_config
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["mcp"])

@@ -2,8 +2,7 @@
 
 import pytest
 
-from app.gateway.rag.chunker import chunk_markdown, _split_by_headers, _split_by_size
-
+from app.gateway.rag.chunker import _split_by_headers, _split_by_size, chunk_markdown
 
 # ---------------------------------------------------------------------------
 # chunk_markdown — basic behavior
