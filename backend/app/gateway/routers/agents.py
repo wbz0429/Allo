@@ -1,8 +1,9 @@
-"""CRUD API for custom agents."""
+"""CRUD API for custom agents and agent templates."""
 
 import logging
 import re
 import shutil
+from pathlib import Path
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,6 +13,7 @@ from deerflow.config.agents_config import AgentConfig, list_custom_agents, load_
 from deerflow.config.paths import get_paths
 
 from app.gateway.auth import AuthContext, get_auth_context
+from app.gateway.templates import AGENT_TEMPLATES, AGENT_TEMPLATES_BY_ID
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["agents"])
