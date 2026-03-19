@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from deerflow.config import get_app_config
+
+from app.gateway.auth import AuthContext, get_auth_context
 
 router = APIRouter(prefix="/api", tags=["models"])
 
@@ -28,7 +30,7 @@ class ModelsListResponse(BaseModel):
     summary="List All Models",
     description="Retrieve a list of all available AI models configured in the system.",
 )
-async def list_models() -> ModelsListResponse:
+async def list_models(auth: AuthContext = Depends(get_auth_context)) -> ModelsListResponse:
     """List all available models from configuration.
 
     Returns model information suitable for frontend display,
@@ -77,7 +79,7 @@ async def list_models() -> ModelsListResponse:
     summary="Get Model Details",
     description="Retrieve detailed information about a specific AI model by its name.",
 )
-async def get_model(model_name: str) -> ModelResponse:
+async def get_model(model_name: str, auth: AuthContext = Depends(get_auth_context)) -> ModelResponse:
     """Get a specific model by name.
 
     Args:

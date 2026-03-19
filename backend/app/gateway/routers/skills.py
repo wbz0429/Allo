@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.gateway.path_utils import resolve_thread_virtual_path
@@ -14,6 +14,8 @@ from deerflow.config.extensions_config import ExtensionsConfig, SkillStateConfig
 from deerflow.skills import Skill, load_skills
 from deerflow.skills.loader import get_skills_root_path
 from deerflow.skills.validation import _validate_skill_frontmatter
+
+from app.gateway.auth import AuthContext, get_auth_context
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +158,7 @@ def _skill_to_response(skill: Skill) -> SkillResponse:
     summary="List All Skills",
     description="Retrieve a list of all available skills from both public and custom directories.",
 )
-async def list_skills() -> SkillsListResponse:
+async def list_skills(auth: AuthContext = Depends(get_auth_context)) -> SkillsListResponse:
     """List all available skills.
 
     Returns all skills regardless of their enabled status.
@@ -201,7 +203,7 @@ async def list_skills() -> SkillsListResponse:
     summary="Get Skill Details",
     description="Retrieve detailed information about a specific skill by its name.",
 )
-async def get_skill(skill_name: str) -> SkillResponse:
+async def get_skill(skill_name: str, auth: AuthContext = Depends(get_auth_context)) -> SkillResponse:
     """Get a specific skill by name.
 
     Args:
@@ -245,7 +247,7 @@ async def get_skill(skill_name: str) -> SkillResponse:
     summary="Update Skill",
     description="Update a skill's enabled status by modifying the extensions_config.json file.",
 )
-async def update_skill(skill_name: str, request: SkillUpdateRequest) -> SkillResponse:
+async def update_skill(skill_name: str, request: SkillUpdateRequest, auth: AuthContext = Depends(get_auth_context)) -> SkillResponse:
     """Update a skill's enabled status.
 
     This will modify the extensions_config.json file to update the enabled state.
@@ -338,7 +340,7 @@ async def update_skill(skill_name: str, request: SkillUpdateRequest) -> SkillRes
     summary="Install Skill",
     description="Install a skill from a .skill file (ZIP archive) located in the thread's user-data directory.",
 )
-async def install_skill(request: SkillInstallRequest) -> SkillInstallResponse:
+async def install_skill(request: SkillInstallRequest, auth: AuthContext = Depends(get_auth_context)) -> SkillInstallResponse:
     """Install a skill from a .skill file.
 
     The .skill file is a ZIP archive containing a skill directory with SKILL.md
