@@ -4,12 +4,17 @@ Sets up sys.path and pre-mocks modules that would cause circular import
 issues when unit-testing lightweight config/registry code in isolation.
 """
 
+import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
 # Make 'app' and 'deerflow' importable from any working directory
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# SKIP_AUTH must be set BEFORE any app modules are imported, because
+# app.gateway.auth reads os.getenv("SKIP_AUTH") at module load time.
+os.environ["SKIP_AUTH"] = "1"
 
 # Break the circular import chain that exists in production code:
 #   deerflow.subagents.__init__
