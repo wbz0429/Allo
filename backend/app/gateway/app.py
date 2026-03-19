@@ -11,6 +11,7 @@ from app.gateway.routers import (
     agents,
     artifacts,
     channels,
+    knowledge_bases,
     mcp,
     memory,
     models,
@@ -185,6 +186,9 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
 
     # Channels API is mounted at /api/channels
     app.include_router(channels.router)
+
+    # Knowledge Bases API is mounted at /api/knowledge-bases
+    app.include_router(knowledge_bases.router)
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict:

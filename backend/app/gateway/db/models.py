@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -98,3 +98,109 @@ class TenantConfig(Base):
 
     def __repr__(self) -> str:
         return f"<TenantConfig(id={self.id!r}, org_id={self.org_id!r})>"
+
+
+class KnowledgeBase(Base):
+    """Knowledge base for RAG document storage and retrieval.
+
+    Each knowledge base belongs to an organization and holds documents
+    that are chunked and embedded for semantic search.
+    """
+
+    __tablename__ = "knowledge_bases"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    org_id: Mapped[str] = mapped_column(String(36), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
+    chunk_size: Mapped[int] = mapped_column(Integer, nullable=False, insert_default=500)
+    chunk_overlap: Mapped[int] = mapped_column(Integer, nullable=False, insert_default=50)
+    embedding_model: Mapped[str] = mapped_column(String(255), nullable=False, insert_default="text-embedding-3-small")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    organization: Mapped["Organization"] = relationship("Organization")
+    documents: Mapped[list["KnowledgeDocument"]] = relationship("KnowledgeDocument", back_populates="knowledge_base", cascade="all, delete-orphan")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "description" not in kwargs:
+            kwargs["description"] = ""
+        if "chunk_size" not in kwargs:
+            kwargs["chunk_size"] = 500
+        if "chunk_overlap" not in kwargs:
+            kwargs["chunk_overlap"] = 50
+        if "embedding_model" not in kwargs:
+            kwargs["embedding_model"] = "text-embedding-3-small"
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<KnowledgeBase(id={self.id!r}, name={self.name!r}, org_id={self.org_id!r})>"
+
+
+class KnowledgeDocument(Base):
+    """A document uploaded to a knowledge base.
+
+    Stores the original filename, converted markdown content, and processing status.
+    """
+
+    __tablename__ = "knowledge_documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    kb_id: Mapped[str] = mapped_column(String(36), ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False, index=True)
+    filename: Mapped[str] = mapped_column(String(512), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_md: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, insert_default=0)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, insert_default="processing")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    knowledge_base: Mapped["KnowledgeBase"] = relationship("KnowledgeBase", back_populates="documents")
+    chunks: Mapped[list["KnowledgeChunk"]] = relationship("KnowledgeChunk", back_populates="document", cascade="all, delete-orphan")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "content_md" not in kwargs:
+            kwargs["content_md"] = ""
+        if "chunk_count" not in kwargs:
+            kwargs["chunk_count"] = 0
+        if "status" not in kwargs:
+            kwargs["status"] = "processing"
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<KnowledgeDocument(id={self.id!r}, filename={self.filename!r}, status={self.status!r})>"
+
+
+class KnowledgeChunk(Base):
+    """A text chunk from a knowledge document with its embedding vector.
+
+    Embeddings are stored as JSON text (list of floats) for simplicity.
+    Cosine similarity search is performed in Python.
+    """
+
+    __tablename__ = "knowledge_chunks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    doc_id: Mapped[str] = mapped_column(String(36), ForeignKey("knowledge_documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    kb_id: Mapped[str] = mapped_column(String(36), ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    embedding: Mapped[str] = mapped_column(Text, nullable=False, insert_default="[]")
+    metadata_json: Mapped[str] = mapped_column(Text, nullable=False, insert_default="{}")
+
+    document: Mapped["KnowledgeDocument"] = relationship("KnowledgeDocument", back_populates="chunks")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "embedding" not in kwargs:
+            kwargs["embedding"] = "[]"
+        if "metadata_json" not in kwargs:
+            kwargs["metadata_json"] = "{}"
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<KnowledgeChunk(id={self.id!r}, doc_id={self.doc_id!r}, chunk_index={self.chunk_index!r})>"
