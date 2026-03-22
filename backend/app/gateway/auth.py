@@ -6,6 +6,7 @@ with support for SKIP_AUTH=1 dev mode for backward compatibility.
 
 import logging
 import os
+from collections.abc import Awaitable
 
 from fastapi import Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -48,6 +49,26 @@ class AuthContext(BaseModel):
     role: str  # "admin" | "member"
 
 
+async def _get_first_row(result: object) -> object:
+    """Return ``result.first()`` while tolerating AsyncMock-based test doubles."""
+    first_result = result.first()
+    if isinstance(first_result, Awaitable):
+        return await first_result
+    return first_result
+
+
+def _get_row_value(row: object, index: int) -> str | None:
+    """Extract a string column from a DB row or return None for test doubles/invalid rows."""
+    if not isinstance(row, (tuple, list)):
+        return None
+    if index >= len(row):
+        return None
+    value = row[index]
+    if not isinstance(value, str):
+        return None
+    return value
+
+
 async def _resolve_session_from_db(session_token: str, db: AsyncSession) -> AuthContext | None:
     """Look up a Better Auth session token in the database.
 
@@ -62,10 +83,43 @@ async def _resolve_session_from_db(session_token: str, db: AsyncSession) -> Auth
     """
     query = text('SELECT s."userId", om.org_id, om.role FROM session s JOIN organization_members om ON om.user_id = s."userId" WHERE s.token = :token AND s."expiresAt" > now() LIMIT 1')
     result = await db.execute(query, {"token": session_token})
-    row = result.first()
+    row = await _get_first_row(result)
     if row is None:
         return None
-    return AuthContext(user_id=row[0], org_id=row[1], role=row[2])
+    user_id = _get_row_value(row, 0)
+    org_id = _get_row_value(row, 1)
+    role = _get_row_value(row, 2)
+    if user_id is None or org_id is None or role is None:
+        return None
+    return AuthContext(user_id=user_id, org_id=org_id, role=role)
+
+
+async def _resolve_dev_session_fallback(session_token: str, db: AsyncSession) -> AuthContext | None:
+    """Restore a dev auth context from a valid Better Auth session without org membership.
+
+    This fallback is limited to local development/test environments so the frontend
+    register/login flow can proceed before org membership seeding is in place.
+
+    Args:
+        session_token: The session token value from the cookie.
+        db: An async database session.
+
+    Returns:
+        AuthContext when the session exists in Better Auth's session table, else None.
+    """
+    if _env not in ("development", "dev", "test"):
+        return None
+
+    query = text('SELECT s."userId" FROM session s WHERE s.token = :token AND s."expiresAt" > now() LIMIT 1')
+    result = await db.execute(query, {"token": session_token})
+    row = await _get_first_row(result)
+    if row is None:
+        return None
+    user_id = _get_row_value(row, 0)
+    if user_id is None:
+        return None
+
+    return AuthContext(user_id=user_id, org_id=_DEV_ORG_ID, role=_DEV_ROLE)
 
 
 async def get_auth_context(request: Request, db: AsyncSession = Depends(get_db_session)) -> AuthContext:
@@ -95,6 +149,8 @@ async def get_auth_context(request: Request, db: AsyncSession = Depends(get_db_s
     session_token = request.cookies.get("better-auth.session_token")
     if session_token:
         ctx = await _resolve_session_from_db(session_token, db)
+        if ctx is None:
+            ctx = await _resolve_dev_session_fallback(session_token, db)
         if ctx is not None:
             _stamp_request_state(request, ctx)
             return ctx
@@ -138,6 +194,9 @@ async def get_optional_auth_context(request: Request, db: AsyncSession = Depends
 
     session_token = request.cookies.get("better-auth.session_token")
     if session_token:
-        return await _resolve_session_from_db(session_token, db)
+        ctx = await _resolve_session_from_db(session_token, db)
+        if ctx is None:
+            ctx = await _resolve_dev_session_fallback(session_token, db)
+        return ctx
 
     return None
