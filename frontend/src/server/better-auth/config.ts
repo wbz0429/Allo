@@ -1,6 +1,8 @@
+import path from "path";
+
 import { betterAuth } from "better-auth";
 import Database from "better-sqlite3";
-import path from "path";
+import type { Pool as PgPool } from "pg";
 
 const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:2026";
 
@@ -11,7 +13,7 @@ function getDatabase() {
   if (process.env.DATABASE_URL) {
     // PostgreSQL via pg Pool
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { Pool } = require("pg") as typeof import("pg");
+    const { Pool } = require("pg") as { Pool: typeof PgPool };
     return new Pool({ connectionString: process.env.DATABASE_URL });
   }
   // SQLite for local development
