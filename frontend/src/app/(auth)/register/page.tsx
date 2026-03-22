@@ -21,7 +21,6 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [orgName, setOrgName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -40,27 +39,6 @@ export default function RegisterPage() {
       if (result.error) {
         setError(result.error.message ?? "Registration failed");
         return;
-      }
-
-      // Store org name for backend to create the organization
-      // The org creation will be handled by a post-signup hook or separate API call
-      if (orgName) {
-        try {
-          const orgRes = await fetch("/api/auth/create-org", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ name: orgName }),
-          });
-          if (!orgRes.ok) {
-            const msg = await orgRes.text().catch(() => "Unknown error");
-            setError(`Account created but organization setup failed: ${msg}. Please contact support.`);
-            return;
-          }
-        } catch {
-          setError("Account created but organization setup failed. Please contact support.");
-          return;
-        }
       }
 
       router.push("/workspace");
@@ -125,20 +103,6 @@ export default function RegisterPage() {
               required
               minLength={8}
               autoComplete="new-password"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="orgName" className="text-sm font-medium">
-              Organization name
-            </label>
-            <Input
-              id="orgName"
-              type="text"
-              placeholder="Your company or team"
-              value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
-              required
-              autoComplete="organization"
             />
           </div>
         </CardContent>
