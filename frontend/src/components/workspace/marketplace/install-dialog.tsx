@@ -12,7 +12,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
 import type { McpConfigField, MarketplaceTool } from "@/core/marketplace/types";
 
 interface InstallDialogProps {
@@ -38,7 +37,7 @@ function parseConfigFields(mcpConfigJson: string): McpConfigField[] {
         ? ("password" as const)
         : ("text" as const),
       required: true,
-      placeholder: env[key] || `Enter ${key}`,
+      placeholder: env[key] ?? `Enter ${key}`,
     }));
   } catch {
     return [];

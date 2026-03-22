@@ -270,6 +270,12 @@ async def upload_document(
     filename = file.filename or "untitled"
     content_type = file.content_type or "application/octet-stream"
 
+    # Enforce file size limit (50 MB)
+    max_size = 50 * 1024 * 1024
+    file_bytes = await file.read()
+    if len(file_bytes) > max_size:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size // (1024 * 1024)} MB")
+
     # Create document record in "processing" state
     doc = KnowledgeDocument(
         kb_id=kb.id,
@@ -281,9 +287,6 @@ async def upload_document(
     await db.refresh(doc)
 
     try:
-        # Read file content
-        file_bytes = await file.read()
-
         # Convert to markdown based on file type
         markdown_content = await _convert_to_markdown(filename, file_bytes)
 
@@ -333,8 +336,8 @@ async def upload_document(
     except Exception as e:
         doc.status = "error"
         await db.commit()
-        logger.error(f"Failed to process document '{filename}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
+        logger.error("Failed to process document '%s': %s", filename, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to process document. Please try again or use a different file format.")
 
 
 @router.get("/knowledge-bases/{kb_id}/documents", response_model=list[KnowledgeDocumentResponse], summary="List Documents")

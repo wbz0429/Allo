@@ -1,9 +1,9 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import type { OrgSummary } from "@/core/admin/types";
 import { cn } from "@/lib/utils";
 
-import type { OrgSummary } from "@/core/admin/types";
 
 interface OrgTableProps {
   organizations: OrgSummary[];

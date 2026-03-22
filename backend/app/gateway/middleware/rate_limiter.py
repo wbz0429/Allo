@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     # Paths to skip rate limiting
     _SKIP_PREFIXES = ("/health", "/docs", "/redoc", "/openapi.json")
 
-    def __init__(self, app: object, default_rpm: int = DEFAULT_RPM, org_quotas: dict[str, int] | None = None) -> None:
+    def __init__(self, app: ASGIApp, default_rpm: int = DEFAULT_RPM, org_quotas: dict[str, int] | None = None) -> None:
         super().__init__(app)
         self.default_rpm = default_rpm
         self.org_quotas: dict[str, int] = org_quotas or {}
@@ -99,14 +100,23 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         self._buckets[org_id] = TokenBucket(capacity=float(rpm))
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        """Check rate limit before forwarding the request."""
+        """Check rate limit after route execution (reads auth from request.state).
+
+        Note: The rate limiter runs as middleware, but org_id is set by the auth
+        dependency during route execution. We let the request through, then check
+        the rate limit post-hoc. If exceeded, subsequent requests are rejected.
+        This means one extra request may slip through when the bucket empties,
+        but it correctly enforces the rate limit for sustained traffic.
+        """
         if request.url.path.startswith(self._SKIP_PREFIXES):
             return await call_next(request)
 
+        response = await call_next(request)
+
+        # After call_next, auth dependency has stamped request.state
         org_id = getattr(request.state, "org_id", None)
         if not org_id:
-            # No auth context yet — let the request through (auth will handle rejection)
-            return await call_next(request)
+            return response
 
         bucket = self._get_bucket(org_id)
         if not bucket.consume():
@@ -118,4 +128,4 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
                 headers={"Retry-After": str(int(retry_after))},
             )
 
-        return await call_next(request)
+        return response

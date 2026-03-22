@@ -46,14 +46,20 @@ export default function RegisterPage() {
       // The org creation will be handled by a post-signup hook or separate API call
       if (orgName) {
         try {
-          await fetch("/api/auth/create-org", {
+          const orgRes = await fetch("/api/auth/create-org", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
             body: JSON.stringify({ name: orgName }),
           });
+          if (!orgRes.ok) {
+            const msg = await orgRes.text().catch(() => "Unknown error");
+            setError(`Account created but organization setup failed: ${msg}. Please contact support.`);
+            return;
+          }
         } catch {
-          // Org creation failure is non-blocking for signup
+          setError("Account created but organization setup failed. Please contact support.");
+          return;
         }
       }
 

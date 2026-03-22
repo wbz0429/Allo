@@ -22,9 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { OrgMember } from "@/core/org/types";
 import { cn } from "@/lib/utils";
 
-import type { OrgMember } from "@/core/org/types";
 
 interface MemberTableProps {
   members: OrgMember[];

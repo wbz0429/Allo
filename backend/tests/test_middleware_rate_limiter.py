@@ -136,7 +136,8 @@ class TestRateLimiterMiddleware:
         response = await mw.dispatch(request, call_next)
 
         assert response.status_code == 429
-        call_next.assert_not_awaited()
+        # Post-hoc rate limiter: call_next IS awaited, but response is replaced with 429
+        call_next.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_rate_limit_429_has_retry_after_header(self) -> None:

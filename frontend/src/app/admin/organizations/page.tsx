@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { OrgTable } from "@/components/admin/org-table";
 import {
   Card,
   CardContent,
@@ -11,7 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { OrgTable } from "@/components/admin/org-table";
 import { listOrganizations } from "@/core/admin/api";
 import type { OrgSummary } from "@/core/admin/types";
 

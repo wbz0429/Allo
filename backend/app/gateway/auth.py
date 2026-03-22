@@ -16,7 +16,17 @@ from app.gateway.db.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
-SKIP_AUTH = os.getenv("SKIP_AUTH", "0") == "1"
+_env = os.getenv("ENV", os.getenv("NODE_ENV", "development")).lower()
+_skip_auth_raw = os.getenv("SKIP_AUTH", "0") == "1"
+
+if _skip_auth_raw and _env not in ("development", "dev", "test"):
+    logger.critical("SKIP_AUTH=1 is set but ENV=%s — refusing to skip auth outside development. Set ENV=development to enable.", _env)
+    SKIP_AUTH = False
+else:
+    SKIP_AUTH = _skip_auth_raw
+
+if SKIP_AUTH:
+    logger.warning("SKIP_AUTH=1 is active — all requests will use dev context. Do NOT use in production.")
 
 # Default dev context used when SKIP_AUTH=1
 _DEV_USER_ID = "dev-user-000"
@@ -77,13 +87,16 @@ async def get_auth_context(request: Request, db: AsyncSession = Depends(get_db_s
         HTTPException: 401 if no valid credentials are found.
     """
     if SKIP_AUTH:
-        return AuthContext(user_id=_DEV_USER_ID, org_id=_DEV_ORG_ID, role=_DEV_ROLE)
+        ctx = AuthContext(user_id=_DEV_USER_ID, org_id=_DEV_ORG_ID, role=_DEV_ROLE)
+        _stamp_request_state(request, ctx)
+        return ctx
 
     # 1. Try session cookie
     session_token = request.cookies.get("better-auth.session_token")
     if session_token:
         ctx = await _resolve_session_from_db(session_token, db)
         if ctx is not None:
+            _stamp_request_state(request, ctx)
             return ctx
         raise HTTPException(status_code=401, detail="Invalid or expired session")
 
@@ -100,6 +113,12 @@ async def get_auth_context(request: Request, db: AsyncSession = Depends(get_db_s
         raise HTTPException(status_code=401, detail="API key authentication not yet supported")
 
     raise HTTPException(status_code=401, detail="Authentication required")
+
+
+def _stamp_request_state(request: Request, ctx: AuthContext) -> None:
+    """Stamp auth info onto request.state for middleware (usage tracking, rate limiter)."""
+    request.state.user_id = ctx.user_id
+    request.state.org_id = ctx.org_id
 
 
 async def get_optional_auth_context(request: Request, db: AsyncSession = Depends(get_db_session)) -> AuthContext | None:

@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
 
 import { cn } from "@/lib/utils";
-
-const queryClient = new QueryClient();
+import { authClient } from "@/server/better-auth/client";
 
 const navItems = [
   { href: "/admin", label: "Dashboard" },
@@ -19,6 +19,27 @@ export default function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [queryClient] = useState(() => new QueryClient());
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    void authClient.getSession().then((res) => {
+      if (!res.data?.session) {
+        router.replace("/login?callbackUrl=" + encodeURIComponent(pathname));
+      } else {
+        setAuthorized(true);
+      }
+    });
+  }, [pathname, router]);
+
+  if (!authorized) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted-foreground">Checking access...</p>
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -1,6 +1,7 @@
 """Platform and enterprise administration API."""
 
 import logging
+import os
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -46,6 +47,22 @@ class AddMemberRequest(BaseModel):
     role: str = "member"
 
 
+# ---------------------------------------------------------------------------
+# Platform admin IDs — in production, use a DB table or env var list.
+# Override via PLATFORM_ADMIN_IDS env var (comma-separated user IDs).
+# ---------------------------------------------------------------------------
+
+_PLATFORM_ADMIN_IDS: set[str] | None = None
+
+
+def _get_platform_admin_ids() -> set[str]:
+    global _PLATFORM_ADMIN_IDS
+    if _PLATFORM_ADMIN_IDS is None:
+        raw = os.getenv("PLATFORM_ADMIN_IDS", "")
+        _PLATFORM_ADMIN_IDS = {uid.strip() for uid in raw.split(",") if uid.strip()} if raw else set()
+    return _PLATFORM_ADMIN_IDS
+
+
 class UsageStatsResponse(BaseModel):
     """Aggregated usage statistics."""
 
@@ -61,9 +78,27 @@ class UsageStatsResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _require_admin(auth: AuthContext) -> None:
-    """Raise 403 if the authenticated user is not an admin."""
+def _require_org_admin(auth: AuthContext) -> None:
+    """Raise 403 if the authenticated user is not an org admin."""
     if auth.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+def _require_platform_admin(auth: AuthContext) -> None:
+    """Raise 403 if the authenticated user is not a platform admin.
+
+    Platform admins are identified by PLATFORM_ADMIN_IDS env var.
+    In SKIP_AUTH dev mode, the dev user is always a platform admin.
+    """
+    from app.gateway.auth import SKIP_AUTH
+
+    if SKIP_AUTH:
+        return  # dev mode — allow all
+    platform_ids = _get_platform_admin_ids()
+    if platform_ids and auth.user_id not in platform_ids:
+        raise HTTPException(status_code=403, detail="Platform admin access required")
+    # If PLATFORM_ADMIN_IDS is not configured, fall back to org admin check
+    if not platform_ids and auth.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
@@ -78,7 +113,7 @@ async def list_organizations(
     db: AsyncSession = Depends(get_db_session),
 ) -> list[OrgResponse]:
     """List all organizations (platform admin only)."""
-    _require_admin(auth)
+    _require_platform_admin(auth)
 
     stmt = select(Organization).order_by(Organization.created_at.desc())
     result = await db.execute(stmt)
@@ -108,7 +143,7 @@ async def get_organization(
     db: AsyncSession = Depends(get_db_session),
 ) -> OrgResponse:
     """Get organization details with member count (platform admin only)."""
-    _require_admin(auth)
+    _require_platform_admin(auth)
 
     stmt = select(Organization).where(Organization.id == org_id)
     result = await db.execute(stmt)
@@ -135,7 +170,7 @@ async def get_platform_usage(
     db: AsyncSession = Depends(get_db_session),
 ) -> UsageStatsResponse:
     """Get aggregated usage stats across all organizations (platform admin only)."""
-    _require_admin(auth)
+    _require_platform_admin(auth)
 
     stmt = select(
         func.count().label("record_count"),
@@ -188,7 +223,7 @@ async def add_org_member(
     db: AsyncSession = Depends(get_db_session),
 ) -> MemberResponse:
     """Add a member to the authenticated organization (admin only)."""
-    _require_admin(auth)
+    _require_org_admin(auth)
 
     member = OrganizationMember(org_id=auth.org_id, user_id=request.user_id, role=request.role)
     db.add(member)
@@ -211,7 +246,7 @@ async def remove_org_member(
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
     """Remove a member from the authenticated organization (admin only)."""
-    _require_admin(auth)
+    _require_org_admin(auth)
 
     stmt = select(OrganizationMember).where(OrganizationMember.id == member_id, OrganizationMember.org_id == auth.org_id)
     result = await db.execute(stmt)

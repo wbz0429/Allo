@@ -7,15 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import type { MarketplaceSkill } from "@/core/marketplace/types";
 import { cn } from "@/lib/utils";
 
-import type { MarketplaceSkill } from "@/core/marketplace/types";
 
 interface SkillCardProps {
   skill: MarketplaceSkill;

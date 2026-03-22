@@ -17,7 +17,6 @@ import {
   uninstallSkill,
   uninstallTool,
 } from "@/core/marketplace/api";
-
 import type {
   MarketplaceSkill,
   MarketplaceTool,
