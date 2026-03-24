@@ -15,7 +15,7 @@ export function SandboxSection({ className }: { className?: string }) {
       title="Agent Runtime Environment"
       subtitle={
         <p>
-          We give DeerFlow a &quot;computer&quot;, which can execute commands,
+          We give Allo a &quot;computer&quot;, which can execute commands,
           manage files, and run long tasks — all in a secure Docker-based
           sandbox
         </p>
@@ -72,7 +72,7 @@ export function SandboxSection({ className }: { className?: string }) {
         <div className="w-full flex-1 space-y-6">
           <div className="space-y-4">
             <p className="text-sm font-medium tracking-wider text-purple-400 uppercase">
-              Open-source
+              Secure Runtime
             </p>
             <h2 className="text-4xl font-bold tracking-tight lg:text-5xl">
               <a

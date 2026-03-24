@@ -143,10 +143,7 @@ export interface Translations {
   // Workspace
   workspace: {
     officialWebsite: string;
-    githubTooltip: string;
     settingsAndMore: string;
-    visitGithub: string;
-    reportIssue: string;
     contactUs: string;
     about: string;
   };
