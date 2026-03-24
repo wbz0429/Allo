@@ -46,7 +46,7 @@ export async function installTool(
 
 export async function uninstallTool(id: string): Promise<void> {
   const res = await fetch(
-    `${getBackendBaseURL()}/api/marketplace/tools/${id}/uninstall`,
+    `${getBackendBaseURL()}/api/marketplace/tools/${id}/install`,
     {
       method: "DELETE",
       credentials: "include",
@@ -56,7 +56,7 @@ export async function uninstallTool(id: string): Promise<void> {
 }
 
 export async function listOrgTools(): Promise<OrgInstalledTool[]> {
-  const res = await fetch(`${getBackendBaseURL()}/api/org/tools`, {
+  const res = await fetch(`${getBackendBaseURL()}/api/marketplace/installed/tools`, {
     credentials: "include",
   });
   if (!res.ok)
@@ -102,7 +102,7 @@ export async function installSkill(id: string): Promise<OrgInstalledSkill> {
 
 export async function uninstallSkill(id: string): Promise<void> {
   const res = await fetch(
-    `${getBackendBaseURL()}/api/marketplace/skills/${id}/uninstall`,
+    `${getBackendBaseURL()}/api/marketplace/skills/${id}/install`,
     {
       method: "DELETE",
       credentials: "include",
@@ -113,7 +113,7 @@ export async function uninstallSkill(id: string): Promise<void> {
 }
 
 export async function listOrgSkills(): Promise<OrgInstalledSkill[]> {
-  const res = await fetch(`${getBackendBaseURL()}/api/org/skills`, {
+  const res = await fetch(`${getBackendBaseURL()}/api/marketplace/installed/skills`, {
     credentials: "include",
   });
   if (!res.ok)

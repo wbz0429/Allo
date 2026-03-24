@@ -70,10 +70,10 @@ export function OrgTable({ organizations, className, onSelect }: OrgTableProps) 
                 <Badge variant="secondary">{org.member_count}</Badge>
               </td>
               <td className="px-4 py-3 tabular-nums">
-                {formatNumber(org.total_tokens)}
+                {formatNumber(0)}
               </td>
               <td className="px-4 py-3 tabular-nums">
-                {formatNumber(org.total_api_calls)}
+                {formatNumber(0)}
               </td>
               <td className="px-4 py-3 text-muted-foreground">
                 {formatDate(org.created_at)}

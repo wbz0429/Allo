@@ -3,14 +3,12 @@ export interface OrgSummary {
   name: string;
   slug: string;
   member_count: number;
-  total_tokens: number;
-  total_api_calls: number;
   created_at: string;
 }
 
 export interface OrgDetail extends OrgSummary {
-  quotas: OrgQuotas;
-  usage_by_day: DailyUsage[];
+  quotas?: OrgQuotas;
+  usage_by_day?: DailyUsage[];
 }
 
 export interface OrgQuotas {
@@ -27,12 +25,11 @@ export interface DailyUsage {
 }
 
 export interface UsageSummary {
-  total_orgs: number;
-  total_users: number;
-  total_tokens: number;
   total_api_calls: number;
-  tokens_today: number;
-  api_calls_today: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_sandbox_seconds: number;
+  record_count: number;
 }
 
 export interface OrgUsageBreakdown {

@@ -13,8 +13,7 @@ export async function listOrganizations(): Promise<OrgSummary[]> {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`Failed to list organizations: ${res.statusText}`);
-  const data = (await res.json()) as { organizations: OrgSummary[] };
-  return data.organizations;
+  return res.json() as Promise<OrgSummary[]>;
 }
 
 export async function getOrganization(id: string): Promise<OrgDetail> {
@@ -44,7 +43,7 @@ export async function updateOrgQuotas(
 }
 
 export async function getUsageSummary(): Promise<UsageSummary> {
-  const res = await fetch(`${getBackendBaseURL()}/api/admin/usage/summary`, {
+  const res = await fetch(`${getBackendBaseURL()}/api/admin/usage`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`Failed to get usage summary: ${res.statusText}`);
@@ -52,10 +51,16 @@ export async function getUsageSummary(): Promise<UsageSummary> {
 }
 
 export async function getUsageByOrg(): Promise<OrgUsageBreakdown[]> {
-  const res = await fetch(`${getBackendBaseURL()}/api/admin/usage/by-org`, {
+  const res = await fetch(`${getBackendBaseURL()}/api/admin/organizations`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`Failed to get usage by org: ${res.statusText}`);
-  const data = (await res.json()) as { usage: OrgUsageBreakdown[] };
-  return data.usage;
+  const orgs = (await res.json()) as OrgSummary[];
+  return orgs.map((org) => ({
+    org_id: org.id,
+    org_name: org.name,
+    input_tokens: 0,
+    output_tokens: 0,
+    api_calls: 0,
+  }));
 }

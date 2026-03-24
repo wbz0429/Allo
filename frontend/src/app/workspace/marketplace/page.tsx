@@ -63,13 +63,12 @@ export default function MarketplacePage() {
   }, [fetchData]);
 
   const isToolInstalled = useCallback(
-    (toolId: string) => installedTools.some((t) => t.tool_id === toolId),
+    (toolId: string) => installedTools.some((t) => t.tool.id === toolId),
     [installedTools],
   );
 
   const isSkillInstalled = useCallback(
-    (skillId: string) =>
-      installedSkills.some((s) => s.skill_id === skillId),
+    (skillId: string) => installedSkills.some((s) => s.skill.id === skillId),
     [installedSkills],
   );
 
@@ -100,7 +99,7 @@ export default function MarketplacePage() {
     setActionLoading(tool.id);
     try {
       await uninstallTool(tool.id);
-      setInstalledTools((prev) => prev.filter((t) => t.tool_id !== tool.id));
+      setInstalledTools((prev) => prev.filter((t) => t.tool.id !== tool.id));
       toast.success("Tool uninstalled");
     } catch {
       toast.error("Failed to uninstall tool");
@@ -127,7 +126,7 @@ export default function MarketplacePage() {
     try {
       await uninstallSkill(skill.id);
       setInstalledSkills((prev) =>
-        prev.filter((s) => s.skill_id !== skill.id),
+        prev.filter((s) => s.skill.id !== skill.id),
       );
       toast.success("Skill uninstalled");
     } catch {

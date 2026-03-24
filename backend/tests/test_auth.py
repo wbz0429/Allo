@@ -1,10 +1,12 @@
 """Tests for the auth module: AuthContext model, get_auth_context, get_optional_auth_context."""
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy.exc import ProgrammingError
 
-from app.gateway.auth import _DEV_ORG_ID, _DEV_ROLE, _DEV_USER_ID, AuthContext, _resolve_session_from_db, get_auth_context, get_optional_auth_context
+from app.gateway.auth import _DEV_ORG_ID, _DEV_ROLE, _DEV_USER_ID, AuthContext, _resolve_dev_json_session_fallback, _resolve_session_from_db, get_auth_context, get_optional_auth_context
 
 # ---------------------------------------------------------------------------
 # AuthContext model tests
@@ -63,6 +65,89 @@ async def test_resolve_session_invalid_token() -> None:
     mock_db.execute.return_value = mock_result
 
     ctx = await _resolve_session_from_db("bad-token", mock_db)
+    assert ctx is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_session_missing_session_table_returns_none_in_dev() -> None:
+    mock_db = AsyncMock()
+    mock_db.execute.side_effect = ProgrammingError("SELECT ...", {}, Exception('relation "session" does not exist'))
+
+    with patch("app.gateway.auth._env", "development"):
+        ctx = await _resolve_session_from_db("missing-table-token", mock_db)
+
+    assert ctx is None
+    mock_db.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_resolve_dev_session_fallback_missing_session_table_returns_none_in_dev() -> None:
+    from app.gateway.auth import _resolve_dev_session_fallback
+
+    mock_db = AsyncMock()
+    mock_db.execute.side_effect = ProgrammingError("SELECT ...", {}, Exception('relation "session" does not exist'))
+
+    with patch("app.gateway.auth._env", "development"):
+        ctx = await _resolve_dev_session_fallback("missing-table-token", mock_db)
+
+    assert ctx is None
+    mock_db.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_resolve_dev_json_session_fallback_valid_token(tmp_path) -> None:
+    sessions_file = tmp_path / "local-dev-auth-sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": [
+                    {
+                        "token": "dev-session-token",
+                        "userId": "user-json-123",
+                        "expiresAt": "2999-01-01T00:00:00+00:00",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with patch("app.gateway.auth._env", "development"):
+        ctx = await _resolve_dev_json_session_fallback(
+            "dev-session-token",
+            sessions_file,
+        )
+
+    assert ctx is not None
+    assert ctx.user_id == "user-json-123"
+    assert ctx.org_id == _DEV_ORG_ID
+    assert ctx.role == _DEV_ROLE
+
+
+@pytest.mark.asyncio
+async def test_resolve_dev_json_session_fallback_rejects_expired_token(tmp_path) -> None:
+    sessions_file = tmp_path / "local-dev-auth-sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": [
+                    {
+                        "token": "expired-json-token",
+                        "userId": "user-json-123",
+                        "expiresAt": "2000-01-01T00:00:00+00:00",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with patch("app.gateway.auth._env", "development"):
+        ctx = await _resolve_dev_json_session_fallback(
+            "expired-json-token",
+            sessions_file,
+        )
+
     assert ctx is None
 
 

@@ -1,8 +1,5 @@
-import { headers } from "next/headers";
 import { cache } from "react";
 
-import { auth } from ".";
+import { getLocalDevSessionFromCookies } from "./local-dev";
 
-export const getSession = cache(async () =>
-  auth.api.getSession({ headers: await headers() }),
-);
+export const getSession = cache(async () => getLocalDevSessionFromCookies());

@@ -85,9 +85,9 @@ export default function AdminUsagePage() {
             <CardDescription>Total Tokens</CardDescription>
           </CardHeader>
           <CardContent>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatNumber(summary?.total_tokens ?? 0)}
-            </CardTitle>
+              <CardTitle className="text-2xl tabular-nums">
+              {formatNumber((summary?.total_input_tokens ?? 0) + (summary?.total_output_tokens ?? 0))}
+              </CardTitle>
           </CardContent>
         </Card>
         <Card>
@@ -105,9 +105,9 @@ export default function AdminUsagePage() {
             <CardDescription>Tokens Today</CardDescription>
           </CardHeader>
           <CardContent>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatNumber(summary?.tokens_today ?? 0)}
-            </CardTitle>
+              <CardTitle className="text-2xl tabular-nums">
+              {formatNumber(summary?.total_input_tokens ?? 0)}
+              </CardTitle>
           </CardContent>
         </Card>
         <Card>
@@ -115,9 +115,9 @@ export default function AdminUsagePage() {
             <CardDescription>API Calls Today</CardDescription>
           </CardHeader>
           <CardContent>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatNumber(summary?.api_calls_today ?? 0)}
-            </CardTitle>
+              <CardTitle className="text-2xl tabular-nums">
+              {formatNumber(summary?.record_count ?? 0)}
+              </CardTitle>
           </CardContent>
         </Card>
       </div>

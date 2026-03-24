@@ -60,10 +60,10 @@ export default function AdminDashboardPage() {
   }
 
   const stats = [
-    { label: "Organizations", value: summary?.total_orgs ?? 0, href: "/admin/organizations" },
-    { label: "Total Users", value: summary?.total_users ?? 0 },
-    { label: "Tokens Today", value: summary?.tokens_today ?? 0, href: "/admin/usage" },
-    { label: "API Calls Today", value: summary?.api_calls_today ?? 0, href: "/admin/usage" },
+    { label: "Organizations", value: orgUsage.length, href: "/admin/organizations" },
+    { label: "Usage Records", value: summary?.record_count ?? 0 },
+    { label: "Input Tokens", value: summary?.total_input_tokens ?? 0, href: "/admin/usage" },
+    { label: "API Calls", value: summary?.total_api_calls ?? 0, href: "/admin/usage" },
   ];
 
   const chartBars = orgUsage.slice(0, 10).map((o) => ({

@@ -117,11 +117,13 @@ async def list_tools(
     db: AsyncSession = Depends(get_db_session),
 ) -> list[ToolResponse]:
     """Browse public tools in the marketplace catalog."""
+    logger.info("Marketplace: list_tools start user_id=%s org_id=%s role=%s", auth.user_id, auth.org_id, auth.role)
     await _ensure_seed_data(db)
 
     stmt = select(MarketplaceTool).where(MarketplaceTool.is_public.is_(True)).order_by(MarketplaceTool.name)
     result = await db.execute(stmt)
     tools = result.scalars().all()
+    logger.info("Marketplace: list_tools success count=%s", len(tools))
     return [_tool_to_response(t) for t in tools]
 
 
@@ -131,11 +133,13 @@ async def list_skills(
     db: AsyncSession = Depends(get_db_session),
 ) -> list[SkillResponse]:
     """Browse public skills in the marketplace catalog."""
+    logger.info("Marketplace: list_skills start user_id=%s org_id=%s role=%s", auth.user_id, auth.org_id, auth.role)
     await _ensure_seed_data(db)
 
     stmt = select(MarketplaceSkill).where(MarketplaceSkill.is_public.is_(True)).order_by(MarketplaceSkill.name)
     result = await db.execute(stmt)
     skills = result.scalars().all()
+    logger.info("Marketplace: list_skills success count=%s", len(skills))
     return [_skill_to_response(s) for s in skills]
 
 

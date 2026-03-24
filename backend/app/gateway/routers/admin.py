@@ -113,6 +113,7 @@ async def list_organizations(
     db: AsyncSession = Depends(get_db_session),
 ) -> list[OrgResponse]:
     """List all organizations (platform admin only)."""
+    logger.info("Admin: list_organizations start user_id=%s org_id=%s role=%s", auth.user_id, auth.org_id, auth.role)
     _require_platform_admin(auth)
 
     stmt = select(Organization).order_by(Organization.created_at.desc())
@@ -133,6 +134,7 @@ async def list_organizations(
                 created_at=org.created_at.isoformat() if org.created_at else "",
             )
         )
+    logger.info("Admin: list_organizations success count=%s", len(responses))
     return responses
 
 
@@ -170,6 +172,7 @@ async def get_platform_usage(
     db: AsyncSession = Depends(get_db_session),
 ) -> UsageStatsResponse:
     """Get aggregated usage stats across all organizations (platform admin only)."""
+    logger.info("Admin: get_platform_usage start user_id=%s org_id=%s role=%s", auth.user_id, auth.org_id, auth.role)
     _require_platform_admin(auth)
 
     stmt = select(
@@ -181,6 +184,13 @@ async def get_platform_usage(
     result = await db.execute(stmt)
     row = result.one()
 
+    logger.info(
+        "Admin: get_platform_usage success record_count=%s input=%s output=%s sandbox=%s",
+        row.record_count,
+        row.total_input_tokens,
+        row.total_output_tokens,
+        row.total_sandbox_seconds,
+    )
     return UsageStatsResponse(
         total_api_calls=row.record_count,
         total_input_tokens=row.total_input_tokens,

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenIcon, BotIcon, MessagesSquare } from "lucide-react";
+import { BookOpenIcon, BotIcon, MessagesSquare, ShoppingBagIcon, ShieldIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -45,6 +45,28 @@ export function WorkspaceNavChatList() {
             <Link className="text-muted-foreground" href="/workspace/knowledge">
               <BookOpenIcon />
               <span>Knowledge Base</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            isActive={pathname.startsWith("/workspace/marketplace")}
+            asChild
+          >
+            <Link className="text-muted-foreground" href="/workspace/marketplace">
+              <ShoppingBagIcon />
+              <span>Marketplace</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            isActive={pathname.startsWith("/admin")}
+            asChild
+          >
+            <Link className="text-muted-foreground" href="/admin">
+              <ShieldIcon />
+              <span>Admin</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

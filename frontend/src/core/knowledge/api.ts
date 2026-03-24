@@ -14,8 +14,7 @@ export async function listKnowledgeBases(): Promise<KnowledgeBase[]> {
   const res = await fetch(BASE(), { credentials: "include" });
   if (!res.ok)
     throw new Error(`Failed to load knowledge bases: ${res.statusText}`);
-  const data = (await res.json()) as { knowledge_bases: KnowledgeBase[] };
-  return data.knowledge_bases;
+  return res.json() as Promise<KnowledgeBase[]>;
 }
 
 export async function getKnowledgeBase(id: string): Promise<KnowledgeBase> {
@@ -77,8 +76,7 @@ export async function listDocuments(kbId: string): Promise<KnowledgeDocument[]> 
   });
   if (!res.ok)
     throw new Error(`Failed to load documents: ${res.statusText}`);
-  const data = (await res.json()) as { documents: KnowledgeDocument[] };
-  return data.documents;
+  return res.json() as Promise<KnowledgeDocument[]>;
 }
 
 export async function uploadDocument(

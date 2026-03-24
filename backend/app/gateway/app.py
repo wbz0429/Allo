@@ -168,7 +168,14 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
         ],
     )
 
-    # CORS is handled by nginx - no need for FastAPI middleware
+    # CORS is handled by nginx - no need for FastAPI CORS middleware
+
+    # Register rate limiter and usage tracking middleware
+    from app.gateway.middleware.rate_limiter import RateLimiterMiddleware
+    from app.gateway.middleware.usage_tracking import UsageTrackingMiddleware
+
+    app.add_middleware(UsageTrackingMiddleware)
+    app.add_middleware(RateLimiterMiddleware)
 
     # Include routers
     # Models API is mounted at /api/models
