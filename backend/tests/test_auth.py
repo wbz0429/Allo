@@ -1,12 +1,12 @@
 """Tests for the auth module: AuthContext model, get_auth_context, get_optional_auth_context."""
 
-import json
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import ProgrammingError
 
-from app.gateway.auth import _DEV_ORG_ID, _DEV_ROLE, _DEV_USER_ID, AuthContext, _resolve_dev_json_session_fallback, _resolve_session_from_db, get_auth_context, get_optional_auth_context
+from app.gateway.auth import _DEV_ORG_ID, _DEV_ROLE, _DEV_USER_ID, AuthContext, _get_runtime_env, _get_runtime_skip_auth, _resolve_dev_json_session_fallback, _resolve_session_from_db, get_auth_context, get_optional_auth_context
 
 # ---------------------------------------------------------------------------
 # AuthContext model tests
@@ -161,7 +161,7 @@ async def test_get_auth_context_skip_auth() -> None:
     request = MagicMock()
     mock_db = AsyncMock()
 
-    with patch("app.gateway.auth.SKIP_AUTH", True):
+    with patch("app.gateway.auth._get_runtime_skip_auth", return_value=True):
         ctx = await get_auth_context(request, mock_db)
 
     assert ctx.user_id == _DEV_USER_ID
@@ -177,7 +177,7 @@ async def test_get_auth_context_valid_cookie() -> None:
     mock_db = AsyncMock()
 
     with (
-        patch("app.gateway.auth.SKIP_AUTH", False),
+        patch("app.gateway.auth._get_runtime_skip_auth", return_value=False),
         patch("app.gateway.auth._resolve_session_from_db", new_callable=AsyncMock) as mock_resolve,
     ):
         mock_resolve.return_value = AuthContext(user_id="u1", org_id="o1", role="member")
@@ -198,7 +198,7 @@ async def test_get_auth_context_expired_cookie_raises_401() -> None:
     mock_db = AsyncMock()
 
     with (
-        patch("app.gateway.auth.SKIP_AUTH", False),
+        patch("app.gateway.auth._get_runtime_skip_auth", return_value=False),
         patch("app.gateway.auth._resolve_session_from_db", new_callable=AsyncMock) as mock_resolve,
     ):
         mock_resolve.return_value = None
@@ -218,7 +218,7 @@ async def test_get_auth_context_no_credentials_raises_401() -> None:
     request.headers = {}
     mock_db = AsyncMock()
 
-    with patch("app.gateway.auth.SKIP_AUTH", False):
+    with patch("app.gateway.auth._get_runtime_skip_auth", return_value=False):
         with pytest.raises(HTTPException) as exc_info:
             await get_auth_context(request, mock_db)
 
@@ -235,7 +235,7 @@ async def test_get_auth_context_api_key_not_yet_supported() -> None:
     request.headers = {"X-API-Key": "df-test-key"}
     mock_db = AsyncMock()
 
-    with patch("app.gateway.auth.SKIP_AUTH", False):
+    with patch("app.gateway.auth._get_runtime_skip_auth", return_value=False):
         with pytest.raises(HTTPException) as exc_info:
             await get_auth_context(request, mock_db)
 
@@ -254,7 +254,7 @@ async def test_get_auth_context_bearer_api_key_not_yet_supported() -> None:
     request.headers = mock_headers
     mock_db = AsyncMock()
 
-    with patch("app.gateway.auth.SKIP_AUTH", False):
+    with patch("app.gateway.auth._get_runtime_skip_auth", return_value=False):
         with pytest.raises(HTTPException) as exc_info:
             await get_auth_context(request, mock_db)
 
@@ -271,7 +271,7 @@ async def test_get_optional_auth_context_skip_auth() -> None:
     request = MagicMock()
     mock_db = AsyncMock()
 
-    with patch("app.gateway.auth.SKIP_AUTH", True):
+    with patch("app.gateway.auth._get_runtime_skip_auth", return_value=True):
         ctx = await get_optional_auth_context(request, mock_db)
 
     assert ctx is not None
@@ -284,7 +284,7 @@ async def test_get_optional_auth_context_no_credentials_returns_none() -> None:
     request.cookies = {}
     mock_db = AsyncMock()
 
-    with patch("app.gateway.auth.SKIP_AUTH", False):
+    with patch("app.gateway.auth._get_runtime_skip_auth", return_value=False):
         ctx = await get_optional_auth_context(request, mock_db)
 
     assert ctx is None
@@ -297,7 +297,7 @@ async def test_get_optional_auth_context_valid_cookie() -> None:
     mock_db = AsyncMock()
 
     with (
-        patch("app.gateway.auth.SKIP_AUTH", False),
+        patch("app.gateway.auth._get_runtime_skip_auth", return_value=False),
         patch("app.gateway.auth._resolve_session_from_db", new_callable=AsyncMock) as mock_resolve,
     ):
         mock_resolve.return_value = AuthContext(user_id="u9", org_id="o9", role="admin")
@@ -314,10 +314,75 @@ async def test_get_optional_auth_context_invalid_cookie_returns_none() -> None:
     mock_db = AsyncMock()
 
     with (
-        patch("app.gateway.auth.SKIP_AUTH", False),
+        patch("app.gateway.auth._get_runtime_skip_auth", return_value=False),
         patch("app.gateway.auth._resolve_session_from_db", new_callable=AsyncMock) as mock_resolve,
     ):
         mock_resolve.return_value = None
         ctx = await get_optional_auth_context(request, mock_db)
 
     assert ctx is None
+
+
+# ---------------------------------------------------------------------------
+# _get_runtime_env and _get_runtime_skip_auth tests
+# ---------------------------------------------------------------------------
+
+
+@patch.dict(os.environ, {"ENV": "development"}, clear=True)
+def test_get_runtime_env_from_env() -> None:
+    """_get_runtime_env reads from ENV variable."""
+    assert _get_runtime_env() == "development"
+
+
+@patch.dict(os.environ, {"NODE_ENV": "production"}, clear=True)
+def test_get_runtime_env_from_node_env() -> None:
+    """_get_runtime_env falls back to NODE_ENV."""
+    assert _get_runtime_env() == "production"
+
+
+@patch.dict(os.environ, {}, clear=True)
+def test_get_runtime_env_defaults_to_development() -> None:
+    """_get_runtime_env defaults to development when not set."""
+    assert _get_runtime_env() == "development"
+
+
+@patch.dict(os.environ, {"ENV": "DEVELOPMENT"}, clear=True)
+def test_get_runtime_env_is_lowercased() -> None:
+    """_get_runtime_env returns lowercase value."""
+    assert _get_runtime_env() == "development"
+
+
+@patch.dict(os.environ, {"SKIP_AUTH": "1", "ENV": "development"}, clear=True)
+def test_get_runtime_skip_auth_true_in_dev() -> None:
+    """_get_runtime_skip_auth returns True when SKIP_AUTH=1 in development."""
+    assert _get_runtime_skip_auth() is True
+
+
+@patch.dict(os.environ, {"SKIP_AUTH": "1", "ENV": "production"}, clear=True)
+def test_get_runtime_skip_auth_false_in_production() -> None:
+    """_get_runtime_skip_auth returns False in production even with SKIP_AUTH=1."""
+    assert _get_runtime_skip_auth() is False
+
+
+@patch.dict(os.environ, {"SKIP_AUTH": "0", "ENV": "development"}, clear=True)
+def test_get_runtime_skip_auth_false_when_zero() -> None:
+    """_get_runtime_skip_auth returns False when SKIP_AUTH=0."""
+    assert _get_runtime_skip_auth() is False
+
+
+@patch.dict(os.environ, {"ENV": "development"}, clear=True)
+def test_get_runtime_skip_auth_false_when_not_set() -> None:
+    """_get_runtime_skip_auth returns False when SKIP_AUTH is not set."""
+    assert _get_runtime_skip_auth() is False
+
+
+@patch.dict(os.environ, {"SKIP_AUTH": "1", "ENV": "test"}, clear=True)
+def test_get_runtime_skip_auth_true_in_test() -> None:
+    """_get_runtime_skip_auth returns True in test environment."""
+    assert _get_runtime_skip_auth() is True
+
+
+@patch.dict(os.environ, {"SKIP_AUTH": "1", "ENV": "dev"}, clear=True)
+def test_get_runtime_skip_auth_true_in_dev_short() -> None:
+    """_get_runtime_skip_auth returns True in dev environment."""
+    assert _get_runtime_skip_auth() is True

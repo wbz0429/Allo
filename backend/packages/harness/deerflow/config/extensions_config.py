@@ -73,8 +73,8 @@ class ExtensionsConfig(BaseModel):
         Priority:
         1. If provided `config_path` argument, use it.
         2. If provided `DEER_FLOW_EXTENSIONS_CONFIG_PATH` environment variable, use it.
-        3. Otherwise, check for `extensions_config.json` in the current directory, then in the parent directory.
-        4. For backward compatibility, also check for `mcp_config.json` if `extensions_config.json` is not found.
+        3. Otherwise, search for `extensions_config.json` upward from the current directory.
+        4. For backward compatibility, also search for `mcp_config.json`.
         5. If not found, return None (extensions are optional).
 
         Args:
@@ -94,24 +94,20 @@ class ExtensionsConfig(BaseModel):
                 raise FileNotFoundError(f"Extensions config file specified by environment variable `DEER_FLOW_EXTENSIONS_CONFIG_PATH` not found at {path}")
             return path
         else:
-            # Check if the extensions_config.json is in the current directory
-            path = Path(os.getcwd()) / "extensions_config.json"
-            if path.exists():
-                return path
+            search_dir = Path(os.getcwd()).resolve()
+            for _ in range(8):
+                path = search_dir / "extensions_config.json"
+                if path.exists():
+                    return path
 
-            # Check if the extensions_config.json is in the parent directory of CWD
-            path = Path(os.getcwd()).parent / "extensions_config.json"
-            if path.exists():
-                return path
+                path = search_dir / "mcp_config.json"
+                if path.exists():
+                    return path
 
-            # Backward compatibility: check for mcp_config.json
-            path = Path(os.getcwd()) / "mcp_config.json"
-            if path.exists():
-                return path
-
-            path = Path(os.getcwd()).parent / "mcp_config.json"
-            if path.exists():
-                return path
+                parent = search_dir.parent
+                if parent == search_dir:
+                    break
+                search_dir = parent
 
             # Extensions are optional, so return None if not found
             return None

@@ -1,0 +1,11 @@
+{
+  "users": [
+    {
+      "id": "dev_user_74dd1f21d419c8b3bcaa47ff",
+      "email": "1425531176@qq.com",
+      "name": "KAI",
+      "passwordHash": "fc36ad7392457d3f100ffd6175389786:91e7e404725d8383c3ac5fbd4098251da4990d1373f05e43bb67cb1f26b7fc4ce3aec0aeefe4e1e2c6d3194449218b77ab5ee52002d4302ed44a90959a5c2c45",
+      "createdAt": "2026-03-25T15:34:36.248Z"
+    }
+  ]
+}

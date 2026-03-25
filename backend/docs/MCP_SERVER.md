@@ -14,6 +14,8 @@ DeerFlow supports configurable MCP servers and skills to extend its capabilities
 3. Configure each server’s command, arguments, and environment variables as needed.
 4. Restart the application to load and register MCP tools.
 
+For header-based HTTP/SSE MCP servers, avoid hardcoding secrets in `extensions_config.json`. Values beginning with `$` are resolved from environment variables, so you can store the full header value in an env var such as `MCP_AUTHORIZATION_HEADER="Bearer ..."` and reference it from `headers`.
+
 ## OAuth Support (HTTP/SSE MCP Servers)
 
 For `http` and `sse` MCP servers, DeerFlow supports OAuth token acquisition and automatic token refresh.
@@ -27,6 +29,14 @@ Example:
 ```json
 {
    "mcpServers": {
+      "header-auth-http-server": {
+         "enabled": true,
+         "type": "http",
+         "url": "https://api.example.com/mcp",
+         "headers": {
+            "Authorization": "$MCP_AUTHORIZATION_HEADER"
+         }
+      },
       "secure-http-server": {
          "enabled": true,
          "type": "http",

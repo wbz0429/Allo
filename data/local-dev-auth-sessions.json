@@ -1,0 +1,10 @@
+{
+  "sessions": [
+    {
+      "token": "dev_session_b2128dfe7b24bd92cc01428f",
+      "userId": "dev_user_74dd1f21d419c8b3bcaa47ff",
+      "createdAt": "2026-03-25T15:34:36.250Z",
+      "expiresAt": "2026-04-01T15:34:36.250Z"
+    }
+  ]
+}

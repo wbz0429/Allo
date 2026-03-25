@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.gateway.config import get_gateway_config
 from app.gateway.db.database import async_engine
@@ -168,7 +169,14 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
         ],
     )
 
-    # CORS is handled by nginx - no need for FastAPI CORS middleware
+    # Support direct frontend->gateway calls in local development without nginx.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=get_gateway_config().cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     # Register rate limiter and usage tracking middleware
     from app.gateway.middleware.rate_limiter import RateLimiterMiddleware
