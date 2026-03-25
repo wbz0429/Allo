@@ -1,4 +1,4 @@
-"""Async database engine and session factory for the DeerFlow gateway."""
+"""Async database engine and session factory for the Allo gateway."""
 
 import logging
 import os

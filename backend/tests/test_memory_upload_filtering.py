@@ -54,7 +54,7 @@ class TestFilterMessagesForMemory:
         combined = _UPLOAD_BLOCK + "\n\nWhat does this file contain?"
         msgs = [
             _human(combined),
-            _ai("The file contains: Hello DeerFlow."),
+            _ai("The file contains: Hello Allo（元枢）."),
         ]
         result = _filter_messages_for_memory(msgs)
 
@@ -62,7 +62,7 @@ class TestFilterMessagesForMemory:
         human_result = result[0]
         assert "<uploaded_files>" not in human_result.content
         assert "What does this file contain?" in human_result.content
-        assert result[1].content == "The file contains: Hello DeerFlow."
+        assert result[1].content == "The file contains: Hello Allo（元枢）."
 
     # --- non-upload turns pass through unchanged ---
 

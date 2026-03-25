@@ -1,1 +1,1 @@
-"""Middleware package for the DeerFlow gateway."""
+"""Middleware package for the Allo gateway."""

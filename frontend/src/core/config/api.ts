@@ -34,8 +34,8 @@ export async function listModels(): Promise<ModelInfo[]> {
     credentials: "include",
   });
   if (!res.ok) throw new Error(`Failed to load models: ${res.statusText}`);
-  const data = (await res.json()) as { models: ModelInfo[] };
-  return data.models;
+  const data = (await res.json()) as { models?: ModelInfo[] };
+  return Array.isArray(data.models) ? data.models : [];
 }
 
 export async function updateModelsConfig(

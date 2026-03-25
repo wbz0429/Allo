@@ -91,7 +91,7 @@ async def get_memory(auth: AuthContext = Depends(get_auth_context)) -> MemoryRes
             "version": "1.0",
             "lastUpdated": "2024-01-15T10:30:00Z",
             "user": {
-                "workContext": {"summary": "Working on DeerFlow project", "updatedAt": "..."},
+                "workContext": {"summary": "Working on Allo（元枢） project", "updatedAt": "..."},
                 "personalContext": {"summary": "Prefers concise responses", "updatedAt": "..."},
                 "topOfMind": {"summary": "Building memory API", "updatedAt": "..."}
             },

@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Guidance for AI coding agents working in the DeerFlow repository.
+Guidance for AI coding agents working in the Allo（元枢） repository.
 
 ## Project Overview
 
-DeerFlow is a full-stack AI super agent harness by ByteDance. Python backend (LangGraph + FastAPI) and Next.js frontend (React 19 + TypeScript). Nginx reverse proxy unifies all services on port 2026.
+Allo（元枢） is a full-stack AI office assistant platform. Python backend (LangGraph + FastAPI) and Next.js frontend (React 19 + TypeScript). Nginx reverse proxy unifies all services on port 2026.
 
 ## Build / Lint / Test Commands
 

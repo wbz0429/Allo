@@ -222,7 +222,7 @@ class TelegramChannel(Channel):
         """Handle /start command."""
         if not self._check_user(update.effective_user.id):
             return
-        await update.message.reply_text("Welcome to DeerFlow! Send me a message to start a conversation.\nType /help for available commands.")
+        await update.message.reply_text("Welcome to Allo（元枢）! Send me a message to start a conversation.\nType /help for available commands.")
 
     async def _cmd_generic(self, update, context) -> None:
         """Forward slash commands to the channel manager."""
@@ -271,7 +271,7 @@ class TelegramChannel(Channel):
         user_id = str(update.effective_user.id)
         msg_id = str(update.message.message_id)
 
-        # topic_id determines which DeerFlow thread the message maps to.
+        # topic_id determines which Allo thread the message maps to.
         # In private chats, use None so that all messages share a single
         # thread (the store key becomes "channel:chat_id").
         # In group chats, use the reply-to message id or the current

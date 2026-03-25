@@ -1,4 +1,4 @@
-"""Database package for the DeerFlow gateway."""
+"""Database package for the Allo gateway."""
 
 from .database import async_engine, async_session_factory, get_db_session
 from .models import Base, Organization, OrganizationMember

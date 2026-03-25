@@ -2,7 +2,7 @@
 
 ## Overview
 
-DeerFlow is built on a sophisticated agent-based architecture using the [LangGraph SDK](https://github.com/langchain-ai/langgraph) to enable intelligent, stateful AI interactions. This document outlines the agent system architecture, patterns, and best practices for working with agents in the frontend application.
+Allo（元枢） is built on a sophisticated agent-based architecture using the [LangGraph SDK](https://github.com/langchain-ai/langgraph) to enable intelligent, stateful AI interactions. This document outlines the agent system architecture, patterns, and best practices for working with agents in the frontend application.
 
 ## Architecture Overview
 
@@ -96,4 +96,4 @@ When adding new agent features:
 
 ## License
 
-This agent architecture is part of the DeerFlow project.
+This agent architecture is part of the Allo（元枢） project.

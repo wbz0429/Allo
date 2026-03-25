@@ -1,12 +1,12 @@
-# DeerFlow 后端拆分设计文档：Harness + App
+# Allo（元枢）后端拆分设计文档：Harness + App
 
 > 状态：Draft
-> 作者：DeerFlow Team
+> 作者：Allo（元枢） Team
 > 日期：2026-03-13
 
 ## 1. 背景与动机
 
-DeerFlow 后端当前是一个单一 Python 包（`src.*`），包含了从底层 agent 编排到上层用户产品的所有代码。随着项目发展，这种结构带来了几个问题：
+Allo（元枢）后端当前是一个单一 Python 包（`src.*`），包含了从底层 agent 编排到上层用户产品的所有代码。随着项目发展，这种结构带来了几个问题：
 
 - **复用困难**：其他产品（CLI 工具、Slack bot、第三方集成）想用 agent 能力，必须依赖整个后端，包括 FastAPI、IM SDK 等不需要的依赖
 - **职责模糊**：agent 编排逻辑和用户产品逻辑混在同一个 `src/` 下，边界不清晰
@@ -43,7 +43,7 @@ App 是面向用户的产品代码，回答 **"如何将 agent 呈现给用户"*
 - Custom Agent 的 CRUD 管理
 - 文件上传/下载的 HTTP 接口
 
-**App 不打包、不发布**，它是 DeerFlow 项目内部的应用代码，直接运行。
+**App 不打包、不发布**，它是 Allo（元枢）项目内部的应用代码，直接运行。
 
 **App 依赖 Harness，但 Harness 不依赖 App。**
 
@@ -189,7 +189,7 @@ def handle_status_command():
 | 复杂度 | 需要管理两个包的构建、版本、依赖声明 | 直接运行，零额外配置 |
 | 运行方式 | `pip install deerflow-app` | `PYTHONPATH=. uvicorn app.gateway.app:app` |
 
-App 的唯一消费者是 DeerFlow 项目自身，没有独立发布的需求。放在 `backend/app/` 下作为普通 Python 包，通过 `PYTHONPATH` 或 editable install 让 Python 找到即可。
+App 的唯一消费者是 Allo（元枢）项目自身，没有独立发布的需求。放在 `backend/app/` 下作为普通 Python 包，通过 `PYTHONPATH` 或 editable install 让 Python 找到即可。
 
 ### 3.4 依赖关系
 

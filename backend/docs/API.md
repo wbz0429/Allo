@@ -1,10 +1,10 @@
 # API Reference
 
-This document provides a complete reference for the DeerFlow backend APIs.
+This document provides a complete reference for the Allo（元枢） backend APIs.
 
 ## Overview
 
-DeerFlow backend exposes two sets of APIs:
+Allo（元枢） backend exposes two sets of APIs:
 
 1. **LangGraph API** - Agent interactions, threads, and streaming (`/api/langgraph/*`)
 2. **Gateway API** - Models, MCP, skills, uploads, and artifacts (`/api/*`)
@@ -505,9 +505,9 @@ All APIs return errors in a consistent format:
 
 ## Authentication
 
-Currently, DeerFlow does not implement authentication. All APIs are accessible without credentials.
+Currently, Allo（元枢） does not implement authentication. All APIs are accessible without credentials.
 
-Note: This is about DeerFlow API authentication. MCP outbound connections can still use OAuth for configured HTTP/SSE MCP servers.
+Note: This is about Allo（元枢） API authentication. MCP outbound connections can still use OAuth for configured HTTP/SSE MCP servers.
 
 For production deployments, it is recommended to:
 1. Use Nginx for basic auth or OAuth integration

@@ -461,7 +461,7 @@ class FeishuChannel(Channel):
             sender_id = event.event.sender.sender_id.open_id
 
             # root_id is set when the message is a reply within a Feishu thread.
-            # Use it as topic_id so all replies share the same DeerFlow thread.
+            # Use it as topic_id so all replies share the same Allo thread.
             root_id = getattr(message, "root_id", None) or None
 
             # Parse message content

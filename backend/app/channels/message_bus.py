@@ -37,9 +37,9 @@ class InboundMessage:
         text: The message text.
         msg_type: Whether this is a regular chat message or a command.
         thread_ts: Optional platform thread identifier (for threaded replies).
-        topic_id: Conversation topic identifier used to map to a DeerFlow thread.
+        topic_id: Conversation topic identifier used to map to an Allo thread.
             Messages sharing the same ``topic_id`` within a ``chat_id`` will
-            reuse the same DeerFlow thread.  When ``None``, each message
+            reuse the same Allo thread.  When ``None``, each message
             creates a new thread (one-shot Q&A).
         files: Optional list of file attachments (platform-specific dicts).
         metadata: Arbitrary extra data from the channel.
@@ -86,7 +86,7 @@ class OutboundMessage:
     Attributes:
         channel_name: Target channel name (used for routing).
         chat_id: Target chat/conversation identifier.
-        thread_id: DeerFlow thread ID that produced this response.
+        thread_id: Allo thread ID that produced this response.
         text: The response text.
         artifacts: List of artifact paths produced by the agent.
         is_final: Whether this is the final message in the response stream.

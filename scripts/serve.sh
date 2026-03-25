@@ -9,6 +9,27 @@ set -e
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+PROJECT_ENV_PREFIX="$(python3 - <<'PY'
+from pathlib import Path
+
+env = {}
+for path in [Path('.env'), Path('backend/.env')]:
+    if not path.exists():
+        continue
+    for raw in path.read_text(encoding='utf-8').splitlines():
+        line = raw.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip()
+        if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        env[key] = value
+print(' '.join(f"{k}={v!r}" for k, v in env.items()))
+PY
+)"
+
 # ── Argument parsing ─────────────────────────────────────────────────────────
 
 DEV_MODE=true
@@ -22,8 +43,10 @@ done
 
 if $DEV_MODE; then
     FRONTEND_CMD="pnpm run dev"
+    GATEWAY_ENV_PREFIX="ENV=development SKIP_AUTH=1"
 else
     FRONTEND_CMD="env BETTER_AUTH_SECRET=$(python3 -c 'import secrets; print(secrets.token_hex(16))') pnpm run preview"
+    GATEWAY_ENV_PREFIX=""
 fi
 
 # ── Stop existing services ────────────────────────────────────────────────────
@@ -122,7 +145,7 @@ else
 fi
 
 echo "Starting LangGraph server..."
-(cd backend && NO_COLOR=1 uv run langgraph dev --no-browser --allow-blocking $LANGGRAPH_EXTRA_FLAGS > ../logs/langgraph.log 2>&1) &
+(cd backend && env $PROJECT_ENV_PREFIX NO_COLOR=1 uv run langgraph dev --no-browser --allow-blocking $LANGGRAPH_EXTRA_FLAGS > ../logs/langgraph.log 2>&1) &
 ./scripts/wait-for-port.sh 2024 60 "LangGraph" || {
     echo "  See logs/langgraph.log for details"
     tail -20 logs/langgraph.log
@@ -135,7 +158,7 @@ echo "Starting LangGraph server..."
 echo "✓ LangGraph server started on localhost:2024"
 
 echo "Starting Gateway API..."
-(cd backend && PYTHONPATH=. uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 $GATEWAY_EXTRA_FLAGS > ../logs/gateway.log 2>&1) &
+(cd backend && env $GATEWAY_ENV_PREFIX PYTHONPATH=. uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 $GATEWAY_EXTRA_FLAGS > ../logs/gateway.log 2>&1) &
 ./scripts/wait-for-port.sh 8001 30 "Gateway API" || {
     echo "✗ Gateway API failed to start. Last log output:"
     tail -60 logs/gateway.log

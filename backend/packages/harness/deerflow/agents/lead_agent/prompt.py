@@ -149,7 +149,7 @@ bash("npm test")  # Direct execution, not task()
 
 SYSTEM_PROMPT_TEMPLATE = """
 <role>
-You are {agent_name}, an open-source super agent.
+You are {agent_name}, an AI-powered office assistant.
 </role>
 
 {soul}
@@ -278,10 +278,9 @@ Recent breakthroughs in language models have also accelerated progress
 ```markdown
 ## Executive Summary
 
-DeerFlow is an open-source AI agent framework that gained significant traction in early 2026
-[citation:GitHub Repository](https://github.com/bytedance/deer-flow). The project focuses on
-providing a production-ready agent system with sandbox execution and memory management
-[citation:DeerFlow Documentation](https://deer-flow.dev/docs).
+The platform provides an AI workspace for research, execution, and knowledge operations
+[citation:Primary Source](SOURCE_URL_1). It combines orchestration, memory, and tool usage
+into a single assistant experience [citation:Technical Spec](SOURCE_URL_2).
 
 ## Key Analysis
 
@@ -293,8 +292,8 @@ combined with a FastAPI gateway for REST API access [citation:FastAPI](https://f
 ## Sources
 
 ### Primary Sources
-- [GitHub Repository](https://github.com/bytedance/deer-flow) - Official source code and documentation
-- [DeerFlow Documentation](https://deer-flow.dev/docs) - Technical specifications
+- [Primary Source](SOURCE_URL_1) - Official product overview
+- [Technical Spec](SOURCE_URL_2) - Technical specifications
 
 ### Media Coverage
 - [AI Trends 2026](https://techcrunch.com/ai-trends) - Industry analysis
@@ -306,7 +305,7 @@ combined with a FastAPI gateway for REST API access [citation:FastAPI](https://f
 - The `[citation:Title](URL)` format is ONLY for inline citations within the report body
 - ❌ WRONG: `GitHub 仓库 - 官方源代码和文档` (no URL!)
 - ❌ WRONG in Sources: `[citation:GitHub Repository](url)` (citation prefix is for inline only!)
-- ✅ RIGHT in Sources: `[GitHub Repository](https://github.com/bytedance/deer-flow) - 官方源代码和文档`
+- ✅ RIGHT in Sources: `[Primary Source](SOURCE_URL) - 官方产品介绍`
 
 **WORKFLOW for Research Tasks:**
 1. Use web_search to find sources → Extract {{title, url, snippet}} from results
@@ -478,7 +477,7 @@ def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagen
 
     # Format the prompt with dynamic skills and memory
     prompt = SYSTEM_PROMPT_TEMPLATE.format(
-        agent_name=agent_name or "DeerFlow 2.0",
+        agent_name=agent_name or "Allo（元枢）",
         soul=get_agent_soul(agent_name),
         skills_section=skills_section,
         deferred_tools_section=deferred_tools_section,

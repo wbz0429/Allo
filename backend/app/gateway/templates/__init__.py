@@ -1,4 +1,4 @@
-"""Built-in agent templates for the DeerFlow platform.
+"""Built-in agent templates for the Allo platform.
 
 Each template provides a pre-configured agent personality (SOUL.md),
 description, tool groups, and category so users can quickly spin up

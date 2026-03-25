@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class AppConfig(BaseModel):
-    """Config for the DeerFlow application"""
+    """Config for the Allo application"""
 
     models: list[ModelConfig] = Field(default_factory=list, description="Available models")
     sandbox: SandboxConfig = Field(description="Sandbox configuration")
@@ -158,8 +158,7 @@ class AppConfig(BaseModel):
 
         if user_version < example_version:
             logger.warning(
-                "Your config.yaml (version %d) is outdated — the latest version is %d. "
-                "Run `make config-upgrade` to merge new fields into your config.",
+                "Your config.yaml (version %d) is outdated — the latest version is %d. Run `make config-upgrade` to merge new fields into your config.",
                 user_version,
                 example_version,
             )
@@ -227,7 +226,7 @@ _app_config: AppConfig | None = None
 
 
 def get_app_config() -> AppConfig:
-    """Get the DeerFlow config instance.
+    """Get the Allo config instance.
 
     Returns a cached singleton instance. Use `reload_app_config()` to reload
     from file, or `reset_app_config()` to clear the cache.

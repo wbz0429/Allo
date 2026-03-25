@@ -53,7 +53,7 @@ class TestCreateApp:
 
     def test_create_app_has_title(self):
         app = create_app()
-        assert app.title == "DeerFlow API Gateway"
+        assert app.title == "Allo API Gateway"
 
     def test_create_app_has_version(self):
         app = create_app()

@@ -1,4 +1,4 @@
-"""Authentication middleware for the DeerFlow gateway.
+"""Authentication middleware for the Allo gateway.
 
 Provides AuthContext extraction from session cookies or API key headers,
 with support for SKIP_AUTH=1 dev mode for backward compatibility.

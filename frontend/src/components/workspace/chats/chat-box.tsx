@@ -41,6 +41,11 @@ const ChatBox: React.FC<{ children: React.ReactNode; threadId: string }> = ({
   } = useArtifacts();
 
   const [autoSelectFirstArtifact, setAutoSelectFirstArtifact] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   useEffect(() => {
     if (threadIdRef.current !== threadId) {
       threadIdRef.current = threadId;
@@ -93,6 +98,10 @@ const ChatBox: React.FC<{ children: React.ReactNode; threadId: string }> = ({
       }
     }
   }, [artifactPanelOpen]);
+
+  if (!isMounted) {
+    return <div className="relative flex size-full min-h-0" />;
+  }
 
   return (
     <ResizablePanelGroup

@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document provides a comprehensive overview of the DeerFlow backend architecture.
+This document provides a comprehensive overview of the Allo（元枢） backend architecture.
 
 ## System Architecture
 
@@ -130,7 +130,7 @@ class ThreadState(AgentState):
     # Core state from AgentState
     messages: list[BaseMessage]
 
-    # DeerFlow extensions
+    # Allo extensions
     sandbox: dict             # Sandbox environment info
     artifacts: list[str]      # Generated file paths
     thread_data: dict         # {workspace, uploads, outputs} paths

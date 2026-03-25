@@ -1,6 +1,6 @@
-# DeerFlow Frontend
+# Allo（元枢） Frontend
 
-Like the original DeerFlow 1.0, we would love to give the community a minimalistic and easy-to-use web interface with a more modern and flexible architecture.
+Allo（元枢） provides the community with a minimalistic and easy-to-use web interface built on a modern, flexible architecture.
 
 ## Tech Stack
 
