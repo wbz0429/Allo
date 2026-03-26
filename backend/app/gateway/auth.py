@@ -21,14 +21,21 @@ from app.gateway.db.models import Organization
 
 logger = logging.getLogger(__name__)
 
-_env = os.getenv("ENV", os.getenv("NODE_ENV", "development")).lower()
-_skip_auth_raw = os.getenv("SKIP_AUTH", "0") == "1"
+def _get_runtime_env() -> str:
+    return os.getenv("ENV", os.getenv("NODE_ENV", "development")).lower()
 
-if _skip_auth_raw and _env not in ("development", "dev", "test"):
-    logger.critical("SKIP_AUTH=1 is set but ENV=%s — refusing to skip auth outside development. Set ENV=development to enable.", _env)
-    SKIP_AUTH = False
-else:
-    SKIP_AUTH = _skip_auth_raw
+
+def _get_runtime_skip_auth() -> bool:
+    env_name = _get_runtime_env()
+    skip_auth_raw = os.getenv("SKIP_AUTH", "0") == "1"
+    if skip_auth_raw and env_name not in ("development", "dev", "test"):
+        logger.critical("SKIP_AUTH=1 is set but ENV=%s - refusing to skip auth outside development. Set ENV=development to enable.", env_name)
+        return False
+    return skip_auth_raw
+
+
+_env = _get_runtime_env()
+SKIP_AUTH = _get_runtime_skip_auth()
 
 if SKIP_AUTH:
     logger.warning("SKIP_AUTH=1 is active — all requests will use dev context. Do NOT use in production.")
@@ -239,7 +246,7 @@ async def get_auth_context(request: Request, db: AsyncSession = Depends(get_db_s
     Raises:
         HTTPException: 401 if no valid credentials are found.
     """
-    if SKIP_AUTH:
+    if _get_runtime_skip_auth():
         ctx = AuthContext(user_id=_DEV_USER_ID, org_id=_DEV_ORG_ID, role=_DEV_ROLE)
         _stamp_request_state(request, ctx)
         return ctx
@@ -293,7 +300,7 @@ async def get_optional_auth_context(request: Request, db: AsyncSession = Depends
     Returns:
         AuthContext if valid credentials are found, None otherwise.
     """
-    if SKIP_AUTH:
+    if _get_runtime_skip_auth():
         return AuthContext(user_id=_DEV_USER_ID, org_id=_DEV_ORG_ID, role=_DEV_ROLE)
 
     session_token = request.cookies.get("better-auth.session_token")

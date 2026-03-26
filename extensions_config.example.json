@@ -36,6 +36,15 @@
       ],
       "env": {},
       "description": "PostgreSQL database access"
+    },
+    "secure-http": {
+      "enabled": false,
+      "type": "http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "$MCP_AUTHORIZATION_HEADER"
+      },
+      "description": "HTTP MCP server using an environment-provided Authorization header"
     }
   },
   "skills": {}

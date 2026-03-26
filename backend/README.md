@@ -280,6 +280,9 @@ MCP servers and skill states in a single file:
       "enabled": true,
       "type": "http",
       "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "$MCP_AUTHORIZATION_HEADER"
+      },
       "oauth": {
         "enabled": true,
         "token_url": "https://auth.example.com/oauth/token",
@@ -294,6 +297,8 @@ MCP servers and skill states in a single file:
   }
 }
 ```
+
+For header-based HTTP MCP servers, store the full secret header value in an environment variable and reference it from `headers` instead of hardcoding bearer tokens in `extensions_config.json`.
 
 ### Environment Variables
 

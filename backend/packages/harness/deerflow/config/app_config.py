@@ -44,7 +44,8 @@ class AppConfig(BaseModel):
         Priority:
         1. If provided `config_path` argument, use it.
         2. If provided `DEER_FLOW_CONFIG_PATH` environment variable, use it.
-        3. Otherwise, first check the `config.yaml` in the current directory, then fallback to `config.yaml` in the parent directory.
+        3. Otherwise, search for `config.yaml` starting from the current directory
+           and walking up several parent directories.
         """
         if config_path:
             path = Path(config_path)
@@ -57,14 +58,16 @@ class AppConfig(BaseModel):
                 raise FileNotFoundError(f"Config file specified by environment variable `DEER_FLOW_CONFIG_PATH` not found at {path}")
             return path
         else:
-            # Check if the config.yaml is in the current directory
-            path = Path(os.getcwd()) / "config.yaml"
-            if not path.exists():
-                # Check if the config.yaml is in the parent directory of CWD
-                path = Path(os.getcwd()).parent / "config.yaml"
-                if not path.exists():
-                    raise FileNotFoundError("`config.yaml` file not found at the current directory nor its parent directory")
-            return path
+            search_dir = Path(os.getcwd()).resolve()
+            for _ in range(8):
+                path = search_dir / "config.yaml"
+                if path.exists():
+                    return path
+                parent = search_dir.parent
+                if parent == search_dir:
+                    break
+                search_dir = parent
+            raise FileNotFoundError("`config.yaml` file not found in the current directory or its parent directories")
 
     @classmethod
     def from_file(cls, config_path: str | None = None) -> Self:
