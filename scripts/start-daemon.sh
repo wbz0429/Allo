@@ -12,8 +12,10 @@ set -e
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-PROJECT_ENV_PREFIX="$(python3 - <<'PY'
+load_project_env() {
+    eval "$(python3 - <<'PY'
 from pathlib import Path
+import shlex
 
 env = {}
 for path in [Path('.env'), Path('backend/.env')]:
@@ -29,9 +31,12 @@ for path in [Path('.env'), Path('backend/.env')]:
         if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
             value = value[1:-1]
         env[key] = value
-print(' '.join(f"{k}={v!r}" for k, v in env.items()))
+
+for key, value in env.items():
+    print(f'export {key}={shlex.quote(value)}')
 PY
 )"
+}
 
 # ── Stop existing services ────────────────────────────────────────────────────
 
@@ -94,7 +99,28 @@ trap cleanup_on_failure INT TERM
 mkdir -p logs
 
 echo "Starting LangGraph server..."
-nohup sh -c 'cd backend && env $0 NO_COLOR=1 uv run langgraph dev --no-browser --allow-blocking --no-reload > ../logs/langgraph.log 2>&1' "$PROJECT_ENV_PREFIX" &
+nohup bash -lc 'set -e; load_project_env() { eval "$(python3 - <<'"'"'PY'"'"'
+from pathlib import Path
+import shlex
+repo = Path(r"'"'"'$0'"'"'")
+env = {}
+for path in [repo / ".env", repo / "backend/.env"]:
+    if not path.exists():
+        continue
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {"\"", "'"'"'"}:
+            value = value[1:-1]
+        env[key] = value
+for key, value in env.items():
+    print(f"export {key}={shlex.quote(value)}")
+PY
+)"; }; load_project_env; cd "$0/backend" && env NO_COLOR=1 uv run langgraph dev --no-browser --allow-blocking --no-reload > "$0/logs/langgraph.log" 2>&1' "$REPO_ROOT" &
 ./scripts/wait-for-port.sh 2024 60 "LangGraph" || {
     echo "✗ LangGraph failed to start. Last log output:"
     tail -60 logs/langgraph.log
@@ -108,7 +134,28 @@ nohup sh -c 'cd backend && env $0 NO_COLOR=1 uv run langgraph dev --no-browser -
 echo "✓ LangGraph server started on localhost:2024"
 
 echo "Starting Gateway API..."
-nohup sh -c 'cd backend && env ENV=development SKIP_AUTH=1 PYTHONPATH=. uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 > ../logs/gateway.log 2>&1' &
+nohup bash -lc 'set -e; load_project_env() { eval "$(python3 - <<'"'"'PY'"'"'
+from pathlib import Path
+import shlex
+repo = Path(r"'"'"'$0'"'"'")
+env = {}
+for path in [repo / ".env", repo / "backend/.env"]:
+    if not path.exists():
+        continue
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {"\"", "'"'"'"}:
+            value = value[1:-1]
+        env[key] = value
+for key, value in env.items():
+    print(f"export {key}={shlex.quote(value)}")
+PY
+)"; }; load_project_env; cd "$0/backend" && env ENV=development SKIP_AUTH=1 PYTHONPATH=. uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 > "$0/logs/gateway.log" 2>&1' "$REPO_ROOT" &
 ./scripts/wait-for-port.sh 8001 30 "Gateway API" || {
     echo "✗ Gateway API failed to start. Last log output:"
     tail -60 logs/gateway.log

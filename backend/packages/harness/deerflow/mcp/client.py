@@ -1,6 +1,7 @@
 """MCP client using langchain-mcp-adapters."""
 
 import logging
+import os
 from typing import Any
 
 from deerflow.config.extensions_config import ExtensionsConfig, McpServerConfig
@@ -35,7 +36,12 @@ def build_server_params(server_name: str, config: McpServerConfig) -> dict[str, 
         params["url"] = config.url
         # Add headers if present
         if config.headers:
-            params["headers"] = config.headers
+            headers = dict(config.headers)
+            if not headers.get("Authorization"):
+                env_auth = os.getenv(f"{server_name.upper()}_AUTHORIZATION_HEADER")
+                if env_auth:
+                    headers["Authorization"] = env_auth
+            params["headers"] = headers
     else:
         raise ValueError(f"MCP server '{server_name}' has unsupported transport type: {transport_type}")
 

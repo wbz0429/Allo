@@ -9,8 +9,10 @@ set -e
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-PROJECT_ENV_PREFIX="$(python3 - <<'PY'
+load_project_env() {
+    eval "$(python3 - <<'PY'
 from pathlib import Path
+import shlex
 
 env = {}
 for path in [Path('.env'), Path('backend/.env')]:
@@ -26,9 +28,12 @@ for path in [Path('.env'), Path('backend/.env')]:
         if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
             value = value[1:-1]
         env[key] = value
-print(' '.join(f"{k}={v!r}" for k, v in env.items()))
+
+for key, value in env.items():
+    print(f'export {key}={shlex.quote(value)}')
 PY
 )"
+}
 
 # ── Argument parsing ─────────────────────────────────────────────────────────
 
@@ -145,7 +150,7 @@ else
 fi
 
 echo "Starting LangGraph server..."
-(cd backend && env $PROJECT_ENV_PREFIX NO_COLOR=1 uv run langgraph dev --no-browser --allow-blocking $LANGGRAPH_EXTRA_FLAGS > ../logs/langgraph.log 2>&1) &
+(load_project_env && cd backend && env NO_COLOR=1 uv run langgraph dev --no-browser --allow-blocking $LANGGRAPH_EXTRA_FLAGS > ../logs/langgraph.log 2>&1) &
 ./scripts/wait-for-port.sh 2024 60 "LangGraph" || {
     echo "  See logs/langgraph.log for details"
     tail -20 logs/langgraph.log
@@ -158,7 +163,7 @@ echo "Starting LangGraph server..."
 echo "✓ LangGraph server started on localhost:2024"
 
 echo "Starting Gateway API..."
-(cd backend && env $GATEWAY_ENV_PREFIX PYTHONPATH=. uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 $GATEWAY_EXTRA_FLAGS > ../logs/gateway.log 2>&1) &
+(load_project_env && cd backend && env $GATEWAY_ENV_PREFIX PYTHONPATH=. uv run uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 $GATEWAY_EXTRA_FLAGS > ../logs/gateway.log 2>&1) &
 ./scripts/wait-for-port.sh 8001 30 "Gateway API" || {
     echo "✗ Gateway API failed to start. Last log output:"
     tail -60 logs/gateway.log

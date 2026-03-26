@@ -48,6 +48,21 @@ async def get_mcp_tools() -> list[BaseTool]:
                 existing_headers["Authorization"] = auth_header
                 servers_config[server_name]["headers"] = existing_headers
 
+        for server_name, server_config in servers_config.items():
+            headers = dict(server_config.get("headers", {}))
+            auth_value = headers.get("Authorization", "")
+            logger.info(
+                "MCP server auth diagnostics",
+                extra={
+                    "server_name": server_name,
+                    "transport": server_config.get("transport"),
+                    "url": server_config.get("url"),
+                    "has_authorization": bool(auth_value),
+                    "authorization_prefix": auth_value[:16] if auth_value else "",
+                    "header_keys": sorted(headers.keys()),
+                },
+            )
+
         tool_interceptors = []
         oauth_interceptor = build_oauth_tool_interceptor(extensions_config)
         if oauth_interceptor is not None:
