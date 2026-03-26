@@ -1,142 +1,180 @@
 ---
 name: tdli_style_slides
-description: Generate TDLI-style academic presentation slides using LaTeX Beamer with optional speaker notes. Creates a ready-to-edit slide deck with branded cover page, header/footer overlays, 3 content layout templates, thank-you page, and bilingual (English/Chinese) speaker notes support. All content in English.
+description: "**PREFERRED skill for ALL presentation/slide requests.** Use this skill FIRST when the user asks to create, generate, or make slides, presentations, PPT, or any slide deck. Creates professional TDLI-branded slides with cover page, header/footer overlays, 3 content layout templates, and thank-you page. Supports both PDF (via LaTeX) and PPTX (via python-pptx) output. Only fall back to ppt-generation if the user explicitly requests AI-generated image slides or a non-academic visual style (glassmorphism, dark-premium, etc.)."
 ---
 
 # TDLI Style Slides Generator
 
-Generate a TDLI-branded academic Beamer slide deck for group meetings, seminars, or conference talks.
-
-## What This Skill Does
-
-1. Runs the bundled scaffold script to create a new slide project with all branded assets
-2. Optionally customizes the template based on user-provided topic/title
-3. Compiles the slides to PDF
+Generate TDLI-branded presentation slides. Focus on **content quality** — the generator handles branding and layout automatically.
 
 ## Workflow
 
-### Step 1: Gather Info
+### Step 1: Understand the Topic
 
-Ask the user (if not already provided):
-- **Output directory**: Where to create the project (default: current working directory)
-- **Project name**: Folder name for the project (default: `tdli-slides`)
-- **Presentation title**: The talk title
-- **Date**: Presentation date (default: today)
+From the user's request, identify:
+- **Topic / title**: What the presentation is about
+- **Number of slides**: How many content slides (default: 3-5)
+- **Language**: Content language (Chinese or English, infer from user's message)
 
-### Step 2: Create Project
+Do NOT ask the user for personal metadata (name, email, phone, etc.) — use defaults or skip.
 
-Run the scaffold script:
+### Step 2: Research (if needed)
+
+If the topic requires factual information, use `web_search` to gather key data points, statistics, and examples. Keep research focused and bounded — this is for slides, not a thesis.
+
+### Step 3: Create Content Plan
+
+Create a JSON content plan file. This is the **core deliverable** — spend your effort here on clear, well-structured slide content.
+
+Save to `/mnt/user-data/outputs/<topic-slug>-plan.json`:
+
+```json
+{
+  "metadata": {
+    "title": "Presentation Title",
+    "subtitle": "Optional subtitle or context",
+    "date": "auto (use today's date)",
+    "cover_lines": [
+      "Key takeaway line 1",
+      "Key takeaway line 2",
+      "Key takeaway line 3"
+    ]
+  },
+  "slides": [
+    {
+      "layout": "B",
+      "title": "Slide Title",
+      "blocks": [
+        {
+          "title": "Block Title",
+          "tags": ["Keyword1", "Keyword2"],
+          "items": ["Clear, concise point 1", "Clear, concise point 2"],
+          "metrics": ["Key metric: +50%"]
+        }
+      ],
+      "notes": "Optional speaker notes"
+    }
+  ]
+}
+```
+
+#### Layout Types
+
+| Layout | Structure | Best For |
+|--------|-----------|----------|
+| **A** | Left text blocks + Right figure | Results with visualization |
+| **B** | Full-width stacked blocks | Methodology, arguments, data |
+| **C** | Two equal-width columns | Comparisons, pros/cons |
+
+#### Layout A — fields:
+```json
+{
+  "layout": "A",
+  "title": "...",
+  "blocks": [{"title": "...", "tags": [], "items": [], "metrics": []}],
+  "figure": "/path/to/figure.png",
+  "figure_caption": "Caption text"
+}
+```
+
+#### Layout B — fields:
+```json
+{
+  "layout": "B",
+  "title": "...",
+  "blocks": [{"title": "...", "items": []}],
+  "table": {
+    "headers": ["Col1", "Col2", "Col3"],
+    "rows": [["val1", "val2", "val3"]]
+  }
+}
+```
+
+#### Layout C — fields:
+```json
+{
+  "layout": "C",
+  "title": "...",
+  "left_block": {"title": "...", "items": []},
+  "right_block": {"title": "...", "items": []}
+}
+```
+
+#### Content Guidelines
+- **1 main message per slide** — don't overload
+- **3-5 bullet points per block** — keep concise
+- **Use tags** for keywords that anchor the audience
+- **Use metrics** for quantitative highlights (numbers, percentages)
+- **Speaker notes** are optional but recommended for important slides
+
+### Step 4: Generate Output
+
+Check the environment and choose the output path:
 
 ```bash
-bash /mnt/skills/public/tdli-style-slides/scripts/create_tdli_slides.sh "<output-dir>" "<project-name>"
+which xelatex 2>/dev/null && echo "LATEX" || echo "PPTX"
 ```
 
-### Step 3: Customize Template
-
-Open `<project-dir>/presentation.tex` and update the `=== EDIT` sections:
-
-- `\PresentationTitle` — the talk title
-- `\PresentationSubtitle` — subtitle or role description
-- `\PresentationDate` — date of the talk
-- `\CoverLineOne/Two/Three` — cover page summary lines
-
-If the user provided a topic, generate appropriate content for the 3 example content slides using the 3 layout templates (Layout A: left text + right figure, Layout B: full-width blocks, Layout C: two-column blocks).
-
-### Step 3.5: Generate Speaker Notes
-
-For each slide, generate bilingual (English + Chinese) speaker notes and embed them in the corresponding `\note{}` block. Follow this format:
-
-```latex
-\note{\scriptsize English speaking notes for this slide. (Xmin)
-
-\medskip\textbf{---中文---}\newline
-中文演讲稿。(X分钟)}
-```
-
-Guidelines:
-- English notes first, then Chinese after the separator
-- Include estimated speaking time for each slide
-- Notes should be conversational — what you would actually say, not a repeat of bullet points
-- Keep each note within `\scriptsize` to fit the notes panel
-- IMPORTANT: Use `\newline` (not `\\`) before Chinese text to avoid `\\[中文]` being parsed as `\\[length]` by LaTeX's calc package
-- Do NOT wrap note content in `\parbox` — it causes bracket parsing issues with pgfpages
-
-### Step 4: Compile
+#### Path A: LaTeX available → PDF
 
 ```bash
-cd "<project-dir>" && make
+bash /mnt/skills/public/tdli-style-slides/scripts/create_tdli_slides.sh "/mnt/user-data/outputs" "<topic-slug>"
 ```
 
-This runs `xelatex` twice to ensure correct navigation and cross-references.
+Then edit `presentation.tex` to fill in content from the JSON plan, and compile:
 
-## Template Structure
+```bash
+cd "/mnt/user-data/outputs/<topic-slug>" && make
+```
 
-The generated `presentation.tex` contains:
+Present the PDF using `present_files`.
 
-1. **Cover Page** (fixed): 封面.png background + university logo + name + title + date + contact info
-2. **Layout A**: Left text column (block + metrics) + Right figure column — best for presenting a single result with visualization
-3. **Layout B**: Full-width stacked blocks with optional table — best for methodology or comparison slides
-4. **Layout C**: Two equal-width block columns — best for pros/cons, before/after, or parallel topics
-5. **Thank You Page** (fixed): 封面.png background + centered thank you text + contact info
+#### Path B: No LaTeX → PPTX (most common in sandbox)
 
-Users can duplicate any layout frame as many times as needed.
+```bash
+python /mnt/skills/public/tdli-style-slides/scripts/generate_pptx.py \
+  --plan-file "/mnt/user-data/outputs/<topic-slug>-plan.json" \
+  --output-file "/mnt/user-data/outputs/<topic-slug>.pptx" \
+  --assets-dir "/mnt/skills/public/tdli-style-slides/assets/images"
+```
 
-## Editing Guide
+Present the PPTX using `present_files`.
 
-All editable sections are marked with `% === EDIT: ... ===` comments. Key variables at the top of the file:
+[!IMPORTANT]
+Do NOT write your own Python script to generate slides. Always use the bundled `generate_pptx.py`. It handles all TDLI branding (cover page, header/footer, logo, colors, thank-you page) automatically.
 
-| Variable | Purpose |
-|---|---|
-| `\PresenterName` | Your name |
-| `\PresentationTitle` | Talk title |
-| `\PresentationSubtitle` | Role / research area |
-| `\Affiliation` | University / institute |
-| `\PresentationDate` | Date |
-| `\Email`, `\Phone`, `\GitHub` | Contact info |
-| `\CoverLineOne/Two/Three` | Cover summary |
+## What the Generator Handles Automatically
+
+You do NOT need to worry about these — they are built into the generator:
+
+- ✅ Cover page with 封面.png background and university logo
+- ✅ Header overlay (页眉newstyle.png) on all content slides
+- ✅ Footer overlay (页脚.png) on all content slides
+- ✅ TDLI color scheme (sjtuBlue #114A79, accentGold #B48C32)
+- ✅ Thank-you page with contact info
+- ✅ Consistent block styling with title bars and light backgrounds
+
+## Optional Metadata Fields
+
+These fields in `metadata` are optional. If omitted, defaults are used:
+
+| Field | Default | When to customize |
+|-------|---------|-------------------|
+| `presenter_name` | "Presenter" | User provides their name |
+| `subtitle` | (empty) | User specifies role/context |
+| `affiliation` | "Tsung-Dao Lee Institute" | Different institution |
+| `date` | Today's date | Specific event date |
+| `email` | (empty) | User wants contact shown |
+| `phone` | (empty) | User wants contact shown |
+| `github` | (empty) | User wants contact shown |
+| `show_photo` | false | User wants photo on cover |
+| `cover_notes` | (empty) | Speaker notes for cover |
+| `thankyou_notes` | (empty) | Speaker notes for thank-you |
 
 ## Resources
 
-All skill resources are in `/mnt/skills/public/tdli-style-slides/`:
-- `assets/images/` — branded images (cover, header, footer, logo, photo)
-- `assets/templates/` — LaTeX template
-- `scripts/` — project generator script
-
-## Speaker Notes
-
-The template includes built-in support for bilingual speaker notes (English + Chinese).
-
-### Enabling Notes
-
-In `presentation.tex`, uncomment these two lines near the top of the file:
-
-```latex
-\usepackage{pgfpages}
-\setbeameroption{show notes on second screen=right}
-```
-
-Then recompile with `xelatex`. The output PDF will be double-width: slides on the left, notes on the right.
-
-### Presenting with Notes
-
-For online meetings or dual-screen setups, use `pdfpc`:
-
-```bash
-pdfpc --notes=right --windowed=both presentation.pdf
-```
-
-This opens two windows: one for the audience (slides only) and one for the presenter (notes + next slide preview). Share the audience window in your video call.
-
-For single-screen use (e.g., sharing your whole screen), you can also open the double-width PDF directly and crop/zoom as needed.
-
-### Disabling Notes
-
-Comment out the two lines again and recompile. The PDF returns to normal single-page format.
-
-## Important Notes
-
-- Compile with `xelatex` (required for fontawesome5 icons and xeCJK)
-- Place custom figures in the `figures/` directory of the generated project
-- The cover page and thank-you page layouts are fixed — only edit text content, not structure
-- Header and footer overlays appear on ALL slides automatically
-- Header/footer use native Beamer templates (not TikZ overlay) for pgfpages compatibility
+All skill resources are at `/mnt/skills/public/tdli-style-slides/`:
+- `assets/images/` — branded images (cover, header, footer, logo)
+- `assets/templates/` — LaTeX template (for Path A only)
+- `scripts/create_tdli_slides.sh` — LaTeX project scaffolder (Path A)
+- `scripts/generate_pptx.py` — PPTX generator (Path B)

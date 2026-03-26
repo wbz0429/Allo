@@ -11,7 +11,7 @@ Example:
 
 This creates <output-dir>/<project-name>/ with:
   - presentation.tex  (ready-to-edit Beamer template)
-  - assets/           (branded images: cover, header, footer, logo, photo)
+  - assets/           (branded images: cover, header, footer, logo)
   - figures/          (place your own figures here)
   - Makefile          (run `make` to compile)
 EOF
@@ -42,7 +42,7 @@ if [[ ! -f "${TEMPLATE_FILE}" ]]; then
   exit 1
 fi
 
-for f in "封面.png" "页眉.png" "页眉newstyle.png" "页脚.png" "校标-标志中英文横版.png" "me.jpg"; do
+for f in "封面.png" "页眉.png" "页眉newstyle.png" "页脚.png" "校标-标志中英文横版.png"; do
   if [[ ! -f "${IMAGES_DIR}/${f}" ]]; then
     echo "Error: Missing image: ${IMAGES_DIR}/${f}" >&2
     exit 1
@@ -68,7 +68,6 @@ cp "${IMAGES_DIR}/页眉.png"              "${PROJECT_DIR}/assets/"
 cp "${IMAGES_DIR}/页眉newstyle.png"      "${PROJECT_DIR}/assets/"
 cp "${IMAGES_DIR}/页脚.png"              "${PROJECT_DIR}/assets/"
 cp "${IMAGES_DIR}/校标-标志中英文横版.png" "${PROJECT_DIR}/assets/"
-cp "${IMAGES_DIR}/me.jpg"               "${PROJECT_DIR}/assets/"
 
 # Create placeholder figure
 cat > "${PROJECT_DIR}/figures/README.txt" <<'EOF'

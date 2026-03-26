@@ -31,14 +31,14 @@ Open `~/Desktop/ml-hep-talk/presentation.tex` and edit the top section:
 % ============================================================
 % === EDIT ZONE: Global Metadata (modify these variables) ===
 % ============================================================
-\newcommand{\PresenterName}{Xinchen Li}
+\newcommand{\PresenterName}{Your Name}
 \newcommand{\PresentationTitle}{Machine Learning for HEP Event Classification}
-\newcommand{\PresentationSubtitle}{Ph.D. Candidate | High Energy Physics \& HPC}
+\newcommand{\PresentationSubtitle}{Your Role or Research Area}
 \newcommand{\Affiliation}{Shanghai Jiao Tong University \textperiodcentered{} Tsung-Dao Lee Institute}
 \newcommand{\PresentationDate}{March 15, 2026}
-\newcommand{\Email}{starleetdli@gmail.com}
-\newcommand{\Phone}{13153522674}
-\newcommand{\GitHub}{StarLee2}
+\newcommand{\Email}{your@email.com}
+\newcommand{\Phone}{your-phone}
+\newcommand{\GitHub}{your-github}
 
 % === EDIT: Cover page summary lines ===
 \newcommand{\CoverLineOne}{Deep learning models for particle collision event classification}
@@ -228,8 +228,7 @@ ml-hep-talk/
 │   ├── 封面.png
 │   ├── 页眉.png
 │   ├── 页脚.png
-│   ├── 校标-标志中英文横版.png
-│   └── me.jpg
+│   └── 校标-标志中英文横版.png
 └── figures/
     ├── architecture.png
     ├── roc_curve.png

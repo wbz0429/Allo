@@ -30,9 +30,63 @@ This skill provides a systematic methodology for conducting thorough web researc
 
 **Never generate content based solely on general knowledge.** The quality of your output directly depends on the quality and quantity of research conducted beforehand. A single search query is NEVER enough.
 
+## ⛔ MANDATORY: Research Depth Negotiation
+
+**Before starting ANY research, you MUST ask the user to choose a research depth level.** Do NOT skip this step. Do NOT assume a level.
+
+Use `ask_clarification` to present the following options:
+
+```
+question: "请选择调研深度（Research Depth）："
+clarification_type: "approach_choice"
+context: "不同深度对应不同的搜索轮数和每轮搜索次数，直接影响调研质量和耗时。"
+options:
+  - "⚡ 快速 (Quick) — 1轮, 每轮3-5次搜索, 预计1-2分钟"
+  - "📊 标准 (Standard) — 2轮, 每轮5-8次搜索, 预计3-5分钟"
+  - "🔬 深度 (Deep) — 3轮, 每轮8-12次搜索, 预计8-15分钟"
+```
+
+**If the user explicitly specifies depth in their original request** (e.g., "简单查一下", "深度调研", "详细分析"), you may infer the level without asking — but MUST announce the chosen level and its budget before starting.
+
+### Research Depth Levels
+
+| Level | Rounds | Searches/Round | web_fetch Total | Est. Time | Description |
+|-------|--------|---------------|-----------------|-----------|-------------|
+| ⚡ Quick | 1 | 3-5 | 2 | 1-2 min | Fast overview, key facts only. Broad Exploration only. |
+| 📊 Standard | 2 | 5-8 | 5 | 3-5 min | Solid coverage with targeted deep dives. Broad + Deep Dive. |
+| 🔬 Deep | 3 | 8-12 | 8 | 8-15 min | Comprehensive multi-angle analysis. All 4 phases. |
+
+### Budget Definitions (HARD LIMITS per level)
+
+**⚡ Quick:**
+- Max `web_search`: **5**
+- Max `web_fetch`: **2**
+- Max rounds: **1** (Broad Exploration only, skip Phase 2-3)
+- Synthesis: Summarize from search snippets, minimal full-text reading
+
+**📊 Standard:**
+- Max `web_search`: **12**
+- Max `web_fetch`: **5**
+- Max rounds: **2** (Phase 1 + Phase 2, light Phase 3)
+- Synthesis: Cover 3-4 angles, fetch top 3-5 authoritative sources
+
+**🔬 Deep:**
+- Max `web_search`: **20**
+- Max `web_fetch`: **8**
+- Max rounds: **3** (All 4 phases)
+- Synthesis: Full multi-angle coverage with validation
+
+### ⛔ HARD STOP RULES (apply to ALL levels)
+
+1. **When you reach the max search count for your level, STOP.** Do NOT do "one more search."
+2. **When you reach the max fetch count, use search snippets for remaining gaps.**
+3. **When you finish the max rounds for your level, proceed to content generation immediately.**
+4. **Track your usage.** Before each search/fetch, mentally count: "This is search N of M." If N >= M, stop.
+5. **"Good enough" research delivered on time is ALWAYS better than "perfect" research that never finishes.**
+
 ## Research Methodology
 
-### Phase 1: Broad Exploration
+### Phase 1: Broad Exploration (ALL levels)
 
 Start with broad searches to understand the landscape:
 
@@ -57,7 +111,9 @@ Identified dimensions:
 - Ethical considerations
 ```
 
-### Phase 2: Deep Dive
+**⚡ Quick level: STOP HERE.** Summarize findings and proceed to content generation.
+
+### Phase 2: Deep Dive (Standard + Deep only)
 
 For each important dimension identified, conduct targeted research:
 
@@ -80,7 +136,9 @@ Then fetch and read:
 - Real-world case studies
 ```
 
-### Phase 3: Diversity & Validation
+**📊 Standard level: Do a light pass of Phase 3 (pick 2-3 most relevant information types), then STOP and proceed to synthesis.**
+
+### Phase 3: Diversity & Validation (Deep only — full pass)
 
 Ensure comprehensive coverage by seeking diverse information types:
 
@@ -93,17 +151,32 @@ Ensure comprehensive coverage by seeking diverse information types:
 | **Comparisons** | Context and alternatives | "vs", "comparison", "alternatives" |
 | **Challenges & Criticisms** | Balanced view | "challenges", "limitations", "criticism" |
 
-### Phase 4: Synthesis Check
+**🔬 Deep level: Cover at least 4 of the 6 information types above, then proceed to synthesis.**
 
-Before proceeding to content generation, verify:
+### Phase 4: Synthesis Check (ALL levels — adapted)
 
-- [ ] Have I searched from at least 3-5 different angles?
+Before proceeding to content generation, verify based on your level:
+
+**⚡ Quick:**
+- [ ] Do I have a basic understanding of the topic?
+- [ ] Do I have at least 2-3 key facts or data points?
+→ If yes, proceed. If no, you may do 1-2 more searches (within budget).
+
+**📊 Standard:**
+- [ ] Have I searched from at least 3-4 different angles?
+- [ ] Have I read 2-3 important sources in full?
+- [ ] Do I have concrete data and examples?
+→ If yes, proceed. If no but budget remains, do one more targeted round.
+
+**🔬 Deep:**
+- [ ] Have I searched from at least 5+ different angles?
 - [ ] Have I fetched and read the most important sources in full?
 - [ ] Do I have concrete data, examples, and expert perspectives?
 - [ ] Have I explored both positive aspects and challenges/limitations?
 - [ ] Is my information current and from authoritative sources?
+→ If most answers are yes (4/5+), proceed. Do NOT chase 100% completion.
 
-**If any answer is NO, continue researching before generating content.**
+**CRITICAL: At this phase, if you have exhausted your budget, you MUST proceed to content generation regardless of checklist status. Use what you have.**
 
 ## Search Strategy Tips
 
@@ -159,40 +232,53 @@ Use `web_fetch` to read full content when:
 - The source contains data, case studies, or expert analysis
 - You want to understand the full context of a finding
 
+**Remember: web_fetch is expensive. Always check your remaining fetch budget before using it.**
+
 ### Iterative Refinement
 
-Research is iterative. After initial searches:
+Research is iterative, but **bounded by your chosen level's round limit**. Within each round:
 1. Review what you've learned
-2. Identify gaps in your understanding
+2. Identify the most critical gaps (not ALL gaps)
 3. Formulate new, more targeted queries
-4. Repeat until you have comprehensive coverage
+4. Execute within remaining budget
+
+**Do NOT start a new round if you have exhausted your search/fetch budget.**
 
 ## Quality Bar
 
-Your research is sufficient when you can confidently answer:
+Your research is sufficient when you can confidently answer (scaled by level):
+
+**All levels:**
 - What are the key facts and data points?
+- What makes this topic relevant or important now?
+
+**Standard + Deep:**
 - What are 2-3 concrete real-world examples?
 - What do experts say about this topic?
+
+**Deep only:**
 - What are the current trends and future directions?
 - What are the challenges or limitations?
-- What makes this topic relevant or important now?
 
 ## Common Mistakes to Avoid
 
-- ❌ Stopping after 1-2 searches
-- ❌ Relying on search snippets without reading full sources
+- ❌ Stopping after 1-2 searches (for Standard/Deep levels)
+- ❌ Relying on search snippets without reading full sources (for Standard/Deep)
 - ❌ Searching only one aspect of a multi-faceted topic
 - ❌ Ignoring contradicting viewpoints or challenges
 - ❌ Using outdated information when current data exists
 - ❌ Starting content generation before research is complete
+- ❌ **Exceeding your budget — this is the #1 mistake. Respect the limits.**
+- ❌ **Not asking the user for depth level — always negotiate first**
+- ❌ **Doing "just one more search" after hitting the limit — STOP means STOP**
 
 ## Output
 
-After completing research, you should have:
-1. A comprehensive understanding of the topic from multiple angles
-2. Specific facts, data points, and statistics
-3. Real-world examples and case studies
-4. Expert perspectives and authoritative sources
-5. Current trends and relevant context
+After completing research (within your budget), you should have:
+1. A solid understanding of the topic (depth varies by level)
+2. Key facts, data points, and statistics
+3. Real-world examples (for Standard/Deep)
+4. Expert perspectives and authoritative sources (for Deep)
+5. Current trends and relevant context (for Deep)
 
-**Only then proceed to content generation**, using the gathered information to create high-quality, well-informed content.
+**Proceed to content generation immediately**, using the gathered information to create high-quality, well-informed content.

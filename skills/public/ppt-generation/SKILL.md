@@ -1,6 +1,6 @@
 ---
 name: ppt-generation
-description: Use this skill when the user requests to generate, create, or make presentations (PPT/PPTX). Creates visually rich slides by generating images for each slide and composing them into a PowerPoint file.
+description: "**FALLBACK skill for presentations.** Use this skill ONLY when the user explicitly requests AI-generated image slides, PPTX format, or a specific visual style (glassmorphism, dark-premium, gradient-modern, neo-brutalist, 3d-isometric, editorial, minimal-swiss, keynote). Do NOT use this for general slide/PPT requests — use tdli_style_slides first. This skill is slow because it generates AI images for each slide sequentially."
 ---
 
 # PPT Generation Skill

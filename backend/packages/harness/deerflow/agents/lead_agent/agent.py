@@ -8,6 +8,7 @@ from deerflow.agents.lead_agent.prompt import apply_prompt_template
 from deerflow.agents.middlewares.clarification_middleware import ClarificationMiddleware
 from deerflow.agents.middlewares.loop_detection_middleware import LoopDetectionMiddleware
 from deerflow.agents.middlewares.memory_middleware import MemoryMiddleware
+from deerflow.agents.middlewares.research_budget_middleware import ResearchBudgetMiddleware
 from deerflow.agents.middlewares.subagent_limit_middleware import SubagentLimitMiddleware
 from deerflow.agents.middlewares.title_middleware import TitleMiddleware
 from deerflow.agents.middlewares.todo_middleware import TodoMiddleware
@@ -243,6 +244,7 @@ def _build_middlewares(config: RunnableConfig, model_name: str | None, agent_nam
     # Add DeferredToolFilterMiddleware to hide deferred tool schemas from model binding
     if app_config.tool_search.enabled:
         from deerflow.agents.middlewares.deferred_tool_filter_middleware import DeferredToolFilterMiddleware
+
         middlewares.append(DeferredToolFilterMiddleware())
 
     # Add SubagentLimitMiddleware to truncate excess parallel task calls
@@ -250,6 +252,9 @@ def _build_middlewares(config: RunnableConfig, model_name: str | None, agent_nam
     if subagent_enabled:
         max_concurrent_subagents = config.get("configurable", {}).get("max_concurrent_subagents", 3)
         middlewares.append(SubagentLimitMiddleware(max_concurrent=max_concurrent_subagents))
+
+    # ResearchBudgetMiddleware — enforce cumulative web_search/web_fetch limits
+    middlewares.append(ResearchBudgetMiddleware())
 
     # LoopDetectionMiddleware — detect and break repetitive tool call loops
     middlewares.append(LoopDetectionMiddleware())

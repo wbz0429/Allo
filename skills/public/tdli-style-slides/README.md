@@ -40,8 +40,7 @@ my-talk/
 │   ├── 封面.png
 │   ├── 页眉.png
 │   ├── 页脚.png
-│   ├── 校标-标志中英文横版.png
-│   └── me.jpg
+│   └── 校标-标志中英文横版.png
 └── figures/              # Put your custom figures here
     ├── example_figure.png
     └── README.txt
@@ -54,14 +53,14 @@ All editable sections are marked with `% === EDIT: ... ===` comments.
 ### Global Metadata (top of file)
 
 ```latex
-\newcommand{\PresenterName}{Xinchen Li}
+\newcommand{\PresenterName}{Your Name}
 \newcommand{\PresentationTitle}{Your Presentation Title Here}
-\newcommand{\PresentationSubtitle}{Ph.D. Candidate | High Energy Physics \& HPC}
+\newcommand{\PresentationSubtitle}{Your Role or Research Area}
 \newcommand{\Affiliation}{Shanghai Jiao Tong University \textperiodcentered{} Tsung-Dao Lee Institute}
-\newcommand{\PresentationDate}{March 12, 2026}
-\newcommand{\Email}{starleetdli@gmail.com}
-\newcommand{\Phone}{13153522674}
-\newcommand{\GitHub}{StarLee2}
+\newcommand{\PresentationDate}{Date}
+\newcommand{\Email}{your@email.com}
+\newcommand{\Phone}{your-phone}
+\newcommand{\GitHub}{your-github}
 
 % Cover page summary lines
 \newcommand{\CoverLineOne}{Your first summary line about research background}
@@ -184,7 +183,7 @@ make clean
 
 ## Customization Tips
 
-1. **Replace your photo**: Replace `assets/me.jpg` with your own photo (keep the filename)
+1. **Optional photo**: If you want a photo on the cover, add your own `assets/me.jpg` and enable the photo flag in the template
 2. **Add figures**: Put all figures in `figures/` directory, then reference them as `figures/your_figure.png`
 3. **Adjust colors**: Modify the color definitions at the top of the template:
    ```latex
@@ -223,7 +222,6 @@ make clean
 │   │   ├── 页眉.png
 │   │   ├── 页脚.png
 │   │   ├── 校标-标志中英文横版.png
-│   │   ├── me.jpg
 │   │   └── example_figure.png
 │   └── templates/
 │       └── tdli_slides_template.tex  # LaTeX template
