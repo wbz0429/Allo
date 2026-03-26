@@ -10,6 +10,7 @@ This directory contains detailed documentation for the Allo（元枢） backend.
 | [API.md](API.md) | Complete API reference |
 | [CONFIGURATION.md](CONFIGURATION.md) | Configuration options |
 | [SETUP.md](SETUP.md) | Quick setup guide |
+| [本地配置与启动说明.md](本地配置与启动说明.md) | 本地模型、工具、启动与登录态说明 |
 
 ## Feature Documentation
 
