@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/server/better-auth/client";
+import { register } from "@/core/auth/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,11 +30,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const result = await authClient.signUp.email({
-        email,
-        password,
-        name,
-      });
+      const result = await register(email, password, name);
 
       if (result.error) {
         setError(result.error.message ?? "Registration failed");
