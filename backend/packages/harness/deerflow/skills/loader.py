@@ -1,5 +1,9 @@
+import asyncio
 import os
 from pathlib import Path
+
+from deerflow.config.paths import get_paths
+from deerflow.stores import SkillConfigStore
 
 from .parser import parse_skill_file
 from .types import Skill
@@ -19,7 +23,59 @@ def get_skills_root_path() -> Path:
     return skills_dir
 
 
-def load_skills(skills_path: Path | None = None, use_config: bool = True, enabled_only: bool = False) -> list[Skill]:
+def _discover_skills(category_path: Path, category: str) -> list[Skill]:
+    """Discover all skills under a category directory."""
+    if not category_path.exists() or not category_path.is_dir():
+        return []
+
+    skills = []
+    for current_root, dir_names, file_names in os.walk(category_path):
+        dir_names[:] = sorted(name for name in dir_names if not name.startswith("."))
+        if "SKILL.md" not in file_names:
+            continue
+
+        skill_file = Path(current_root) / "SKILL.md"
+        relative_path = skill_file.parent.relative_to(category_path)
+        skill = parse_skill_file(skill_file, category=category, relative_path=relative_path)
+        if skill:
+            skills.append(skill)
+
+    return skills
+
+
+def _run_coroutine_sync(coroutine):
+    """Run an async coroutine from sync code, even if an event loop is already running."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
+
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, coroutine)
+        return future.result()
+
+
+def _load_skill_toggles(user_id: str, skill_config_store: SkillConfigStore | None) -> dict[str, bool]:
+    """Load per-user skill toggles when a store is available."""
+    if skill_config_store is None:
+        return {}
+
+    try:
+        toggles = _run_coroutine_sync(skill_config_store.get_skill_toggles(user_id))
+        return toggles if isinstance(toggles, dict) else {}
+    except Exception:
+        return {}
+
+
+def load_skills(
+    skills_path: Path | None = None,
+    use_config: bool = True,
+    enabled_only: bool = False,
+    user_id: str | None = None,
+    skill_config_store: SkillConfigStore | None = None,
+) -> list[Skill]:
     """
     Load all skills from the skills directory.
 
@@ -52,41 +108,38 @@ def load_skills(skills_path: Path | None = None, use_config: bool = True, enable
     if not skills_path.exists():
         return []
 
-    skills = []
-
-    # Scan public and custom directories
-    for category in ["public", "custom"]:
-        category_path = skills_path / category
-        if not category_path.exists() or not category_path.is_dir():
-            continue
-
-        for current_root, dir_names, file_names in os.walk(category_path):
-            # Keep traversal deterministic and skip hidden directories.
-            dir_names[:] = sorted(name for name in dir_names if not name.startswith("."))
-            if "SKILL.md" not in file_names:
-                continue
-
-            skill_file = Path(current_root) / "SKILL.md"
-            relative_path = skill_file.parent.relative_to(category_path)
-
-            skill = parse_skill_file(skill_file, category=category, relative_path=relative_path)
-            if skill:
-                skills.append(skill)
+    if user_id:
+        skills = _discover_skills(skills_path / "public", category="public")
+        skills.extend(_discover_skills(get_paths().user_skills_dir(user_id), category="custom"))
+    else:
+        skills = []
+        for category in ["public", "custom"]:
+            skills.extend(_discover_skills(skills_path / category, category=category))
 
     # Load skills state configuration and update enabled status
     # NOTE: We use ExtensionsConfig.from_file() instead of get_extensions_config()
     # to always read the latest configuration from disk. This ensures that changes
     # made through the Gateway API (which runs in a separate process) are immediately
     # reflected in the LangGraph Server when loading skills.
+    user_toggles = _load_skill_toggles(user_id, skill_config_store) if user_id else {}
+
     try:
         from deerflow.config.extensions_config import ExtensionsConfig
 
         extensions_config = ExtensionsConfig.from_file()
         for skill in skills:
-            skill.enabled = extensions_config.is_skill_enabled(skill.name, skill.category)
+            enabled = extensions_config.is_skill_enabled(skill.name, skill.category)
+            if user_id and skill.name in user_toggles:
+                enabled = user_toggles[skill.name]
+            skill.enabled = enabled
     except Exception as e:
-        # If config loading fails, default to all enabled
+        # If config loading fails, default to all enabled unless user toggle overrides it.
         print(f"Warning: Failed to load extensions config: {e}")
+        for skill in skills:
+            if user_id and skill.name in user_toggles:
+                skill.enabled = user_toggles[skill.name]
+            else:
+                skill.enabled = True
 
     # Filter by enabled status if requested
     if enabled_only:
