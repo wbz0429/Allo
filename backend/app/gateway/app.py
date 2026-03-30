@@ -20,6 +20,7 @@ from app.gateway.routers import (
     memory,
     models,
     skills,
+    threads,
     suggestions,
     uploads,
     users,
@@ -140,6 +141,10 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
                 "description": "Access and manage global memory data for personalized conversations",
             },
             {
+                "name": "threads",
+                "description": "Create, list, update, and delete conversation threads and track thread runs",
+            },
+            {
                 "name": "skills",
                 "description": "Manage skills and their configurations",
             },
@@ -203,6 +208,9 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
 
     # Models API is mounted at /api/models
     app.include_router(models.router)
+
+    # Threads API is mounted at /api/threads
+    app.include_router(threads.router)
 
     # MCP API is mounted at /api/mcp
     app.include_router(mcp.router)
