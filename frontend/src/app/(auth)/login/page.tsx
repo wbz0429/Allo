@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/server/better-auth/client";
+import { login } from "@/core/auth/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,10 +29,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await authClient.signIn.email({
-        email,
-        password,
-      });
+      const result = await login(email, password);
 
       if (result.error) {
         setError(result.error.message ?? "Sign in failed");
