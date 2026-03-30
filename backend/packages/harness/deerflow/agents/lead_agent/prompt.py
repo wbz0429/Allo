@@ -1,7 +1,22 @@
+import asyncio
+import concurrent.futures
 from datetime import datetime
 
 from deerflow.config.agents_config import load_agent_soul
 from deerflow.skills import load_skills
+from deerflow.stores import MemoryStore, SkillConfigStore, SoulStore
+
+
+def _run_coroutine_sync(coroutine):
+    """Run an async coroutine from sync prompt-building code."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, coroutine)
+        return future.result()
 
 
 def _build_subagent_section(max_concurrent: int) -> str:
@@ -334,7 +349,7 @@ combined with a FastAPI gateway for REST API access [citation:FastAPI](https://f
 """
 
 
-def _get_memory_context(agent_name: str | None = None) -> str:
+def _get_memory_context(agent_name: str | None = None, memory_store: MemoryStore | None = None, user_id: str | None = None) -> str:
     """Get memory context for injection into system prompt.
 
     Args:
@@ -351,7 +366,10 @@ def _get_memory_context(agent_name: str | None = None) -> str:
         if not config.enabled or not config.injection_enabled:
             return ""
 
-        memory_data = get_memory_data(agent_name)
+        if memory_store is not None and user_id:
+            memory_data = _run_coroutine_sync(memory_store.get_memory(user_id))
+        else:
+            memory_data = get_memory_data(agent_name)
         memory_content = format_memory_for_injection(memory_data, max_tokens=config.max_injection_tokens)
 
         if not memory_content.strip():
@@ -366,13 +384,13 @@ def _get_memory_context(agent_name: str | None = None) -> str:
         return ""
 
 
-def get_skills_prompt_section(available_skills: set[str] | None = None) -> str:
+def get_skills_prompt_section(available_skills: set[str] | None = None, user_id: str | None = None, skill_config_store: SkillConfigStore | None = None) -> str:
     """Generate the skills prompt section with available skills list.
 
     Returns the <skill_system>...</skill_system> block listing all enabled skills,
     suitable for injection into any agent's system prompt.
     """
-    skills = load_skills(enabled_only=True)
+    skills = load_skills(enabled_only=True, user_id=user_id, skill_config_store=skill_config_store)
 
     try:
         from deerflow.config import get_app_config
@@ -410,9 +428,12 @@ You have access to skills that provide optimized workflows for specific tasks. E
 </skill_system>"""
 
 
-def get_agent_soul(agent_name: str | None) -> str:
+def get_agent_soul(agent_name: str | None, soul_store: SoulStore | None = None, user_id: str | None = None) -> str:
     # Append SOUL.md (agent personality) if present
-    soul = load_agent_soul(agent_name)
+    if soul_store is not None and user_id:
+        soul = _run_coroutine_sync(soul_store.get_soul(user_id))
+    else:
+        soul = load_agent_soul(agent_name)
     if soul:
         return f"<soul>\n{soul}\n</soul>\n" if soul else ""
     return ""
@@ -443,9 +464,19 @@ def get_deferred_tools_prompt_section() -> str:
     return f"<available-deferred-tools>\n{names}\n</available-deferred-tools>"
 
 
-def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagents: int = 3, *, agent_name: str | None = None, available_skills: set[str] | None = None) -> str:
+def apply_prompt_template(
+    subagent_enabled: bool = False,
+    max_concurrent_subagents: int = 3,
+    *,
+    agent_name: str | None = None,
+    available_skills: set[str] | None = None,
+    user_id: str | None = None,
+    memory_store: MemoryStore | None = None,
+    soul_store: SoulStore | None = None,
+    skill_config_store: SkillConfigStore | None = None,
+) -> str:
     # Get memory context
-    memory_context = _get_memory_context(agent_name)
+    memory_context = _get_memory_context(agent_name, memory_store=memory_store, user_id=user_id)
 
     # Include subagent section only if enabled (from runtime parameter)
     n = max_concurrent_subagents
@@ -470,7 +501,7 @@ def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagen
     )
 
     # Get skills section
-    skills_section = get_skills_prompt_section(available_skills)
+    skills_section = get_skills_prompt_section(available_skills, user_id=user_id, skill_config_store=skill_config_store)
 
     # Get deferred tools section (tool_search)
     deferred_tools_section = get_deferred_tools_prompt_section()
@@ -478,7 +509,7 @@ def apply_prompt_template(subagent_enabled: bool = False, max_concurrent_subagen
     # Format the prompt with dynamic skills and memory
     prompt = SYSTEM_PROMPT_TEMPLATE.format(
         agent_name=agent_name or "Allo（元枢）",
-        soul=get_agent_soul(agent_name),
+        soul=get_agent_soul(agent_name, soul_store=soul_store, user_id=user_id),
         skills_section=skills_section,
         deferred_tools_section=deferred_tools_section,
         memory_context=memory_context,
