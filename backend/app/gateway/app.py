@@ -11,6 +11,7 @@ from app.gateway.routers import (
     admin,
     agents,
     artifacts,
+    auth,
     channels,
     config,
     knowledge_bases,
@@ -21,6 +22,7 @@ from app.gateway.routers import (
     skills,
     suggestions,
     uploads,
+    users,
 )
 from deerflow.config.app_config import get_app_config
 
@@ -118,8 +120,16 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
         openapi_url="/openapi.json",
         openapi_tags=[
             {
+                "name": "auth",
+                "description": "Register, login, logout, and inspect authenticated gateway sessions",
+            },
+            {
                 "name": "models",
                 "description": "Operations for querying available AI models and their configurations",
+            },
+            {
+                "name": "users",
+                "description": "Read and update the current authenticated user profile",
             },
             {
                 "name": "mcp",
@@ -185,6 +195,12 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
     app.add_middleware(RateLimiterMiddleware)
 
     # Include routers
+    # Auth API is mounted at /api/auth
+    app.include_router(auth.router)
+
+    # Users API is mounted at /api/users
+    app.include_router(users.router)
+
     # Models API is mounted at /api/models
     app.include_router(models.router)
 
