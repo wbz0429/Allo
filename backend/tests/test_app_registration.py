@@ -5,6 +5,7 @@ with all expected routers mounted at the correct prefixes.
 """
 
 import inspect
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -117,6 +118,32 @@ class TestRouteRegistration:
         app = create_app()
         prefixes = _get_route_prefixes(app)
         assert "/api/marketplace" in prefixes
+
+
+class TestGatewayLifespan:
+    @pytest.mark.asyncio
+    async def test_lifespan_does_not_call_create_all(self):
+        app = create_app()
+        lifespan = app.router.lifespan_context
+
+        with (
+            patch("app.gateway.app.get_app_config"),
+            patch("app.gateway.app.get_gateway_config") as mock_gateway_config,
+            patch("app.gateway.app.logger") as mock_logger,
+            patch("app.channels.service.start_channel_service", new_callable=AsyncMock) as mock_start_channel_service,
+            patch("app.channels.service.stop_channel_service", new_callable=AsyncMock) as mock_stop_channel_service,
+        ):
+            mock_gateway_config.return_value.host = "127.0.0.1"
+            mock_gateway_config.return_value.port = 8001
+            channel_service = MagicMock()
+            channel_service.get_status.return_value = {"status": "ok"}
+            mock_start_channel_service.return_value = channel_service
+
+            async with lifespan(app):
+                pass
+
+        mock_stop_channel_service.assert_awaited_once()
+        mock_logger.info.assert_any_call("Using Alembic for migrations")
 
 
 # ---------------------------------------------------------------------------

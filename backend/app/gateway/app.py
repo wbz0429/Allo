@@ -6,8 +6,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.gateway.config import get_gateway_config
-from app.gateway.db.database import async_engine
-from app.gateway.db.models import Base
 from app.gateway.routers import (
     admin,
     agents,
@@ -50,13 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     config = get_gateway_config()
     logger.info(f"Starting API Gateway on {config.host}:{config.port}")
 
-    # Create database tables (Phase 1: use create_all; Alembic migrations in Phase 2)
-    try:
-        async with async_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables created/verified successfully")
-    except Exception:
-        logger.exception("Failed to create database tables — auth features will be unavailable")
+    logger.info("Using Alembic for migrations")
 
     # NOTE: MCP tools initialization is NOT done here because:
     # 1. Gateway doesn't use MCP tools - they are used by Agents in the LangGraph Server
