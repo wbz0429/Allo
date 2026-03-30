@@ -39,6 +39,58 @@ class Organization(Base):
         return f"<Organization(id={self.id!r}, name={self.name!r}, slug={self.slug!r})>"
 
 
+class User(Base):
+    """Application user model for gateway-managed authentication."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    locale: Mapped[str] = mapped_column(String(10), nullable=False, insert_default="zh-CN")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, insert_default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "locale" not in kwargs:
+            kwargs["locale"] = "zh-CN"
+        if "is_active" not in kwargs:
+            kwargs["is_active"] = True
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<User(id={self.id!r}, email={self.email!r})>"
+
+
+class Session(Base):
+    """Persistent login session for cookie-based gateway auth."""
+
+    __tablename__ = "sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user: Mapped["User"] = relationship("User", back_populates="sessions")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        super().__init__(**kwargs)
+
+    def __repr__(self) -> str:
+        return f"<Session(id={self.id!r}, user_id={self.user_id!r})>"
+
+
 class OrganizationMember(Base):
     """Organization membership model.
 
