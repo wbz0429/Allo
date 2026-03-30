@@ -75,10 +75,10 @@ def _get_skills_host_path() -> str | None:
 def _is_skills_path(path: str) -> bool:
     """Check if a path is under the skills container path."""
     skills_prefix = _get_skills_container_path()
-    return path == skills_prefix or path.startswith(f"{skills_prefix}/")
+    return path == skills_prefix or path.startswith(f"{skills_prefix}/") or path.startswith("/mnt/skills/custom/")
 
 
-def _resolve_skills_path(path: str) -> str:
+def _resolve_skills_path(path: str, thread_data: ThreadDataState | None = None) -> str:
     """Resolve a virtual skills path to a host filesystem path.
 
     Args:
@@ -98,7 +98,21 @@ def _resolve_skills_path(path: str) -> str:
     if path == skills_container:
         return skills_host
 
-    relative = path[len(skills_container):].lstrip("/")
+    custom_prefix = f"{skills_container}/custom"
+    if path == custom_prefix or path.startswith(f"{custom_prefix}/"):
+        user_root = thread_data.get("user_skills_path") if thread_data else None
+        if not user_root:
+            raise PermissionError(f"Custom skills path requires user context: {path}")
+
+        relative = path[len(custom_prefix) :].lstrip("/")
+        resolved = (Path(user_root) / relative).resolve()
+        try:
+            resolved.relative_to(Path(user_root).resolve())
+        except ValueError:
+            raise PermissionError("Access denied: path traversal detected") from None
+        return str(resolved)
+
+    relative = path[len(skills_container) :].lstrip("/")
     return str(Path(skills_host) / relative) if relative else skills_host
 
 
@@ -160,6 +174,7 @@ def _thread_virtual_to_actual_mappings(thread_data: ThreadDataState) -> dict[str
     workspace = thread_data.get("workspace_path")
     uploads = thread_data.get("uploads_path")
     outputs = thread_data.get("outputs_path")
+    tmp = thread_data.get("tmp_path")
 
     if workspace:
         mappings[f"{VIRTUAL_PATH_PREFIX}/workspace"] = workspace
@@ -167,9 +182,11 @@ def _thread_virtual_to_actual_mappings(thread_data: ThreadDataState) -> dict[str
         mappings[f"{VIRTUAL_PATH_PREFIX}/uploads"] = uploads
     if outputs:
         mappings[f"{VIRTUAL_PATH_PREFIX}/outputs"] = outputs
+    if tmp:
+        mappings[f"{VIRTUAL_PATH_PREFIX}/tmp"] = tmp
 
     # Also map the virtual root when all known dirs share the same parent.
-    actual_dirs = [Path(p) for p in (workspace, uploads, outputs) if p]
+    actual_dirs = [Path(p) for p in (workspace, uploads, outputs, tmp) if p]
     if actual_dirs:
         common_parent = str(Path(actual_dirs[0]).parent)
         if all(str(path.parent) == common_parent for path in actual_dirs):
@@ -204,7 +221,7 @@ def mask_local_paths_in_output(output: str, thread_data: ThreadDataState | None)
                 matched_path = match.group(0)
                 if matched_path == _base:
                     return skills_container
-                relative = matched_path[len(_base):].lstrip("/\\")
+                relative = matched_path[len(_base) :].lstrip("/\\")
                 return f"{skills_container}/{relative}" if relative else skills_container
 
             result = pattern.sub(replace_skills, result)
@@ -228,7 +245,7 @@ def mask_local_paths_in_output(output: str, thread_data: ThreadDataState | None)
                 matched_path = match.group(0)
                 if matched_path == _base:
                     return _virtual
-                relative = matched_path[len(_base):].lstrip("/\\")
+                relative = matched_path[len(_base) :].lstrip("/\\")
                 return f"{_virtual}/{relative}" if relative else _virtual
 
             result = pattern.sub(replace_match, result)
@@ -295,9 +312,18 @@ def _validate_resolved_user_data_path(resolved: Path, thread_data: ThreadDataSta
             thread_data.get("workspace_path"),
             thread_data.get("uploads_path"),
             thread_data.get("outputs_path"),
+            thread_data.get("tmp_path"),
         )
         if p is not None
     ]
+
+    user_root_path = thread_data.get("user_root_path")
+    if user_root_path is not None:
+        user_root = Path(user_root_path).resolve()
+        try:
+            resolved.relative_to(user_root)
+        except ValueError:
+            raise PermissionError("Access denied: cross-user path traversal detected") from None
 
     if not allowed_roots:
         raise SandboxRuntimeError("No allowed local sandbox directories configured")
@@ -346,10 +372,7 @@ def validate_local_bash_command_paths(command: str, thread_data: ThreadDataState
             _reject_path_traversal(absolute_path)
             continue
 
-        if any(
-            absolute_path == prefix.rstrip("/") or absolute_path.startswith(prefix)
-            for prefix in _LOCAL_BASH_SYSTEM_PATH_PREFIXES
-        ):
+        if any(absolute_path == prefix.rstrip("/") or absolute_path.startswith(prefix) for prefix in _LOCAL_BASH_SYSTEM_PATH_PREFIXES):
             continue
 
         unsafe_paths.append(absolute_path)
@@ -373,12 +396,11 @@ def replace_virtual_paths_in_command(command: str, thread_data: ThreadDataState 
 
     # Replace skills paths
     skills_container = _get_skills_container_path()
-    skills_host = _get_skills_host_path()
-    if skills_host and skills_container in result:
+    if skills_container in result:
         skills_pattern = re.compile(rf"{re.escape(skills_container)}(/[^\s\"';&|<>()]*)?")
 
         def replace_skills_match(match: re.Match) -> str:
-            return _resolve_skills_path(match.group(0))
+            return _resolve_skills_path(match.group(0), thread_data)
 
         result = skills_pattern.sub(replace_skills_match, result)
 
@@ -530,7 +552,7 @@ def ensure_thread_directories_exist(runtime: ToolRuntime[ContextT, ThreadState] 
     # Create the three directories
     import os
 
-    for key in ["workspace_path", "uploads_path", "outputs_path"]:
+    for key in ["workspace_path", "uploads_path", "outputs_path", "tmp_path"]:
         path = thread_data.get(key)
         if path:
             os.makedirs(path, exist_ok=True)
@@ -584,9 +606,11 @@ def ls_tool(runtime: ToolRuntime[ContextT, ThreadState], description: str, path:
         requested_path = path
         if is_local_sandbox(runtime):
             thread_data = get_thread_data(runtime)
+            if thread_data is None:
+                return "Error: Thread data not available for local sandbox"
             validate_local_tool_path(path, thread_data, read_only=True)
             if _is_skills_path(path):
-                path = _resolve_skills_path(path)
+                path = _resolve_skills_path(path, thread_data)
             else:
                 path = _resolve_and_validate_user_data_path(path, thread_data)
         children = sandbox.list_dir(path)
@@ -625,9 +649,11 @@ def read_file_tool(
         requested_path = path
         if is_local_sandbox(runtime):
             thread_data = get_thread_data(runtime)
+            if thread_data is None:
+                return "Error: Thread data not available for local sandbox"
             validate_local_tool_path(path, thread_data, read_only=True)
             if _is_skills_path(path):
-                path = _resolve_skills_path(path)
+                path = _resolve_skills_path(path, thread_data)
             else:
                 path = _resolve_and_validate_user_data_path(path, thread_data)
         content = sandbox.read_file(path)
@@ -669,6 +695,8 @@ def write_file_tool(
         requested_path = path
         if is_local_sandbox(runtime):
             thread_data = get_thread_data(runtime)
+            if thread_data is None:
+                return "Error: Thread data not available for local sandbox"
             validate_local_tool_path(path, thread_data)
             path = _resolve_and_validate_user_data_path(path, thread_data)
         sandbox.write_file(path, content, append)
@@ -710,6 +738,8 @@ def str_replace_tool(
         requested_path = path
         if is_local_sandbox(runtime):
             thread_data = get_thread_data(runtime)
+            if thread_data is None:
+                return "Error: Thread data not available for local sandbox"
             validate_local_tool_path(path, thread_data)
             path = _resolve_and_validate_user_data_path(path, thread_data)
         content = sandbox.read_file(path)
