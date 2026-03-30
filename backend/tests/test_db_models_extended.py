@@ -1,6 +1,7 @@
 """Extended tests for all B2B database models beyond Organization/OrganizationMember."""
 
 import uuid
+from datetime import UTC, datetime
 
 from app.gateway.db.models import (
     Base,
@@ -11,8 +12,10 @@ from app.gateway.db.models import (
     MarketplaceTool,
     OrgInstalledSkill,
     OrgInstalledTool,
+    Session,
     TenantConfig,
     UsageRecord,
+    User,
 )
 
 # ---------------------------------------------------------------------------
@@ -366,6 +369,96 @@ class TestOrgInstalledSkill:
 
 
 # ---------------------------------------------------------------------------
+# User
+# ---------------------------------------------------------------------------
+
+
+class TestUser:
+    def test_creation_with_defaults(self) -> None:
+        user = User(email="user@example.com", password_hash="hashed-password")
+        assert user.email == "user@example.com"
+        assert user.password_hash == "hashed-password"
+        assert user.display_name is None
+        assert user.avatar_url is None
+        assert user.locale == "zh-CN"
+        assert user.is_active is True
+        uuid.UUID(user.id)
+
+    def test_creation_with_explicit_values(self) -> None:
+        user = User(
+            id="user-1",
+            email="user@example.com",
+            password_hash="hashed-password",
+            display_name="Test User",
+            avatar_url="https://example.com/avatar.png",
+            locale="en-US",
+            is_active=False,
+        )
+        assert user.id == "user-1"
+        assert user.display_name == "Test User"
+        assert user.avatar_url == "https://example.com/avatar.png"
+        assert user.locale == "en-US"
+        assert user.is_active is False
+
+    def test_repr(self) -> None:
+        user = User(id="user-1", email="user@example.com", password_hash="hashed-password")
+        r = repr(user)
+        assert "User" in r
+        assert "user-1" in r
+        assert "user@example.com" in r
+
+    def test_tablename(self) -> None:
+        assert User.__tablename__ == "users"
+
+    def test_email_unique(self) -> None:
+        col = User.__table__.columns["email"]
+        assert col.unique is True
+
+
+# ---------------------------------------------------------------------------
+# Session
+# ---------------------------------------------------------------------------
+
+
+class TestSession:
+    def test_creation_with_defaults(self) -> None:
+        expires_at = datetime(2030, 1, 1, tzinfo=UTC)
+        session = Session(user_id="user-1", token="token-123", expires_at=expires_at)
+        assert session.user_id == "user-1"
+        assert session.token == "token-123"
+        assert session.expires_at == expires_at
+        uuid.UUID(session.id)
+
+    def test_creation_with_explicit_values(self) -> None:
+        session = Session(id="session-1", user_id="user-1", token="token-123", expires_at=datetime(2030, 1, 1, tzinfo=UTC))
+        assert session.id == "session-1"
+        assert session.user_id == "user-1"
+
+    def test_repr(self) -> None:
+        session = Session(id="session-1", user_id="user-1", token="token-123", expires_at=datetime(2030, 1, 1, tzinfo=UTC))
+        r = repr(session)
+        assert "Session" in r
+        assert "session-1" in r
+        assert "user-1" in r
+
+    def test_tablename(self) -> None:
+        assert Session.__tablename__ == "sessions"
+
+    def test_token_unique(self) -> None:
+        col = Session.__table__.columns["token"]
+        assert col.unique is True
+
+    def test_user_id_indexed(self) -> None:
+        col = Session.__table__.columns["user_id"]
+        assert col.index is True
+
+    def test_has_user_foreign_key(self) -> None:
+        col = Session.__table__.columns["user_id"]
+        fk_targets = [fk.target_fullname for fk in col.foreign_keys]
+        assert "users.id" in fk_targets
+
+
+# ---------------------------------------------------------------------------
 # Base metadata completeness
 # ---------------------------------------------------------------------------
 
@@ -385,5 +478,7 @@ class TestBaseMetadata:
             "org_installed_tools",
             "marketplace_skills",
             "org_installed_skills",
+            "users",
+            "sessions",
         }
         assert expected_tables.issubset(table_names)
