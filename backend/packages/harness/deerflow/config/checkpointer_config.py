@@ -1,5 +1,6 @@
 """Configuration for LangGraph checkpointer."""
 
+import os
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -43,4 +44,9 @@ def set_checkpointer_config(config: CheckpointerConfig | None) -> None:
 def load_checkpointer_config_from_dict(config_dict: dict) -> None:
     """Load checkpointer configuration from a dictionary."""
     global _checkpointer_config
-    _checkpointer_config = CheckpointerConfig(**config_dict)
+    config_data = dict(config_dict)
+    if config_data.get("type") == "postgres" and not config_data.get("connection_string"):
+        env_connection_string = os.getenv("CHECKPOINT_POSTGRES_URI")
+        if env_connection_string:
+            config_data["connection_string"] = env_connection_string
+    _checkpointer_config = CheckpointerConfig(**config_data)
