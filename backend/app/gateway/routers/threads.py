@@ -1,0 +1,269 @@
+"""Thread CRUD and run tracking APIs."""
+
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.gateway.auth import AuthContext, get_auth_context
+from app.gateway.db.database import get_db_session
+from app.gateway.db.models import Thread, ThreadRun
+
+router = APIRouter(prefix="/api/threads", tags=["threads"])
+
+
+class ThreadCreateRequest(BaseModel):
+    id: str = Field(..., min_length=1, max_length=255)
+    title: str = Field(..., min_length=1, max_length=500)
+    agent_name: str | None = Field(default=None, max_length=100)
+    default_model: str | None = Field(default=None, max_length=100)
+    last_model_name: str | None = Field(default=None, max_length=100)
+    status: str = Field(default="active", min_length=1, max_length=20)
+
+
+class ThreadUpdateRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=500)
+    status: str | None = Field(default=None, min_length=1, max_length=20)
+
+
+class ThreadRunCreateRequest(BaseModel):
+    id: str | None = Field(default=None, max_length=36)
+    model_name: str | None = Field(default=None, max_length=100)
+    agent_name: str | None = Field(default=None, max_length=100)
+    sandbox_id: str | None = Field(default=None, max_length=100)
+    status: str = Field(default="running", min_length=1, max_length=20)
+
+
+class ThreadRunUpdateRequest(BaseModel):
+    status: str | None = Field(default=None, min_length=1, max_length=20)
+    sandbox_id: str | None = Field(default=None, max_length=100)
+    error_message: str | None = None
+    finished_at: datetime | None = None
+
+
+class ThreadRunResponse(BaseModel):
+    id: str
+    thread_id: str
+    user_id: str
+    org_id: str
+    model_name: str | None
+    agent_name: str | None
+    sandbox_id: str | None
+    status: str
+    started_at: datetime
+    finished_at: datetime | None
+    error_message: str | None
+
+
+class ThreadResponse(BaseModel):
+    id: str
+    user_id: str
+    org_id: str
+    title: str
+    status: str
+    agent_name: str | None
+    default_model: str | None
+    last_model_name: str | None
+    created_at: datetime
+    updated_at: datetime
+    last_active_at: datetime
+
+
+def _thread_to_response(thread: Thread) -> ThreadResponse:
+    return ThreadResponse(
+        id=thread.id,
+        user_id=thread.user_id,
+        org_id=thread.org_id,
+        title=thread.title,
+        status=thread.status,
+        agent_name=thread.agent_name,
+        default_model=thread.default_model,
+        last_model_name=thread.last_model_name,
+        created_at=thread.created_at,
+        updated_at=thread.updated_at,
+        last_active_at=thread.last_active_at,
+    )
+
+
+def _thread_run_to_response(run: ThreadRun) -> ThreadRunResponse:
+    return ThreadRunResponse(
+        id=run.id,
+        thread_id=run.thread_id,
+        user_id=run.user_id,
+        org_id=run.org_id,
+        model_name=run.model_name,
+        agent_name=run.agent_name,
+        sandbox_id=run.sandbox_id,
+        status=run.status,
+        started_at=run.started_at,
+        finished_at=run.finished_at,
+        error_message=run.error_message,
+    )
+
+
+async def _get_owned_thread(thread_id: str, auth: AuthContext, db: AsyncSession) -> Thread:
+    result = await db.execute(select(Thread).where(Thread.id == thread_id, Thread.user_id == auth.user_id, Thread.org_id == auth.org_id).limit(1))
+    thread = result.scalar_one_or_none()
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+    return thread
+
+
+async def _get_owned_run(thread_id: str, run_id: str, auth: AuthContext, db: AsyncSession) -> ThreadRun:
+    result = await db.execute(
+        select(ThreadRun)
+        .where(
+            ThreadRun.id == run_id,
+            ThreadRun.thread_id == thread_id,
+            ThreadRun.user_id == auth.user_id,
+            ThreadRun.org_id == auth.org_id,
+        )
+        .limit(1)
+    )
+    run = result.scalar_one_or_none()
+    if run is None:
+        raise HTTPException(status_code=404, detail="Thread run not found")
+    return run
+
+
+@router.post("", response_model=ThreadResponse, status_code=status.HTTP_201_CREATED)
+async def create_thread(
+    request: ThreadCreateRequest,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> ThreadResponse:
+    existing = await db.get(Thread, request.id)
+    if existing is not None:
+        if existing.user_id == auth.user_id and existing.org_id == auth.org_id:
+            raise HTTPException(status_code=409, detail="Thread already exists")
+        raise HTTPException(status_code=403, detail="Thread ID already belongs to another user")
+
+    now = datetime.now(UTC)
+    thread = Thread(
+        id=request.id,
+        user_id=auth.user_id,
+        org_id=auth.org_id,
+        title=request.title.strip(),
+        status=request.status.strip(),
+        agent_name=request.agent_name.strip() if request.agent_name else None,
+        default_model=request.default_model.strip() if request.default_model else None,
+        last_model_name=request.last_model_name.strip() if request.last_model_name else None,
+        last_active_at=now,
+    )
+    db.add(thread)
+    await db.commit()
+    await db.refresh(thread)
+    return _thread_to_response(thread)
+
+
+@router.get("", response_model=list[ThreadResponse])
+async def list_threads(
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[ThreadResponse]:
+    result = await db.execute(select(Thread).where(Thread.user_id == auth.user_id, Thread.org_id == auth.org_id).order_by(Thread.last_active_at.desc(), Thread.updated_at.desc()))
+    return [_thread_to_response(thread) for thread in result.scalars().all()]
+
+
+@router.get("/{thread_id}", response_model=ThreadResponse)
+async def get_thread(
+    thread_id: str,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> ThreadResponse:
+    thread = await _get_owned_thread(thread_id, auth, db)
+    return _thread_to_response(thread)
+
+
+@router.patch("/{thread_id}", response_model=ThreadResponse)
+async def update_thread(
+    thread_id: str,
+    request: ThreadUpdateRequest,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> ThreadResponse:
+    thread = await _get_owned_thread(thread_id, auth, db)
+
+    if request.title is not None:
+        thread.title = request.title.strip()
+    if request.status is not None:
+        thread.status = request.status.strip()
+
+    thread.last_active_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(thread)
+    return _thread_to_response(thread)
+
+
+@router.delete("/{thread_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_thread(
+    thread_id: str,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> Response:
+    thread = await _get_owned_thread(thread_id, auth, db)
+    await db.delete(thread)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{thread_id}/runs", response_model=ThreadRunResponse, status_code=status.HTTP_201_CREATED)
+async def create_thread_run(
+    thread_id: str,
+    request: ThreadRunCreateRequest,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> ThreadRunResponse:
+    thread = await _get_owned_thread(thread_id, auth, db)
+
+    run = ThreadRun(
+        id=request.id,
+        thread_id=thread.id,
+        user_id=auth.user_id,
+        org_id=auth.org_id,
+        model_name=request.model_name.strip() if request.model_name else None,
+        agent_name=request.agent_name.strip() if request.agent_name else None,
+        sandbox_id=request.sandbox_id.strip() if request.sandbox_id else None,
+        status=request.status.strip(),
+    )
+    thread.last_active_at = datetime.now(UTC)
+    if run.model_name:
+        thread.last_model_name = run.model_name
+    if run.agent_name:
+        thread.agent_name = run.agent_name
+
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    return _thread_run_to_response(run)
+
+
+@router.patch("/{thread_id}/runs/{run_id}", response_model=ThreadRunResponse)
+async def update_thread_run(
+    thread_id: str,
+    run_id: str,
+    request: ThreadRunUpdateRequest,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> ThreadRunResponse:
+    thread = await _get_owned_thread(thread_id, auth, db)
+    run = await _get_owned_run(thread_id, run_id, auth, db)
+
+    if request.status is not None:
+        run.status = request.status.strip()
+    if request.sandbox_id is not None:
+        run.sandbox_id = request.sandbox_id.strip() or None
+    if request.error_message is not None:
+        run.error_message = request.error_message
+
+    if request.finished_at is not None:
+        run.finished_at = request.finished_at
+    elif run.status.lower() in {"completed", "failed", "cancelled", "stopped"}:
+        run.finished_at = datetime.now(UTC)
+
+    thread.last_active_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(run)
+    return _thread_run_to_response(run)

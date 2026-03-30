@@ -307,6 +307,196 @@ class UsageRecord(Base):
         return f"<UsageRecord(id={self.id!r}, org_id={self.org_id!r}, record_type={self.record_type!r})>"
 
 
+class Thread(Base):
+    """Conversation thread metadata owned by a single user."""
+
+    __tablename__ = "threads"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    org_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, insert_default="active")
+    agent_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    default_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    last_model_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    last_active_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    runs: Mapped[list["ThreadRun"]] = relationship("ThreadRun", back_populates="thread", cascade="all, delete-orphan")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "status" not in kwargs:
+            kwargs["status"] = "active"
+        super().__init__(**kwargs)
+
+
+class ThreadRun(Base):
+    """Execution run metadata for a thread request."""
+
+    __tablename__ = "thread_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    thread_id: Mapped[str] = mapped_column(String(255), ForeignKey("threads.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    org_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    model_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    agent_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    sandbox_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, insert_default="running")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    thread: Mapped["Thread"] = relationship("Thread", back_populates="runs")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "status" not in kwargs:
+            kwargs["status"] = "running"
+        super().__init__(**kwargs)
+
+
+class UserMemory(Base):
+    """Per-user memory document stored in Postgres."""
+
+    __tablename__ = "user_memory"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    org_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    context_json: Mapped[str] = mapped_column(Text, nullable=False, insert_default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    facts: Mapped[list["UserMemoryFact"]] = relationship("UserMemoryFact", back_populates="memory", cascade="all, delete-orphan")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "context_json" not in kwargs:
+            kwargs["context_json"] = "{}"
+        super().__init__(**kwargs)
+
+
+class UserMemoryFact(Base):
+    """Extracted fact row associated with a user's memory document."""
+
+    __tablename__ = "user_memory_facts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    memory_id: Mapped[str] = mapped_column(String(36), ForeignKey("user_memory.id", ondelete="CASCADE"), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False, insert_default="context")
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, insert_default=0.5)
+    source: Mapped[str] = mapped_column(String(100), nullable=False, insert_default="unknown")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    memory: Mapped["UserMemory"] = relationship("UserMemory", back_populates="facts")
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "category" not in kwargs:
+            kwargs["category"] = "context"
+        if "confidence" not in kwargs:
+            kwargs["confidence"] = 0.5
+        if "source" not in kwargs:
+            kwargs["source"] = "unknown"
+        super().__init__(**kwargs)
+
+
+class UserSoul(Base):
+    """Per-user soul/personality content."""
+
+    __tablename__ = "user_souls"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    org_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "content" not in kwargs:
+            kwargs["content"] = ""
+        super().__init__(**kwargs)
+
+
+class UserMcpConfig(Base):
+    """Per-user MCP server configuration JSON."""
+
+    __tablename__ = "user_mcp_configs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    org_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    config_json: Mapped[str] = mapped_column(Text, nullable=False, insert_default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "config_json" not in kwargs:
+            kwargs["config_json"] = "{}"
+        super().__init__(**kwargs)
+
+
+class UserAgent(Base):
+    """Per-user custom agent configuration persisted in Postgres."""
+
+    __tablename__ = "user_agents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    org_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    tool_groups_json: Mapped[str] = mapped_column(Text, nullable=False, insert_default="[]")
+    soul_content: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "description" not in kwargs:
+            kwargs["description"] = ""
+        if "tool_groups_json" not in kwargs:
+            kwargs["tool_groups_json"] = "[]"
+        if "soul_content" not in kwargs:
+            kwargs["soul_content"] = ""
+        super().__init__(**kwargs)
+
+
+class UserApiKey(Base):
+    """Encrypted per-user API key configuration."""
+
+    __tablename__ = "user_api_keys"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    org_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    api_key_enc: Mapped[str] = mapped_column(Text, nullable=False)
+    base_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, insert_default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "is_active" not in kwargs:
+            kwargs["is_active"] = True
+        super().__init__(**kwargs)
+
+
 # ---------------------------------------------------------------------------
 # Marketplace models
 # ---------------------------------------------------------------------------
