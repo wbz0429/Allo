@@ -9,7 +9,7 @@ persisting in long-term memory:
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from deerflow.agents.memory.updater import _strip_upload_mentions_from_memory
+from deerflow.agents.memory.updater import _create_empty_memory, _strip_upload_mentions_from_memory, get_memory_data
 from deerflow.agents.middlewares.memory_middleware import _filter_messages_for_memory
 
 # ---------------------------------------------------------------------------
@@ -212,3 +212,85 @@ class TestStripUploadMentionsFromMemory:
         mem = {"user": {}, "history": {}, "facts": []}
         result = _strip_upload_mentions_from_memory(mem)
         assert result == {"user": {}, "history": {}, "facts": []}
+
+
+class TestMemoryStoreBackedLoading:
+    def test_get_memory_data_uses_store_when_user_context_provided(self):
+        class FakeMemoryStore:
+            async def get_memory(self, user_id: str) -> dict:
+                assert user_id == "user-123"
+                return {"version": "store", "facts": [{"content": "from-store"}]}
+
+            async def save_memory(self, user_id: str, data: dict) -> None:
+                raise AssertionError("save_memory should not be called in this test")
+
+            async def get_facts(self, user_id: str, limit: int = 15) -> list[dict]:
+                return []
+
+        result = get_memory_data(memory_store=FakeMemoryStore(), user_id="user-123")
+
+        assert result == {"version": "store", "facts": [{"content": "from-store"}]}
+
+    def test_get_memory_data_falls_back_to_empty_memory_when_store_fails(self):
+        class BrokenMemoryStore:
+            async def get_memory(self, user_id: str) -> dict:
+                raise RuntimeError("boom")
+
+            async def save_memory(self, user_id: str, data: dict) -> None:
+                return None
+
+            async def get_facts(self, user_id: str, limit: int = 15) -> list[dict]:
+                return []
+
+        result = get_memory_data(memory_store=BrokenMemoryStore(), user_id="user-123")
+
+        expected = _create_empty_memory()
+        assert result["version"] == expected["version"]
+        assert result["user"] == expected["user"]
+        assert result["history"] == expected["history"]
+        assert result["facts"] == expected["facts"]
+
+
+class TestMemoryUpdaterStoreBackedSaving:
+    def test_update_memory_uses_store_backend_when_available(self, monkeypatch):
+        saved: dict[str, dict] = {}
+
+        class FakeMemoryStore:
+            async def get_memory(self, user_id: str) -> dict:
+                assert user_id == "user-123"
+                return _create_empty_memory()
+
+            async def save_memory(self, user_id: str, data: dict) -> None:
+                saved[user_id] = data
+
+            async def get_facts(self, user_id: str, limit: int = 15) -> list[dict]:
+                return []
+
+        class FakeModel:
+            def invoke(self, prompt: str):
+                class Response:
+                    content = """{
+  \"user\": {},
+  \"history\": {},
+  \"factsToRemove\": [],
+  \"newFacts\": [
+    {
+      \"content\": \"User prefers Python\",
+      \"category\": \"preference\",
+      \"confidence\": 0.9
+    }
+  ]
+}"""
+
+                return Response()
+
+        monkeypatch.setattr("deerflow.agents.memory.updater.get_memory_config", lambda: type("Config", (), {"enabled": True, "model_name": "fake", "fact_confidence_threshold": 0.1, "max_facts": 10})())
+
+        updater = __import__("deerflow.agents.memory.updater", fromlist=["MemoryUpdater"]).MemoryUpdater(memory_store=FakeMemoryStore(), user_id="user-123")
+        monkeypatch.setattr(updater, "_get_model", lambda: FakeModel())
+
+        result = updater.update_memory([HumanMessage(content="Remember I prefer Python")], thread_id="thread-1")
+
+        assert result is True
+        assert "user-123" in saved
+        assert any(fact["content"] == "User prefers Python" for fact in saved["user-123"]["facts"])

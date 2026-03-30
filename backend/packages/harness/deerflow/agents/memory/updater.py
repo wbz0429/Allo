@@ -3,6 +3,7 @@
 import json
 import re
 import uuid
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,7 @@ from deerflow.agents.memory.prompt import (
 from deerflow.config.memory_config import get_memory_config
 from deerflow.config.paths import get_paths
 from deerflow.models import create_chat_model
+from deerflow.stores import MemoryStore
 
 
 def _get_memory_file_path(agent_name: str | None = None) -> Path:
@@ -61,7 +63,21 @@ def _create_empty_memory() -> dict[str, Any]:
 _memory_cache: dict[str | None, tuple[dict[str, Any], float | None]] = {}
 
 
-def get_memory_data(agent_name: str | None = None) -> dict[str, Any]:
+def _run_coroutine_sync(coroutine):
+    """Run an async coroutine from sync code, even if a loop is already running."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
+
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, coroutine)
+        return future.result()
+
+
+def get_memory_data(agent_name: str | None = None, memory_store: MemoryStore | None = None, user_id: str | None = None) -> dict[str, Any]:
     """Get the current memory data (cached with file modification time check).
 
     The cache is automatically invalidated if the memory file has been modified
@@ -73,6 +89,14 @@ def get_memory_data(agent_name: str | None = None) -> dict[str, Any]:
     Returns:
         The memory data dictionary.
     """
+    if memory_store is not None and user_id:
+        try:
+            memory_data = _run_coroutine_sync(memory_store.get_memory(user_id))
+            return memory_data if isinstance(memory_data, dict) else _create_empty_memory()
+        except Exception as e:
+            print(f"Failed to load memory from store: {e}")
+            return _create_empty_memory()
+
     file_path = _get_memory_file_path(agent_name)
 
     # Get current file modification time
@@ -218,13 +242,15 @@ def _save_memory_to_file(memory_data: dict[str, Any], agent_name: str | None = N
 class MemoryUpdater:
     """Updates memory using LLM based on conversation context."""
 
-    def __init__(self, model_name: str | None = None):
+    def __init__(self, model_name: str | None = None, memory_store: MemoryStore | None = None, user_id: str | None = None):
         """Initialize the memory updater.
 
         Args:
             model_name: Optional model name to use. If None, uses config or default.
         """
         self._model_name = model_name
+        self._memory_store = memory_store
+        self._user_id = user_id
 
     def _get_model(self):
         """Get the model for memory updates."""
@@ -252,7 +278,7 @@ class MemoryUpdater:
 
         try:
             # Get current memory
-            current_memory = get_memory_data(agent_name)
+            current_memory = get_memory_data(agent_name, memory_store=self._memory_store, user_id=self._user_id)
 
             # Format conversation for prompt
             conversation_text = format_conversation_for_update(messages)
@@ -289,6 +315,10 @@ class MemoryUpdater:
             updated_memory = _strip_upload_mentions_from_memory(updated_memory)
 
             # Save
+            if self._memory_store is not None and self._user_id:
+                _run_coroutine_sync(self._memory_store.save_memory(self._user_id, updated_memory))
+                return True
+
             return _save_memory_to_file(updated_memory, agent_name)
 
         except json.JSONDecodeError as e:
