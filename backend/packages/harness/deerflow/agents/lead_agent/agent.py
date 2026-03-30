@@ -1,3 +1,5 @@
+import asyncio
+import concurrent.futures
 import logging
 
 from langchain.agents import create_agent
@@ -18,9 +20,36 @@ from deerflow.agents.thread_state import ThreadState
 from deerflow.config.agents_config import load_agent_config
 from deerflow.config.app_config import get_app_config
 from deerflow.config.summarization_config import get_summarization_config
+from deerflow.context import get_user_context
 from deerflow.models import create_chat_model
+from deerflow.store_registry import get_store
+from deerflow.stores import McpConfigStore, MemoryStore, ModelKeyResolver, SkillConfigStore, SoulStore
 
 logger = logging.getLogger(__name__)
+
+
+def _run_coroutine_sync(coroutine):
+    """Run an async coroutine from sync agent construction code."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, coroutine)
+        return future.result()
+
+
+def _resolve_model_runtime_key(run_id: str | None, key_resolver: ModelKeyResolver | None) -> tuple[str | None, str | None]:
+    """Resolve per-run API key/base URL when available, otherwise fall back safely."""
+    if not run_id or key_resolver is None:
+        return None, None
+
+    try:
+        return _run_coroutine_sync(key_resolver.resolve_key(run_id))
+    except Exception as exc:
+        logger.warning("Failed to resolve model key for run_id '%s': %s", run_id, exc)
+        return None, None
 
 
 def _resolve_model_name(requested_model_name: str | None = None) -> str:
@@ -205,7 +234,16 @@ Being proactive with task management demonstrates thoroughness and ensures all r
 # ViewImageMiddleware should be before ClarificationMiddleware to inject image details before LLM
 # ToolErrorHandlingMiddleware should be before ClarificationMiddleware to convert tool exceptions to ToolMessages
 # ClarificationMiddleware should be last to intercept clarification requests after model calls
-def _build_middlewares(config: RunnableConfig, model_name: str | None, agent_name: str | None = None):
+def _build_middlewares(
+    config: RunnableConfig,
+    model_name: str | None,
+    agent_name: str | None = None,
+    user_id: str | None = None,
+    memory_store: MemoryStore | None = None,
+    soul_store: SoulStore | None = None,
+    skill_config_store: SkillConfigStore | None = None,
+    mcp_config_store: McpConfigStore | None = None,
+):
     """Build middleware chain based on runtime configuration.
 
     Args:
@@ -279,6 +317,29 @@ def make_lead_agent(config: RunnableConfig):
     max_concurrent_subagents = cfg.get("max_concurrent_subagents", 3)
     is_bootstrap = cfg.get("is_bootstrap", False)
     agent_name = cfg.get("agent_name")
+    ctx = get_user_context(config)
+    user_id = ctx.user_id if ctx else None
+    run_id = ctx.run_id if ctx else None
+
+    memory_store = get_store("memory")
+    if not isinstance(memory_store, MemoryStore):
+        memory_store = None
+
+    soul_store = get_store("soul")
+    if not isinstance(soul_store, SoulStore):
+        soul_store = None
+
+    skill_config_store = get_store("skill")
+    if not isinstance(skill_config_store, SkillConfigStore):
+        skill_config_store = None
+
+    mcp_config_store = get_store("mcp")
+    if not isinstance(mcp_config_store, McpConfigStore):
+        mcp_config_store = None
+
+    key_resolver = get_store("key")
+    if not isinstance(key_resolver, ModelKeyResolver):
+        key_resolver = None
 
     agent_config = load_agent_config(agent_name) if not is_bootstrap else None
     # Custom agent model or fallback to global/default model resolution
@@ -322,21 +383,60 @@ def make_lead_agent(config: RunnableConfig):
         }
     )
 
+    api_key, base_url = _resolve_model_runtime_key(run_id, key_resolver)
+
     if is_bootstrap:
+        model_kwargs = {"name": model_name, "thinking_enabled": thinking_enabled}
         # Special bootstrap agent with minimal prompt for initial custom agent creation flow
+        if api_key:
+            model_kwargs["api_key"] = api_key
+        if base_url:
+            model_kwargs["base_url"] = base_url
+
         return create_agent(
-            model=create_chat_model(name=model_name, thinking_enabled=thinking_enabled),
+            model=create_chat_model(**model_kwargs),
             tools=get_available_tools(model_name=model_name, subagent_enabled=subagent_enabled) + [setup_agent],
-            middleware=_build_middlewares(config, model_name=model_name),
-            system_prompt=apply_prompt_template(subagent_enabled=subagent_enabled, max_concurrent_subagents=max_concurrent_subagents, available_skills=set(["bootstrap"])),
+            middleware=_build_middlewares(config, model_name=model_name, user_id=user_id, memory_store=memory_store, soul_store=soul_store, skill_config_store=skill_config_store, mcp_config_store=mcp_config_store),
+            system_prompt=apply_prompt_template(
+                subagent_enabled=subagent_enabled,
+                max_concurrent_subagents=max_concurrent_subagents,
+                available_skills=set(["bootstrap"]),
+                user_id=user_id,
+                memory_store=memory_store,
+                soul_store=soul_store,
+                skill_config_store=skill_config_store,
+            ),
             state_schema=ThreadState,
         )
 
     # Default lead agent (unchanged behavior)
+    model_kwargs = {"name": model_name, "thinking_enabled": thinking_enabled, "reasoning_effort": reasoning_effort}
+    if api_key:
+        model_kwargs["api_key"] = api_key
+    if base_url:
+        model_kwargs["base_url"] = base_url
+
     return create_agent(
-        model=create_chat_model(name=model_name, thinking_enabled=thinking_enabled, reasoning_effort=reasoning_effort),
+        model=create_chat_model(**model_kwargs),
         tools=get_available_tools(model_name=model_name, groups=agent_config.tool_groups if agent_config else None, subagent_enabled=subagent_enabled),
-        middleware=_build_middlewares(config, model_name=model_name, agent_name=agent_name),
-        system_prompt=apply_prompt_template(subagent_enabled=subagent_enabled, max_concurrent_subagents=max_concurrent_subagents, agent_name=agent_name),
+        middleware=_build_middlewares(
+            config,
+            model_name=model_name,
+            agent_name=agent_name,
+            user_id=user_id,
+            memory_store=memory_store,
+            soul_store=soul_store,
+            skill_config_store=skill_config_store,
+            mcp_config_store=mcp_config_store,
+        ),
+        system_prompt=apply_prompt_template(
+            subagent_enabled=subagent_enabled,
+            max_concurrent_subagents=max_concurrent_subagents,
+            agent_name=agent_name,
+            user_id=user_id,
+            memory_store=memory_store,
+            soul_store=soul_store,
+            skill_config_store=skill_config_store,
+        ),
         state_schema=ThreadState,
     )
