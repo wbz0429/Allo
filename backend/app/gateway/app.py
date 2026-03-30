@@ -6,10 +6,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.gateway.config import get_gateway_config
-from app.gateway.redis_client import close_redis_pool
+from app.gateway.db.database import async_session_factory
+from app.gateway.redis_client import close_redis_pool, get_redis
 from app.gateway.routers import (
     admin,
     agents,
+    api_keys,
     artifacts,
     auth,
     channels,
@@ -20,12 +22,19 @@ from app.gateway.routers import (
     memory,
     models,
     skills,
-    threads,
+    soul,
     suggestions,
+    threads,
     uploads,
     users,
 )
+from app.gateway.services.mcp_config_store_pg import PostgresMcpConfigStore
+from app.gateway.services.memory_store_pg import PostgresMemoryStore
+from app.gateway.services.model_key_resolver_pg import PostgresModelKeyResolver
+from app.gateway.services.skill_config_store_pg import PostgresSkillConfigStore
+from app.gateway.services.soul_store_pg import PostgresSoulStore
 from deerflow.config.app_config import get_app_config
+from deerflow.store_registry import register_store
 
 # Configure logging
 logging.basicConfig(
@@ -53,6 +62,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"Starting API Gateway on {config.host}:{config.port}")
 
     logger.info("Using Alembic for migrations")
+    register_store("memory", PostgresMemoryStore(async_session_factory))
+    register_store("soul", PostgresSoulStore(async_session_factory))
+    register_store("skill", PostgresSkillConfigStore(async_session_factory))
+    register_store("mcp", PostgresMcpConfigStore(async_session_factory))
+    register_store("key", PostgresModelKeyResolver(async_session_factory, get_redis))
 
     # NOTE: MCP tools initialization is NOT done here because:
     # 1. Gateway doesn't use MCP tools - they are used by Agents in the LangGraph Server
@@ -133,6 +147,14 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
                 "description": "Read and update the current authenticated user profile",
             },
             {
+                "name": "soul",
+                "description": "Read and update the current user's soul/personality content",
+            },
+            {
+                "name": "api-keys",
+                "description": "Manage the current user's provider API keys for BYOK flows",
+            },
+            {
                 "name": "mcp",
                 "description": "Manage Model Context Protocol (MCP) server configurations",
             },
@@ -205,6 +227,12 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
 
     # Users API is mounted at /api/users
     app.include_router(users.router)
+
+    # Soul API is mounted at /api/users/me/soul
+    app.include_router(soul.router)
+
+    # API key management API is mounted at /api/users/me/api-keys
+    app.include_router(api_keys.router)
 
     # Models API is mounted at /api/models
     app.include_router(models.router)
