@@ -129,6 +129,7 @@ class TestGatewayLifespan:
         with (
             patch("app.gateway.app.get_app_config"),
             patch("app.gateway.app.get_gateway_config") as mock_gateway_config,
+            patch("app.gateway.app.close_redis_pool", new_callable=AsyncMock) as mock_close_redis_pool,
             patch("app.gateway.app.logger") as mock_logger,
             patch("app.channels.service.start_channel_service", new_callable=AsyncMock) as mock_start_channel_service,
             patch("app.channels.service.stop_channel_service", new_callable=AsyncMock) as mock_stop_channel_service,
@@ -143,6 +144,7 @@ class TestGatewayLifespan:
                 pass
 
         mock_stop_channel_service.assert_awaited_once()
+        mock_close_redis_pool.assert_awaited_once()
         mock_logger.info.assert_any_call("Using Alembic for migrations")
 
 

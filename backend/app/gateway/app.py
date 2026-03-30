@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.gateway.config import get_gateway_config
+from app.gateway.redis_client import close_redis_pool
 from app.gateway.routers import (
     admin,
     agents,
@@ -73,6 +74,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await stop_channel_service()
     except Exception:
         logger.exception("Failed to stop channel service")
+
+    try:
+        await close_redis_pool()
+    except Exception:
+        logger.exception("Failed to close Redis pool")
+
     logger.info("Shutting down API Gateway")
 
 
