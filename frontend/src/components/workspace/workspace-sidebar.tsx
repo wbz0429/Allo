@@ -2,8 +2,10 @@
 
 import { LogOutIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { logout } from "@/core/auth/api";
 import {
   Sidebar,
   SidebarHeader,
@@ -12,7 +14,6 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { authClient } from "@/server/better-auth/client";
 
 import { RecentChatList } from "./recent-chat-list";
 import { WorkspaceHeader } from "./workspace-header";
@@ -26,7 +27,13 @@ export function WorkspaceSidebar({
   const router = useRouter();
 
   async function handleLogout() {
-    await authClient.signOut();
+    const result = await logout();
+
+    if (result.error) {
+      toast.error(result.error.message ?? "Sign out failed");
+      return;
+    }
+
     router.push("/login");
   }
 

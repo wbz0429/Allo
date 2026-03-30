@@ -4,10 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Toaster } from "sonner";
+import { Toaster, toast } from "sonner";
 
+import { getSession } from "@/core/auth/api";
 import { cn } from "@/lib/utils";
-import { authClient } from "@/server/better-auth/client";
 
 const navItems = [
   { href: "/admin", label: "Dashboard" },
@@ -24,12 +24,17 @@ export default function AdminLayout({
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    void authClient.getSession().then((res) => {
+    void getSession().then((res) => {
       if (!res.data?.session) {
+        if (res.error) {
+          toast.error(res.error.message ?? "Failed to verify session");
+        }
+
         router.replace("/login?callbackUrl=" + encodeURIComponent(pathname));
-      } else {
-        setAuthorized(true);
+        return;
       }
+
+      setAuthorized(true);
     });
   }, [pathname, router]);
 
