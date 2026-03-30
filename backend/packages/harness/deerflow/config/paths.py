@@ -106,6 +106,36 @@ class Paths:
             raise ValueError(f"Invalid thread_id {thread_id!r}: only alphanumeric characters, hyphens, and underscores are allowed.")
         return self.base_dir / "threads" / thread_id
 
+    def user_dir(self, user_id: str) -> Path:
+        """Per-user root directory: {base_dir}/users/{user_id}/"""
+        return self.base_dir / "users" / user_id
+
+    def user_thread_dir(self, user_id: str, thread_id: str) -> Path:
+        """Per-user thread directory: {base_dir}/users/{user_id}/threads/{thread_id}/"""
+        if not _SAFE_THREAD_ID_RE.match(thread_id):
+            raise ValueError(f"Invalid thread_id {thread_id!r}")
+        return self.user_dir(user_id) / "threads" / thread_id
+
+    def user_thread_tmp_dir(self, user_id: str, thread_id: str) -> Path:
+        """Per-user thread tmp directory."""
+        return self.user_thread_dir(user_id, thread_id) / "user-data" / "tmp"
+
+    def user_skills_dir(self, user_id: str) -> Path:
+        """Per-user custom skills directory."""
+        return self.user_dir(user_id) / "skills" / "custom"
+
+    def user_sandbox_work_dir(self, user_id: str, thread_id: str) -> Path:
+        return self.user_thread_dir(user_id, thread_id) / "user-data" / "workspace"
+
+    def user_sandbox_uploads_dir(self, user_id: str, thread_id: str) -> Path:
+        return self.user_thread_dir(user_id, thread_id) / "user-data" / "uploads"
+
+    def user_sandbox_outputs_dir(self, user_id: str, thread_id: str) -> Path:
+        return self.user_thread_dir(user_id, thread_id) / "user-data" / "outputs"
+
+    def user_sandbox_user_data_dir(self, user_id: str, thread_id: str) -> Path:
+        return self.user_thread_dir(user_id, thread_id) / "user-data"
+
     def sandbox_work_dir(self, thread_id: str) -> Path:
         """
         Host path for the agent's workspace directory.
@@ -151,6 +181,17 @@ class Paths:
             self.sandbox_work_dir(thread_id),
             self.sandbox_uploads_dir(thread_id),
             self.sandbox_outputs_dir(thread_id),
+        ]:
+            d.mkdir(parents=True, exist_ok=True)
+            d.chmod(0o777)
+
+    def ensure_user_thread_dirs(self, user_id: str, thread_id: str) -> None:
+        """Create all standard sandbox directories for a per-user thread (including tmp)."""
+        for d in [
+            self.user_sandbox_work_dir(user_id, thread_id),
+            self.user_sandbox_uploads_dir(user_id, thread_id),
+            self.user_sandbox_outputs_dir(user_id, thread_id),
+            self.user_thread_tmp_dir(user_id, thread_id),
         ]:
             d.mkdir(parents=True, exist_ok=True)
             d.chmod(0o777)
