@@ -15,6 +15,14 @@ import { useUpdateSubtask } from "../tasks/context";
 import type { UploadedFileInfo } from "../uploads";
 import { uploadFiles } from "../uploads";
 
+import {
+  createThread,
+  createThreadRun,
+  deleteThread,
+  listThreads,
+  updateThread,
+  updateThreadRun,
+} from "./threads-api";
 import type { AgentThread, AgentThreadState } from "./types";
 
 export type ToolEndEvent = {
@@ -46,6 +54,8 @@ export function useThreadStream({
   // and to allow access to the current thread id in onUpdateEvent
   const threadIdRef = useRef<string | null>(threadId ?? null);
   const startedRef = useRef(false);
+  const currentRunIdRef = useRef<string | null>(null);
+  const syncedTitleRef = useRef<string | null>(null);
 
   const listeners = useRef({
     onStart,
@@ -66,6 +76,8 @@ export function useThreadStream({
       setOnStreamThreadId(normalizedThreadId);
     }
     threadIdRef.current = normalizedThreadId;
+    currentRunIdRef.current = null;
+    syncedTitleRef.current = null;
   }, [threadId]);
 
   const _handleOnStart = useCallback((id: string) => {
@@ -82,9 +94,46 @@ export function useThreadStream({
     },
     [_handleOnStart],
   );
-
+  
   const queryClient = useQueryClient();
   const updateSubtask = useUpdateSubtask();
+
+  const syncThreadTitle = useCallback(
+    async (nextTitle: string) => {
+      const currentThreadId = threadIdRef.current;
+      if (!currentThreadId || syncedTitleRef.current === nextTitle) {
+        return;
+      }
+
+      syncedTitleRef.current = nextTitle;
+
+      try {
+        await updateThread(currentThreadId, { title: nextTitle });
+      } catch (error) {
+        syncedTitleRef.current = null;
+        console.error("Failed to sync thread title:", error);
+      }
+    },
+    [],
+  );
+
+  const syncThreadRun = useCallback(
+    async (params: Parameters<typeof updateThreadRun>[2]) => {
+      const currentThreadId = threadIdRef.current;
+      const currentRunId = currentRunIdRef.current;
+
+      if (!currentThreadId || !currentRunId) {
+        return;
+      }
+
+      try {
+        await updateThreadRun(currentThreadId, currentRunId, params);
+      } catch (error) {
+        console.error("Failed to sync thread run:", error);
+      }
+    },
+    [],
+  );
 
   const thread = useStream<AgentThreadState>({
     client: getAPIClient(isMock),
@@ -110,6 +159,7 @@ export function useThreadStream({
       );
       for (const update of updates) {
         if (update && "title" in update && update.title) {
+          void syncThreadTitle(update.title);
           void queryClient.setQueriesData(
             {
               queryKey: ["threads", "search"],
@@ -149,6 +199,11 @@ export function useThreadStream({
       }
     },
     onFinish(state) {
+      void syncThreadRun({
+        status: "completed",
+        finished_at: new Date().toISOString(),
+      });
+      currentRunIdRef.current = null;
       listeners.current.onFinish?.(state.values);
       void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
     },
@@ -213,8 +268,43 @@ export function useThreadStream({
       _handleOnStart(threadId);
 
       let uploadedFileInfo: UploadedFileInfo[] = [];
+      let gatewayThreadId = threadId;
 
       try {
+        if (!gatewayThreadId) {
+          throw new Error("Thread is not ready.");
+        }
+
+        if (!threadIdRef.current) {
+          await createThread({
+            thread_id: gatewayThreadId,
+            agent_name:
+              typeof extraContext?.agent_name === "string"
+                ? extraContext.agent_name
+                : typeof context.agent_name === "string"
+                  ? context.agent_name
+                  : undefined,
+            default_model: context.model_name,
+            last_model_name: context.model_name,
+            status: "active",
+          });
+        }
+
+        threadIdRef.current = gatewayThreadId;
+
+        const run = await createThreadRun(gatewayThreadId, {
+          model_name: context.model_name,
+          agent_name:
+            typeof extraContext?.agent_name === "string"
+              ? extraContext.agent_name
+              : typeof context.agent_name === "string"
+                ? context.agent_name
+                : undefined,
+          status: "running",
+        });
+
+        currentRunIdRef.current = run.id;
+
         // Upload files first if any
         if (message.files && message.files.length > 0) {
           try {
@@ -253,12 +343,12 @@ export function useThreadStream({
               );
             }
 
-            if (!threadId) {
+            if (!gatewayThreadId) {
               throw new Error("Thread is not ready for file upload.");
             }
 
             if (files.length > 0) {
-              const uploadResponse = await uploadFiles(threadId, files);
+              const uploadResponse = await uploadFiles(gatewayThreadId, files);
               uploadedFileInfo = uploadResponse.files;
 
               // Update optimistic human message with uploaded status + paths
@@ -335,17 +425,33 @@ export function useThreadStream({
               thinking_enabled: context.mode !== "flash",
               is_plan_mode: context.mode === "pro" || context.mode === "ultra",
               subagent_enabled: context.mode === "ultra",
-              thread_id: threadId,
+              thread_id: gatewayThreadId,
             },
           },
         );
         void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
       } catch (error) {
+        const finishedAt = new Date().toISOString();
+        if (currentRunIdRef.current) {
+          void syncThreadRun({
+            status: "failed",
+            finished_at: finishedAt,
+            error_message: error instanceof Error ? error.message : "Unknown error",
+          });
+          currentRunIdRef.current = null;
+        }
         setOptimisticMessages([]);
         throw error;
       }
     },
-    [thread, _handleOnStart, t.uploads.uploadingFiles, context, queryClient],
+    [
+      thread,
+      _handleOnStart,
+      t.uploads.uploadingFiles,
+      context,
+      queryClient,
+      syncThreadRun,
+    ],
   );
 
   // Merge thread with optimistic messages for display
@@ -368,70 +474,18 @@ export function useThreads(
     select: ["thread_id", "updated_at", "values"],
   },
 ) {
-  const apiClient = getAPIClient();
   return useQuery<AgentThread[]>({
     queryKey: ["threads", "search", params],
-    queryFn: async () => {
-      const maxResults = params.limit;
-      const initialOffset = params.offset ?? 0;
-      const DEFAULT_PAGE_SIZE = 50;
-
-      // Preserve prior semantics: if a non-positive limit is explicitly provided,
-      // delegate to a single search call with the original parameters.
-      if (maxResults !== undefined && maxResults <= 0) {
-        const response = await apiClient.threads.search<AgentThreadState>(params);
-        return response as AgentThread[];
-      }
-
-      const pageSize =
-        typeof maxResults === "number" && maxResults > 0
-          ? Math.min(DEFAULT_PAGE_SIZE, maxResults)
-          : DEFAULT_PAGE_SIZE;
-
-      const threads: AgentThread[] = [];
-      let offset = initialOffset;
-
-      while (true) {
-        if (typeof maxResults === "number" && threads.length >= maxResults) {
-          break;
-        }
-
-        const currentLimit =
-          typeof maxResults === "number"
-            ? Math.min(pageSize, maxResults - threads.length)
-            : pageSize;
-
-        if (typeof maxResults === "number" && currentLimit <= 0) {
-          break;
-        }
-
-        const response = (await apiClient.threads.search<AgentThreadState>({
-          ...params,
-          limit: currentLimit,
-          offset,
-        })) as AgentThread[];
-
-        threads.push(...response);
-
-        if (response.length < currentLimit) {
-          break;
-        }
-
-        offset += response.length;
-      }
-
-      return threads;
-    },
+    queryFn: async () => listThreads(),
     refetchOnWindowFocus: false,
   });
 }
 
 export function useDeleteThread() {
   const queryClient = useQueryClient();
-  const apiClient = getAPIClient();
   return useMutation({
     mutationFn: async ({ threadId }: { threadId: string }) => {
-      await apiClient.threads.delete(threadId);
+      await deleteThread(threadId);
     },
     onSuccess(_, { threadId }) {
       queryClient.setQueriesData(
@@ -449,7 +503,6 @@ export function useDeleteThread() {
 
 export function useRenameThread() {
   const queryClient = useQueryClient();
-  const apiClient = getAPIClient();
   return useMutation({
     mutationFn: async ({
       threadId,
@@ -458,9 +511,7 @@ export function useRenameThread() {
       threadId: string;
       title: string;
     }) => {
-      await apiClient.threads.updateState(threadId, {
-        values: { title },
-      });
+      await updateThread(threadId, { title });
     },
     onSuccess(_, { threadId, title }) {
       queryClient.setQueriesData(
