@@ -28,6 +28,7 @@ from app.gateway.routers import (
     uploads,
     users,
 )
+from app.gateway.services.marketplace_install_store_pg import PostgresMarketplaceInstallStore
 from app.gateway.services.mcp_config_store_pg import PostgresMcpConfigStore
 from app.gateway.services.memory_store_pg import PostgresMemoryStore
 from app.gateway.services.model_key_resolver_pg import PostgresModelKeyResolver
@@ -49,11 +50,14 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan handler."""
+    import time
+
+    t0 = time.monotonic()
 
     # Load config and check necessary environment variables at startup
     try:
         get_app_config()
-        logger.info("Configuration loaded successfully")
+        logger.info("Configuration loaded successfully (%.1fs)", time.monotonic() - t0)
     except Exception as e:
         error_msg = f"Failed to load configuration during gateway startup: {e}"
         logger.exception(error_msg)
@@ -61,12 +65,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     config = get_gateway_config()
     logger.info(f"Starting API Gateway on {config.host}:{config.port}")
 
-    logger.info("Using Alembic for migrations")
+    logger.info("Registering PG stores...")
+    t1 = time.monotonic()
     register_store("memory", PostgresMemoryStore(async_session_factory))
     register_store("soul", PostgresSoulStore(async_session_factory))
     register_store("skill", PostgresSkillConfigStore(async_session_factory))
     register_store("mcp", PostgresMcpConfigStore(async_session_factory))
+    register_store("marketplace", PostgresMarketplaceInstallStore(async_session_factory))
     register_store("key", PostgresModelKeyResolver(async_session_factory, get_redis))
+    logger.info("PG stores registered (%.1fs)", time.monotonic() - t1)
 
     # NOTE: MCP tools initialization is NOT done here because:
     # 1. Gateway doesn't use MCP tools - they are used by Agents in the LangGraph Server
@@ -82,6 +89,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception:
         logger.exception("No IM channels configured or channel service failed to start")
 
+    logger.info("Gateway startup complete (%.1fs total)", time.monotonic() - t0)
     yield
 
     # Stop channel service on shutdown

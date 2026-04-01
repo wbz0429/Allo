@@ -97,7 +97,7 @@ async def initialize_mcp_tools(user_id: str | None = None, mcp_config_store: Mcp
         from deerflow.mcp.tools import get_mcp_tools
 
         logger.info("Initializing MCP tools%s...", f" for user {user_id}" if user_id else "")
-        tools = await get_mcp_tools()
+        tools = await get_mcp_tools(user_id=user_id, mcp_config_store=mcp_config_store)
         config_mtime = _get_config_mtime()
 
         if user_id:
@@ -143,7 +143,7 @@ def get_cached_mcp_tools(user_id: str | None = None, mcp_config_store: McpConfig
     if not initialized:
         logger.info("MCP tools not initialized, performing lazy initialization...")
         try:
-            loop = asyncio.get_running_loop()
+            loop = asyncio.get_running_loop()  # noqa: F841
         except RuntimeError:
             initialized_tools = asyncio.run(initialize_mcp_tools(user_id=user_id, mcp_config_store=mcp_config_store))
         except Exception as e:

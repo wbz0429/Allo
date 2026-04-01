@@ -14,6 +14,7 @@ SEED_TOOLS: list[dict] = [
     {
         "id": "tool-tavily-search",
         "name": "Tavily Search",
+        "runtime_tool_name": "web_search",
         "description": "AI-optimized search engine that delivers comprehensive, accurate, and trusted results. Designed specifically for AI agents and RAG pipelines with structured JSON responses.",
         "category": "search",
         "icon": "search",
@@ -29,6 +30,7 @@ SEED_TOOLS: list[dict] = [
     {
         "id": "tool-firecrawl",
         "name": "Firecrawl",
+        "runtime_tool_name": None,
         "description": "Web scraping and crawling API that converts any website into clean, LLM-ready markdown. Supports JavaScript rendering, pagination, and structured data extraction.",
         "category": "data",
         "icon": "globe",
@@ -44,6 +46,7 @@ SEED_TOOLS: list[dict] = [
     {
         "id": "tool-jina-ai",
         "name": "Jina AI Reader",
+        "runtime_tool_name": None,
         "description": "Extract clean, readable content from any URL using Jina AI's Reader API. Returns markdown-formatted text optimized for LLM consumption with support for PDFs and dynamic pages.",
         "category": "data",
         "icon": "file-text",
@@ -59,6 +62,7 @@ SEED_TOOLS: list[dict] = [
     {
         "id": "tool-duckduckgo",
         "name": "DuckDuckGo Search",
+        "runtime_tool_name": None,
         "description": "Privacy-focused web search powered by DuckDuckGo. No API key required. Returns organic search results with titles, snippets, and URLs.",
         "category": "search",
         "icon": "search",
@@ -74,6 +78,7 @@ SEED_TOOLS: list[dict] = [
     {
         "id": "tool-code-sandbox",
         "name": "Code Sandbox",
+        "runtime_tool_name": "bash",
         "description": "Secure, isolated code execution environment for running Python, JavaScript, and shell scripts. Supports file I/O, package installation, and long-running processes with configurable timeouts.",
         "category": "code",
         "icon": "terminal",
@@ -96,6 +101,7 @@ SEED_SKILLS: list[dict] = [
     {
         "id": "skill-deep-research",
         "name": "Deep Research",
+        "runtime_skill_name": "deep-research",
         "description": "Conducts multi-step research by breaking complex questions into sub-queries, searching multiple sources, and synthesizing findings into a comprehensive report with citations.",
         "category": "research",
         "skill_content": (
@@ -116,6 +122,7 @@ SEED_SKILLS: list[dict] = [
     {
         "id": "skill-code-review",
         "name": "Code Review",
+        "runtime_skill_name": None,
         "description": "Performs thorough code review with focus on security vulnerabilities, performance bottlenecks, code style consistency, and best practices. Provides actionable suggestions with code examples.",
         "category": "coding",
         "skill_content": (
@@ -137,6 +144,7 @@ SEED_SKILLS: list[dict] = [
     {
         "id": "skill-data-analysis",
         "name": "Data Analysis",
+        "runtime_skill_name": "data-analysis",
         "description": "Analyzes datasets by generating Python code for statistical analysis, visualization, and insight extraction. Supports CSV, JSON, and SQL data sources with pandas and matplotlib.",
         "category": "data",
         "skill_content": (

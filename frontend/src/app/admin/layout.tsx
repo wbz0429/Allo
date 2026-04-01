@@ -25,7 +25,7 @@ export default function AdminLayout({
 
   useEffect(() => {
     void getSession().then((res) => {
-      if (!res.data?.session) {
+      if (!res.data?.user_id) {
         if (res.error) {
           toast.error(res.error.message ?? "Failed to verify session");
         }

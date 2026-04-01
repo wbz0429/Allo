@@ -67,6 +67,7 @@ export default function AdminDashboardPage() {
   ];
 
   const chartBars = orgUsage.slice(0, 10).map((o) => ({
+    id: o.org_id,
     label: o.org_name.length > 8 ? `${o.org_name.slice(0, 8)}\u2026` : o.org_name,
     value: o.input_tokens,
     secondaryValue: o.output_tokens,

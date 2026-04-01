@@ -1,9 +1,9 @@
 """Memory updater for reading, writing, and updating memory data."""
 
+import asyncio
 import json
 import re
 import uuid
-import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Any

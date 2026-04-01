@@ -118,6 +118,12 @@ class AppConfig(BaseModel):
         extensions_config = ExtensionsConfig.from_file()
         config_data["extensions"] = extensions_config.model_dump()
 
+        # Normalize None → [] for list fields that YAML parses as null
+        # when all entries are commented out (e.g. `models:` with no items)
+        for list_key in ("models", "tools", "tool_groups"):
+            if list_key in config_data and config_data[list_key] is None:
+                config_data[list_key] = []
+
         result = cls.model_validate(config_data)
         return result
 

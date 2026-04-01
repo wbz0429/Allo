@@ -7,11 +7,12 @@ from langchain_core.tools import BaseTool
 from deerflow.config.extensions_config import ExtensionsConfig
 from deerflow.mcp.client import build_servers_config
 from deerflow.mcp.oauth import build_oauth_tool_interceptor, get_initial_oauth_headers
+from deerflow.stores import McpConfigStore
 
 logger = logging.getLogger(__name__)
 
 
-async def get_mcp_tools() -> list[BaseTool]:
+async def get_mcp_tools(user_id: str | None = None, mcp_config_store: McpConfigStore | None = None) -> list[BaseTool]:
     """Get all tools from enabled MCP servers.
 
     Returns:
@@ -23,11 +24,16 @@ async def get_mcp_tools() -> list[BaseTool]:
         logger.warning("langchain-mcp-adapters not installed. Install it to enable MCP tools: pip install langchain-mcp-adapters")
         return []
 
-    # NOTE: We use ExtensionsConfig.from_file() instead of get_extensions_config()
-    # to always read the latest configuration from disk. This ensures that changes
-    # made through the Gateway API (which runs in a separate process) are immediately
-    # reflected when initializing MCP tools.
-    extensions_config = ExtensionsConfig.from_file()
+    if user_id and mcp_config_store is not None:
+        try:
+            user_config = await mcp_config_store.get_user_mcp_config(user_id)
+            extensions_config = ExtensionsConfig.model_validate({"mcpServers": user_config.get("mcp_servers", {}), "skills": {}})
+        except Exception as exc:
+            logger.error("Failed to load MCP config from store for user %s: %s", user_id, exc, exc_info=True)
+            return []
+    else:
+        # NOTE: file-backed fallback retained for compatibility when no user-scoped store exists.
+        extensions_config = ExtensionsConfig.from_file()
     servers_config = build_servers_config(extensions_config)
 
     if not servers_config:

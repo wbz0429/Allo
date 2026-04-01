@@ -22,6 +22,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const isDev = process.env.NODE_ENV !== "production";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -56,6 +57,25 @@ export default function LoginPage() {
         <CardContent className="flex flex-col gap-4">
           {error && (
             <p className="text-sm text-destructive">{error}</p>
+          )}
+          {isDev && (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+              <p className="font-medium text-amber-200">Local dev account</p>
+              <p className="mt-1 text-amber-100/90">Email: <code>dev@allo.local</code></p>
+              <p className="text-amber-100/90">Password: <code>Password123!</code></p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 w-full"
+                onClick={() => {
+                  setEmail("dev@allo.local");
+                  setPassword("Password123!");
+                  setError(null);
+                }}
+              >
+                Fill local dev account
+              </Button>
+            </div>
           )}
           <div className="flex flex-col gap-2">
             <label htmlFor="email" className="text-sm font-medium">

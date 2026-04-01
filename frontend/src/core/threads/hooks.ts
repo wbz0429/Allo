@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 
 import { getAPIClient } from "../api";
+import { getSession } from "../auth/api";
 import { useI18n } from "../i18n/hooks";
 import type { FileInMessage } from "../messages/utils";
 import type { LocalSettings } from "../settings";
@@ -268,12 +269,20 @@ export function useThreadStream({
       _handleOnStart(threadId);
 
       let uploadedFileInfo: UploadedFileInfo[] = [];
-      let gatewayThreadId = threadId;
+      const gatewayThreadId = threadId;
+      let sessionUserId: string | undefined;
+      let sessionOrgId: string | undefined;
 
       try {
         if (!gatewayThreadId) {
           throw new Error("Thread is not ready.");
         }
+
+        try {
+          const sessionResult = await getSession();
+          sessionUserId = sessionResult.data?.user_id;
+          sessionOrgId = sessionResult.data?.org_id;
+        } catch {}
 
         if (!threadIdRef.current) {
           await createThread({
@@ -284,8 +293,8 @@ export function useThreadStream({
                 : typeof context.agent_name === "string"
                   ? context.agent_name
                   : undefined,
-            default_model: context.model_name,
-            last_model_name: context.model_name,
+            default_model: context.model_name as string | undefined,
+            last_model_name: context.model_name as string | undefined,
             status: "active",
           });
         }
@@ -293,7 +302,7 @@ export function useThreadStream({
         threadIdRef.current = gatewayThreadId;
 
         const run = await createThreadRun(gatewayThreadId, {
-          model_name: context.model_name,
+          model_name: context.model_name as string | undefined,
           agent_name:
             typeof extraContext?.agent_name === "string"
               ? extraContext.agent_name
@@ -418,10 +427,16 @@ export function useThreadStream({
             streamResumable: true,
             config: {
               recursion_limit: 1000,
+              configurable: {
+                user_id: sessionUserId,
+                org_id: sessionOrgId,
+              },
             },
             context: {
               ...extraContext,
               ...context,
+              user_id: sessionUserId,
+              org_id: sessionOrgId,
               thinking_enabled: context.mode !== "flash",
               is_plan_mode: context.mode === "pro" || context.mode === "ultra",
               subagent_enabled: context.mode === "ultra",

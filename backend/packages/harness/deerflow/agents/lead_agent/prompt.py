@@ -1,10 +1,13 @@
 import asyncio
 import concurrent.futures
+import logging
 from datetime import datetime
 
 from deerflow.config.agents_config import load_agent_soul
 from deerflow.skills import load_skills
-from deerflow.stores import MemoryStore, SkillConfigStore, SoulStore
+from deerflow.stores import MarketplaceInstallStore, MemoryStore, SkillConfigStore, SoulStore
+
+logger = logging.getLogger(__name__)
 
 
 def _run_coroutine_sync(coroutine):
@@ -384,13 +387,31 @@ def _get_memory_context(agent_name: str | None = None, memory_store: MemoryStore
         return ""
 
 
-def get_skills_prompt_section(available_skills: set[str] | None = None, user_id: str | None = None, skill_config_store: SkillConfigStore | None = None) -> str:
+def get_skills_prompt_section(
+    available_skills: set[str] | None = None,
+    user_id: str | None = None,
+    org_id: str | None = None,
+    skill_config_store: SkillConfigStore | None = None,
+    marketplace_install_store: MarketplaceInstallStore | None = None,
+) -> str:
     """Generate the skills prompt section with available skills list.
 
     Returns the <skill_system>...</skill_system> block listing all enabled skills,
     suitable for injection into any agent's system prompt.
     """
-    skills = load_skills(enabled_only=True, user_id=user_id, skill_config_store=skill_config_store)
+    skills = load_skills(
+        enabled_only=True,
+        user_id=user_id,
+        org_id=org_id,
+        skill_config_store=skill_config_store,
+        marketplace_install_store=marketplace_install_store,
+    )
+    logger.info(
+        "Skills prompt section user_id=%s org_id=%s available_skills=%s",
+        user_id,
+        org_id,
+        [skill.name for skill in skills],
+    )
 
     try:
         from deerflow.config import get_app_config
@@ -471,9 +492,11 @@ def apply_prompt_template(
     agent_name: str | None = None,
     available_skills: set[str] | None = None,
     user_id: str | None = None,
+    org_id: str | None = None,
     memory_store: MemoryStore | None = None,
     soul_store: SoulStore | None = None,
     skill_config_store: SkillConfigStore | None = None,
+    marketplace_install_store: MarketplaceInstallStore | None = None,
 ) -> str:
     # Get memory context
     memory_context = _get_memory_context(agent_name, memory_store=memory_store, user_id=user_id)
@@ -501,7 +524,13 @@ def apply_prompt_template(
     )
 
     # Get skills section
-    skills_section = get_skills_prompt_section(available_skills, user_id=user_id, skill_config_store=skill_config_store)
+    skills_section = get_skills_prompt_section(
+        available_skills,
+        user_id=user_id,
+        org_id=org_id,
+        skill_config_store=skill_config_store,
+        marketplace_install_store=marketplace_install_store,
+    )
 
     # Get deferred tools section (tool_search)
     deferred_tools_section = get_deferred_tools_prompt_section()

@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 
 interface UsageChartBar {
+  id?: string;
   label: string;
   value: number;
   secondaryValue?: number;
@@ -59,10 +60,11 @@ export function UsageChart({
           const pct = (total / maxValue) * 100;
           const primaryPct =
             total > 0 ? (bar.value / total) * 100 : 0;
+          const barKey = bar.id ?? `${bar.label}-${bar.value}-${bar.secondaryValue ?? 0}`;
 
           return (
             <div
-              key={bar.label}
+              key={barKey}
               className="group relative flex flex-1 flex-col items-center"
               style={{ height: "100%" }}
             >

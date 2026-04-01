@@ -3,17 +3,12 @@ export type AuthError = {
 };
 
 export type Session = {
-  session: {
-    token?: string;
-    userId?: string;
-    expiresAt?: string;
-  };
-  user: {
-    id: string;
-    email: string;
-    name?: string;
-    displayName?: string;
-  };
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  locale: string;
+  org_id: string;
 };
 
 export type AuthResult<T> = {
@@ -24,7 +19,7 @@ export type AuthResult<T> = {
 type RegisterInput = {
   email: string;
   password: string;
-  displayName: string;
+  display_name: string;
 };
 
 type LoginInput = {
@@ -45,7 +40,7 @@ async function requestAuth<T>(path: string, init?: RequestInit): Promise<AuthRes
 
     const payload = (await response.json().catch(() => null)) as
       | AuthResult<T>
-      | { message?: string }
+      | { message?: string; detail?: string }
       | null;
 
     if (response.ok) {
@@ -72,7 +67,9 @@ async function requestAuth<T>(path: string, init?: RequestInit): Promise<AuthRes
         message:
           payload && "message" in payload && typeof payload.message === "string"
             ? payload.message
-            : "Authentication request failed",
+            : payload && "detail" in payload && typeof payload.detail === "string"
+              ? payload.detail
+              : "Authentication request failed",
       },
     };
   } catch (error) {
@@ -89,7 +86,7 @@ export function register(
   password: string,
   displayName: string,
 ): Promise<AuthResult<Session>> {
-  const body: RegisterInput = { email, password, displayName };
+  const body: RegisterInput = { email, password, display_name: displayName };
 
   return requestAuth<Session>("/api/auth/register", {
     method: "POST",

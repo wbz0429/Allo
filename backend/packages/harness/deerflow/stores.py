@@ -42,6 +42,22 @@ class McpConfigStore(ABC):
     async def get_user_mcp_config(self, user_id: str) -> dict: ...
 
 
+class MarketplaceInstallStore(ABC):
+    """Abstract store for org-scoped marketplace runtime mappings."""
+
+    @abstractmethod
+    async def get_installed_runtime_skills(self, org_id: str) -> set[str]: ...
+
+    @abstractmethod
+    async def get_managed_runtime_skills(self) -> set[str]: ...
+
+    @abstractmethod
+    async def get_installed_runtime_tools(self, org_id: str) -> set[str]: ...
+
+    @abstractmethod
+    async def get_managed_runtime_tools(self) -> set[str]: ...
+
+
 class ModelKeyResolver(ABC):
     """Abstract resolver for per-run API key lookup.
 

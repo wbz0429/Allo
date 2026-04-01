@@ -23,7 +23,7 @@ from deerflow.config.summarization_config import get_summarization_config
 from deerflow.context import get_user_context
 from deerflow.models import create_chat_model
 from deerflow.store_registry import get_store
-from deerflow.stores import McpConfigStore, MemoryStore, ModelKeyResolver, SkillConfigStore, SoulStore
+from deerflow.stores import MarketplaceInstallStore, McpConfigStore, MemoryStore, ModelKeyResolver, SkillConfigStore, SoulStore
 
 logger = logging.getLogger(__name__)
 
@@ -270,7 +270,7 @@ def _build_middlewares(
     middlewares.append(TitleMiddleware())
 
     # Add MemoryMiddleware (after TitleMiddleware)
-    middlewares.append(MemoryMiddleware(agent_name=agent_name))
+    middlewares.append(MemoryMiddleware(agent_name=agent_name, memory_store=memory_store))
 
     # Add ViewImageMiddleware only if the current model supports vision.
     # Use the resolved runtime model_name from make_lead_agent to avoid stale config values.
@@ -319,6 +319,7 @@ def make_lead_agent(config: RunnableConfig):
     agent_name = cfg.get("agent_name")
     ctx = get_user_context(config)
     user_id = ctx.user_id if ctx else None
+    org_id = ctx.org_id if ctx else None
     run_id = ctx.run_id if ctx else None
 
     memory_store = get_store("memory")
@@ -340,6 +341,10 @@ def make_lead_agent(config: RunnableConfig):
     key_resolver = get_store("key")
     if not isinstance(key_resolver, ModelKeyResolver):
         key_resolver = None
+
+    marketplace_install_store = get_store("marketplace")
+    if not isinstance(marketplace_install_store, MarketplaceInstallStore):
+        marketplace_install_store = None
 
     agent_config = load_agent_config(agent_name) if not is_bootstrap else None
     # Custom agent model or fallback to global/default model resolution
@@ -367,6 +372,7 @@ def make_lead_agent(config: RunnableConfig):
         subagent_enabled,
         max_concurrent_subagents,
     )
+    logger.info("Lead agent runtime context user_id=%s org_id=%s run_id=%s", user_id, org_id, run_id)
 
     # Inject run metadata for LangSmith trace tagging
     if "metadata" not in config:
@@ -395,16 +401,18 @@ def make_lead_agent(config: RunnableConfig):
 
         return create_agent(
             model=create_chat_model(**model_kwargs),
-            tools=get_available_tools(model_name=model_name, subagent_enabled=subagent_enabled) + [setup_agent],
+            tools=get_available_tools(model_name=model_name, subagent_enabled=subagent_enabled, runtime_config=config) + [setup_agent],
             middleware=_build_middlewares(config, model_name=model_name, user_id=user_id, memory_store=memory_store, soul_store=soul_store, skill_config_store=skill_config_store, mcp_config_store=mcp_config_store),
             system_prompt=apply_prompt_template(
                 subagent_enabled=subagent_enabled,
                 max_concurrent_subagents=max_concurrent_subagents,
                 available_skills=set(["bootstrap"]),
                 user_id=user_id,
+                org_id=org_id,
                 memory_store=memory_store,
                 soul_store=soul_store,
                 skill_config_store=skill_config_store,
+                marketplace_install_store=marketplace_install_store,
             ),
             state_schema=ThreadState,
         )
@@ -418,7 +426,7 @@ def make_lead_agent(config: RunnableConfig):
 
     return create_agent(
         model=create_chat_model(**model_kwargs),
-        tools=get_available_tools(model_name=model_name, groups=agent_config.tool_groups if agent_config else None, subagent_enabled=subagent_enabled),
+        tools=get_available_tools(model_name=model_name, groups=agent_config.tool_groups if agent_config else None, subagent_enabled=subagent_enabled, runtime_config=config),
         middleware=_build_middlewares(
             config,
             model_name=model_name,
@@ -434,9 +442,11 @@ def make_lead_agent(config: RunnableConfig):
             max_concurrent_subagents=max_concurrent_subagents,
             agent_name=agent_name,
             user_id=user_id,
+            org_id=org_id,
             memory_store=memory_store,
             soul_store=soul_store,
             skill_config_store=skill_config_store,
+            marketplace_install_store=marketplace_install_store,
         ),
         state_schema=ThreadState,
     )

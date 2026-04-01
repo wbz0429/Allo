@@ -1,6 +1,12 @@
-"""Thread CRUD and run tracking APIs."""
+"""Thread CRUD and run tracking APIs.
+
+Response shapes are compatible with the LangGraph SDK ``Thread`` type so the
+frontend can consume them directly via ``AgentThread`` (which extends
+``Thread<AgentThreadState>``).
+"""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
@@ -13,10 +19,14 @@ from app.gateway.db.models import Thread, ThreadRun
 
 router = APIRouter(prefix="/api/threads", tags=["threads"])
 
+# ---------------------------------------------------------------------------
+# Request models
+# ---------------------------------------------------------------------------
+
 
 class ThreadCreateRequest(BaseModel):
-    id: str = Field(..., min_length=1, max_length=255)
-    title: str = Field(..., min_length=1, max_length=500)
+    thread_id: str = Field(..., min_length=1, max_length=255)
+    title: str | None = Field(default=None, max_length=500)
     agent_name: str | None = Field(default=None, max_length=100)
     default_model: str | None = Field(default=None, max_length=100)
     last_model_name: str | None = Field(default=None, max_length=100)
@@ -25,7 +35,11 @@ class ThreadCreateRequest(BaseModel):
 
 class ThreadUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=500)
+    agent_name: str | None = Field(default=None, max_length=100)
+    default_model: str | None = Field(default=None, max_length=100)
+    last_model_name: str | None = Field(default=None, max_length=100)
     status: str | None = Field(default=None, min_length=1, max_length=20)
+    last_active_at: datetime | None = None
 
 
 class ThreadRunCreateRequest(BaseModel):
@@ -43,6 +57,11 @@ class ThreadRunUpdateRequest(BaseModel):
     finished_at: datetime | None = None
 
 
+# ---------------------------------------------------------------------------
+# Response models — LangGraph SDK ``Thread`` compatible
+# ---------------------------------------------------------------------------
+
+
 class ThreadRunResponse(BaseModel):
     id: str
     thread_id: str
@@ -58,32 +77,61 @@ class ThreadRunResponse(BaseModel):
 
 
 class ThreadResponse(BaseModel):
-    id: str
-    user_id: str
-    org_id: str
-    title: str
+    """Matches the LangGraph SDK ``Thread<AgentThreadState>`` shape.
+
+    The frontend ``AgentThread`` type extends ``Thread`` which requires:
+    ``thread_id``, ``created_at``, ``updated_at``, ``metadata``, ``status``,
+    ``values``, ``interrupts``.
+    """
+
+    thread_id: str
+    created_at: str
+    updated_at: str
+    metadata: dict[str, Any]
     status: str
-    agent_name: str | None
-    default_model: str | None
-    last_model_name: str | None
-    created_at: datetime
-    updated_at: datetime
-    last_active_at: datetime
+    values: dict[str, Any]
+    interrupts: dict[str, Any]
+
+
+# ---------------------------------------------------------------------------
+# Status mapping — our DB uses "active"/"archived", SDK uses "idle"/"busy"/…
+# ---------------------------------------------------------------------------
+
+_STATUS_TO_SDK: dict[str, str] = {
+    "active": "idle",
+    "running": "busy",
+    "error": "error",
+    "interrupted": "interrupted",
+}
+
+
+def _map_status(db_status: str) -> str:
+    return _STATUS_TO_SDK.get(db_status, "idle")
+
+
+# ---------------------------------------------------------------------------
+# Converters
+# ---------------------------------------------------------------------------
 
 
 def _thread_to_response(thread: Thread) -> ThreadResponse:
     return ThreadResponse(
-        id=thread.id,
-        user_id=thread.user_id,
-        org_id=thread.org_id,
-        title=thread.title,
-        status=thread.status,
-        agent_name=thread.agent_name,
-        default_model=thread.default_model,
-        last_model_name=thread.last_model_name,
-        created_at=thread.created_at,
-        updated_at=thread.updated_at,
-        last_active_at=thread.last_active_at,
+        thread_id=thread.id,
+        created_at=thread.created_at.isoformat() if thread.created_at else "",
+        updated_at=thread.updated_at.isoformat() if thread.updated_at else "",
+        metadata={
+            "agent_name": thread.agent_name,
+            "default_model": thread.default_model,
+            "last_model_name": thread.last_model_name,
+            "last_active_at": thread.last_active_at.isoformat() if thread.last_active_at else None,
+            "user_id": thread.user_id,
+            "org_id": thread.org_id,
+        },
+        status=_map_status(thread.status),
+        values={
+            "title": thread.title or "",
+        },
+        interrupts={},
     )
 
 
@@ -101,6 +149,11 @@ def _thread_run_to_response(run: ThreadRun) -> ThreadRunResponse:
         finished_at=run.finished_at,
         error_message=run.error_message,
     )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
 async def _get_owned_thread(thread_id: str, auth: AuthContext, db: AsyncSession) -> Thread:
@@ -128,24 +181,31 @@ async def _get_owned_run(thread_id: str, run_id: str, auth: AuthContext, db: Asy
     return run
 
 
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+
 @router.post("", response_model=ThreadResponse, status_code=status.HTTP_201_CREATED)
 async def create_thread(
     request: ThreadCreateRequest,
     auth: AuthContext = Depends(get_auth_context),
     db: AsyncSession = Depends(get_db_session),
 ) -> ThreadResponse:
-    existing = await db.get(Thread, request.id)
+    existing = await db.get(Thread, request.thread_id)
     if existing is not None:
         if existing.user_id == auth.user_id and existing.org_id == auth.org_id:
-            raise HTTPException(status_code=409, detail="Thread already exists")
+            # Idempotent: return existing thread instead of 409
+            return _thread_to_response(existing)
         raise HTTPException(status_code=403, detail="Thread ID already belongs to another user")
 
     now = datetime.now(UTC)
+    title = (request.title.strip() if request.title else "") or "New Thread"
     thread = Thread(
-        id=request.id,
+        id=request.thread_id,
         user_id=auth.user_id,
         org_id=auth.org_id,
-        title=request.title.strip(),
+        title=title,
         status=request.status.strip(),
         agent_name=request.agent_name.strip() if request.agent_name else None,
         default_model=request.default_model.strip() if request.default_model else None,
@@ -190,6 +250,12 @@ async def update_thread(
         thread.title = request.title.strip()
     if request.status is not None:
         thread.status = request.status.strip()
+    if request.agent_name is not None:
+        thread.agent_name = request.agent_name.strip() or None
+    if request.default_model is not None:
+        thread.default_model = request.default_model.strip() or None
+    if request.last_model_name is not None:
+        thread.last_model_name = request.last_model_name.strip() or None
 
     thread.last_active_at = datetime.now(UTC)
     await db.commit()

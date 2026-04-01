@@ -8,15 +8,40 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.gateway.auth import AuthContext, get_auth_context
+from app.gateway.db.database import get_db_session
+from app.gateway.db.models import UserSkillConfig
 from app.gateway.path_utils import resolve_thread_virtual_path
-from deerflow.config.extensions_config import ExtensionsConfig, SkillStateConfig, get_extensions_config, reload_extensions_config
 from deerflow.skills import Skill, load_skills
 from deerflow.skills.loader import get_skills_root_path
 from deerflow.skills.validation import _validate_skill_frontmatter
 
 logger = logging.getLogger(__name__)
+
+
+async def _get_user_skill_toggles(db: AsyncSession, auth: AuthContext) -> dict[str, bool]:
+    result = await db.execute(select(UserSkillConfig).where(UserSkillConfig.user_id == auth.user_id, UserSkillConfig.org_id == auth.org_id).order_by(UserSkillConfig.updated_at.desc()).limit(1))
+    record = result.scalar_one_or_none()
+    if record is None:
+        return {}
+
+    try:
+        payload = json.loads(record.config_json)
+    except json.JSONDecodeError:
+        return {}
+
+    raw = payload.get("skills", {}) if isinstance(payload, dict) else {}
+    return {name: bool(value.get("enabled", True)) for name, value in raw.items() if isinstance(value, dict)}
+
+
+def _apply_user_toggles(skills: list[Skill], toggles: dict[str, bool]) -> list[Skill]:
+    for skill in skills:
+        if skill.name in toggles:
+            skill.enabled = toggles[skill.name]
+    return skills
 
 
 def _is_unsafe_zip_member(info: zipfile.ZipInfo) -> bool:
@@ -157,7 +182,7 @@ def _skill_to_response(skill: Skill) -> SkillResponse:
     summary="List All Skills",
     description="Retrieve a list of all available skills from both public and custom directories.",
 )
-async def list_skills(auth: AuthContext = Depends(get_auth_context)) -> SkillsListResponse:
+async def list_skills(auth: AuthContext = Depends(get_auth_context), db: AsyncSession = Depends(get_db_session)) -> SkillsListResponse:
     """List all available skills.
 
     Returns all skills regardless of their enabled status.
@@ -188,8 +213,8 @@ async def list_skills(auth: AuthContext = Depends(get_auth_context)) -> SkillsLi
         ```
     """
     try:
-        # Load all skills (including disabled ones)
         skills = load_skills(enabled_only=False)
+        skills = _apply_user_toggles(skills, await _get_user_skill_toggles(db, auth))
         return SkillsListResponse(skills=[_skill_to_response(skill) for skill in skills])
     except Exception as e:
         logger.error(f"Failed to load skills: {e}", exc_info=True)
@@ -202,7 +227,7 @@ async def list_skills(auth: AuthContext = Depends(get_auth_context)) -> SkillsLi
     summary="Get Skill Details",
     description="Retrieve detailed information about a specific skill by its name.",
 )
-async def get_skill(skill_name: str, auth: AuthContext = Depends(get_auth_context)) -> SkillResponse:
+async def get_skill(skill_name: str, auth: AuthContext = Depends(get_auth_context), db: AsyncSession = Depends(get_db_session)) -> SkillResponse:
     """Get a specific skill by name.
 
     Args:
@@ -227,6 +252,7 @@ async def get_skill(skill_name: str, auth: AuthContext = Depends(get_auth_contex
     """
     try:
         skills = load_skills(enabled_only=False)
+        skills = _apply_user_toggles(skills, await _get_user_skill_toggles(db, auth))
         skill = next((s for s in skills if s.name == skill_name), None)
 
         if skill is None:
@@ -246,7 +272,12 @@ async def get_skill(skill_name: str, auth: AuthContext = Depends(get_auth_contex
     summary="Update Skill",
     description="Update a skill's enabled status by modifying the extensions_config.json file.",
 )
-async def update_skill(skill_name: str, request: SkillUpdateRequest, auth: AuthContext = Depends(get_auth_context)) -> SkillResponse:
+async def update_skill(
+    skill_name: str,
+    request: SkillUpdateRequest,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> SkillResponse:
     """Update a skill's enabled status.
 
     This will modify the extensions_config.json file to update the enabled state.
@@ -283,41 +314,42 @@ async def update_skill(skill_name: str, request: SkillUpdateRequest, auth: AuthC
     try:
         # Find the skill to verify it exists
         skills = load_skills(enabled_only=False)
+        skills = _apply_user_toggles(skills, await _get_user_skill_toggles(db, auth))
         skill = next((s for s in skills if s.name == skill_name), None)
 
         if skill is None:
             raise HTTPException(status_code=404, detail=f"Skill '{skill_name}' not found")
 
-        # Get or create config path
-        config_path = ExtensionsConfig.resolve_config_path()
-        if config_path is None:
-            # Create new config file in parent directory (project root)
-            config_path = Path.cwd().parent / "extensions_config.json"
-            logger.info(f"No existing extensions config found. Creating new config at: {config_path}")
+        result = await db.execute(select(UserSkillConfig).where(UserSkillConfig.user_id == auth.user_id, UserSkillConfig.org_id == auth.org_id).order_by(UserSkillConfig.updated_at.desc()).limit(1))
+        record = result.scalar_one_or_none()
 
-        # Load current configuration
-        extensions_config = get_extensions_config()
+        payload: dict[str, dict] = {"skills": {}}
+        if record is not None:
+            try:
+                existing = json.loads(record.config_json)
+                if isinstance(existing, dict):
+                    payload = existing
+            except json.JSONDecodeError:
+                payload = {"skills": {}}
 
-        # Update the skill's enabled status
-        extensions_config.skills[skill_name] = SkillStateConfig(enabled=request.enabled)
+        skills_payload = payload.get("skills")
+        if not isinstance(skills_payload, dict):
+            skills_payload = {}
+            payload["skills"] = skills_payload
+        skills_payload[skill_name] = {"enabled": request.enabled}
 
-        # Convert to JSON format (preserve MCP servers config)
-        config_data = {
-            "mcpServers": {name: server.model_dump() for name, server in extensions_config.mcp_servers.items()},
-            "skills": {name: {"enabled": skill_config.enabled} for name, skill_config in extensions_config.skills.items()},
-        }
+        payload_json = json.dumps(payload, ensure_ascii=False)
+        if record is None:
+            record = UserSkillConfig(user_id=auth.user_id, org_id=auth.org_id, config_json=payload_json)
+            db.add(record)
+        else:
+            record.config_json = payload_json
 
-        # Write the configuration to file
-        with open(config_path, "w", encoding="utf-8") as f:
-            json.dump(config_data, f, indent=2)
+        await db.commit()
+        await db.refresh(record)
 
-        logger.info(f"Skills configuration updated and saved to: {config_path}")
-
-        # Reload the extensions config to update the global cache
-        reload_extensions_config()
-
-        # Reload the skills to get the updated status (for API response)
         skills = load_skills(enabled_only=False)
+        skills = _apply_user_toggles(skills, await _get_user_skill_toggles(db, auth))
         updated_skill = next((s for s in skills if s.name == skill_name), None)
 
         if updated_skill is None:

@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.gateway.auth import AuthContext, get_auth_context
+from deerflow import store_registry
 from deerflow.agents.memory.updater import get_memory_data, reload_memory_data
 from deerflow.config.memory_config import get_memory_config
+from deerflow.stores import MemoryStore
 
 router = APIRouter(prefix="/api", tags=["memory"])
 
@@ -113,7 +115,11 @@ async def get_memory(auth: AuthContext = Depends(get_auth_context)) -> MemoryRes
         }
         ```
     """
-    memory_data = get_memory_data()
+    memory_store = store_registry.get_store("memory")
+    if isinstance(memory_store, MemoryStore):
+        memory_data = get_memory_data(memory_store=memory_store, user_id=auth.user_id)
+    else:
+        memory_data = get_memory_data()
     return MemoryResponse(**memory_data)
 
 
@@ -132,7 +138,11 @@ async def reload_memory(auth: AuthContext = Depends(get_auth_context)) -> Memory
     Returns:
         The reloaded memory data.
     """
-    memory_data = reload_memory_data()
+    memory_store = store_registry.get_store("memory")
+    if isinstance(memory_store, MemoryStore):
+        memory_data = get_memory_data(memory_store=memory_store, user_id=auth.user_id)
+    else:
+        memory_data = reload_memory_data()
     return MemoryResponse(**memory_data)
 
 
@@ -186,7 +196,11 @@ async def get_memory_status(auth: AuthContext = Depends(get_auth_context)) -> Me
         Combined memory configuration and current data.
     """
     config = get_memory_config()
-    memory_data = get_memory_data()
+    memory_store = store_registry.get_store("memory")
+    if isinstance(memory_store, MemoryStore):
+        memory_data = get_memory_data(memory_store=memory_store, user_id=auth.user_id)
+    else:
+        memory_data = get_memory_data()
 
     return MemoryStatusResponse(
         config=MemoryConfigResponse(

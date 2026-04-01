@@ -2,7 +2,6 @@ import "@/styles/globals.css";
 import "katex/dist/katex.min.css";
 
 import { type Metadata } from "next";
-import { Geist } from "next/font/google";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { I18nProvider } from "@/core/i18n/context";
@@ -13,11 +12,6 @@ export const metadata: Metadata = {
   description: "Allo — AI 企业办公助手",
 };
 
-const geist = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
-});
-
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -25,7 +19,6 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={geist.variable}
       suppressContentEditableWarning
       suppressHydrationWarning
     >

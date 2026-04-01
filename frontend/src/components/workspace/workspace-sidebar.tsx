@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { logout } from "@/core/auth/api";
 import {
   Sidebar,
   SidebarHeader,
@@ -14,6 +13,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { logout } from "@/core/auth/api";
 
 import { RecentChatList } from "./recent-chat-list";
 import { WorkspaceHeader } from "./workspace-header";

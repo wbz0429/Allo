@@ -446,6 +446,25 @@ class UserMcpConfig(Base):
         super().__init__(**kwargs)
 
 
+class UserSkillConfig(Base):
+    """Per-user skill toggle configuration JSON."""
+
+    __tablename__ = "user_skill_configs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, insert_default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    org_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    config_json: Mapped[str] = mapped_column(Text, nullable=False, insert_default="{}")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    def __init__(self, **kwargs: object) -> None:
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        if "config_json" not in kwargs:
+            kwargs["config_json"] = "{}"
+        super().__init__(**kwargs)
+
+
 class UserAgent(Base):
     """Per-user custom agent configuration persisted in Postgres."""
 
@@ -526,6 +545,7 @@ class MarketplaceTool(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
     category: Mapped[str] = mapped_column(String(50), nullable=False, insert_default="search")
     icon: Mapped[str] = mapped_column(String(512), nullable=False, insert_default="")
+    runtime_tool_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     mcp_config_json: Mapped[str] = mapped_column(Text, nullable=False, insert_default="{}")
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, insert_default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -539,6 +559,8 @@ class MarketplaceTool(Base):
             kwargs["category"] = "search"
         if "icon" not in kwargs:
             kwargs["icon"] = ""
+        if "runtime_tool_name" not in kwargs:
+            kwargs["runtime_tool_name"] = None
         if "mcp_config_json" not in kwargs:
             kwargs["mcp_config_json"] = "{}"
         if "is_public" not in kwargs:
@@ -606,6 +628,7 @@ class MarketplaceSkill(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
     category: Mapped[str] = mapped_column(String(50), nullable=False, insert_default="research")
+    runtime_skill_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     skill_content: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, insert_default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -617,6 +640,8 @@ class MarketplaceSkill(Base):
             kwargs["description"] = ""
         if "category" not in kwargs:
             kwargs["category"] = "research"
+        if "runtime_skill_name" not in kwargs:
+            kwargs["runtime_skill_name"] = None
         if "skill_content" not in kwargs:
             kwargs["skill_content"] = ""
         if "is_public" not in kwargs:

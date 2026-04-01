@@ -1,13 +1,31 @@
+import asyncio
 import logging
 
 from langchain.tools import BaseTool
 
 from deerflow.config import get_app_config
+from deerflow.context import get_user_context
 from deerflow.reflection import resolve_variable
+from deerflow.store_registry import get_store
+from deerflow.stores import MarketplaceInstallStore
 from deerflow.tools.builtins import ask_clarification_tool, present_file_tool, task_tool, view_image_tool
 from deerflow.tools.builtins.tool_search import reset_deferred_registry
 
 logger = logging.getLogger(__name__)
+
+
+def _run_coroutine_sync(coroutine):
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
+
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, coroutine)
+        return future.result()
+
 
 BUILTIN_TOOLS = [
     present_file_tool,
@@ -25,6 +43,7 @@ def get_available_tools(
     include_mcp: bool = True,
     model_name: str | None = None,
     subagent_enabled: bool = False,
+    runtime_config: dict | None = None,
 ) -> list[BaseTool]:
     """Get all available tools from config.
 
@@ -40,8 +59,19 @@ def get_available_tools(
     Returns:
         List of available tools.
     """
-    config = get_app_config()
-    loaded_tools = [resolve_variable(tool.use, BaseTool) for tool in config.tools if groups is None or tool.group in groups]
+    app_config = get_app_config()
+    loaded_tools = [resolve_variable(tool.use, BaseTool) for tool in app_config.tools if groups is None or tool.group in groups]
+
+    ctx = get_user_context(runtime_config)
+    marketplace_store = get_store("marketplace")
+    if ctx and isinstance(marketplace_store, MarketplaceInstallStore):
+        try:
+            managed = _run_coroutine_sync(marketplace_store.get_managed_runtime_tools())
+            installed = _run_coroutine_sync(marketplace_store.get_installed_runtime_tools(ctx.org_id))
+            if managed:
+                loaded_tools = [tool for tool in loaded_tools if getattr(tool, "name", None) not in managed or getattr(tool, "name", None) in installed]
+        except Exception as e:
+            logger.warning("Failed to apply marketplace tool gating: %s", e)
 
     # Conditionally add tools based on config
     builtin_tools = BUILTIN_TOOLS.copy()
@@ -52,11 +82,11 @@ def get_available_tools(
         logger.info("Including subagent tools (task)")
 
     # If no model_name specified, use the first model (default)
-    if model_name is None and config.models:
-        model_name = config.models[0].name
+    if model_name is None and app_config.models:
+        model_name = app_config.models[0].name
 
     # Add view_image_tool only if the model supports vision
-    model_config = config.get_model_config(model_name) if model_name else None
+    model_config = app_config.get_model_config(model_name) if model_name else None
     if model_config is not None and model_config.supports_vision:
         builtin_tools.append(view_image_tool)
         logger.info(f"Including view_image_tool for model '{model_name}' (supports_vision=True)")
@@ -82,7 +112,7 @@ def get_available_tools(
 
                     # When tool_search is enabled, register MCP tools in the
                     # deferred registry and add tool_search to builtin tools.
-                    if config.tool_search.enabled:
+                    if app_config.tool_search.enabled:
                         from deerflow.tools.builtins.tool_search import DeferredToolRegistry, set_deferred_registry
                         from deerflow.tools.builtins.tool_search import tool_search as tool_search_tool
 

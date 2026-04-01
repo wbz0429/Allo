@@ -51,8 +51,10 @@ export default function MarketplacePage() {
       setSkills(skillsData);
       setInstalledTools(orgTools);
       setInstalledSkills(orgSkills);
-    } catch {
-      toast.error("Failed to load marketplace data");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to load marketplace data",
+      );
     } finally {
       setLoading(false);
     }
@@ -86,8 +88,8 @@ export default function MarketplacePage() {
         setInstallDialogOpen(false);
         setSelectedTool(null);
         toast.success("Tool installed successfully");
-      } catch {
-        toast.error("Failed to install tool");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to install tool");
       } finally {
         setActionLoading(null);
       }
@@ -101,8 +103,8 @@ export default function MarketplacePage() {
       await uninstallTool(tool.id);
       setInstalledTools((prev) => prev.filter((t) => t.tool.id !== tool.id));
       toast.success("Tool uninstalled");
-    } catch {
-      toast.error("Failed to uninstall tool");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to uninstall tool");
     } finally {
       setActionLoading(null);
     }
@@ -114,8 +116,8 @@ export default function MarketplacePage() {
       const installed = await installSkill(skill.id);
       setInstalledSkills((prev) => [...prev, installed]);
       toast.success("Skill installed successfully");
-    } catch {
-      toast.error("Failed to install skill");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to install skill");
     } finally {
       setActionLoading(null);
     }
@@ -129,8 +131,8 @@ export default function MarketplacePage() {
         prev.filter((s) => s.skill.id !== skill.id),
       );
       toast.success("Skill uninstalled");
-    } catch {
-      toast.error("Failed to uninstall skill");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to uninstall skill");
     } finally {
       setActionLoading(null);
     }

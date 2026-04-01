@@ -5,32 +5,34 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.gateway.auth import _DEV_ORG_ID, _DEV_ROLE, get_auth_context
+from app.gateway.auth import get_auth_context
 
 
 @pytest.mark.asyncio
-async def test_get_auth_context_falls_back_to_dev_org_for_valid_session_without_membership(monkeypatch) -> None:
-    """A valid Better Auth session should still work in local dev without org membership rows."""
+async def test_get_auth_context_valid_session_token_resolves_user(monkeypatch) -> None:
+    """A valid session_token cookie should resolve the user via _resolve_auth_context."""
+    from app.gateway.auth import AuthContext
+
     request = MagicMock()
-    request.cookies = {"better-auth.session_token": "tok-dev"}
-    request.headers = {}
+    request.cookies = {"session_token": "tok-dev"}
     request.state = MagicMock()
     mock_db = AsyncMock()
 
-    monkeypatch.setattr("app.gateway.auth.SKIP_AUTH", False)
-    monkeypatch.setattr("app.gateway.auth._env", "development")
+    monkeypatch.setattr("app.gateway.auth._get_runtime_skip_auth", lambda: False)
 
-    mock_result = MagicMock()
-    mock_result.first.side_effect = [None, ("user-dev-123",)]
-    mock_db.execute.return_value = mock_result
+    expected_ctx = AuthContext(user_id="user-dev-123", org_id="org-dev-456", role="member")
+    monkeypatch.setattr(
+        "app.gateway.auth._resolve_auth_context",
+        AsyncMock(return_value=expected_ctx),
+    )
 
     ctx = await get_auth_context(request, mock_db)
 
     assert ctx.user_id == "user-dev-123"
-    assert ctx.org_id == _DEV_ORG_ID
-    assert ctx.role == _DEV_ROLE
+    assert ctx.org_id == "org-dev-456"
+    assert ctx.role == "member"
     assert request.state.user_id == "user-dev-123"
-    assert request.state.org_id == _DEV_ORG_ID
+    assert request.state.org_id == "org-dev-456"
 
 
 def test_register_page_does_not_call_missing_create_org_route() -> None:
