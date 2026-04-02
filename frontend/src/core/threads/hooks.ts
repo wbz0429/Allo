@@ -284,20 +284,18 @@ export function useThreadStream({
           sessionOrgId = sessionResult.data?.org_id;
         } catch {}
 
-        if (!threadIdRef.current) {
-          await createThread({
-            thread_id: gatewayThreadId,
-            agent_name:
-              typeof extraContext?.agent_name === "string"
-                ? extraContext.agent_name
-                : typeof context.agent_name === "string"
-                  ? context.agent_name
-                  : undefined,
-            default_model: context.model_name as string | undefined,
-            last_model_name: context.model_name as string | undefined,
-            status: "active",
-          });
-        }
+        await createThread({
+          thread_id: gatewayThreadId,
+          agent_name:
+            typeof extraContext?.agent_name === "string"
+              ? extraContext.agent_name
+              : typeof context.agent_name === "string"
+                ? context.agent_name
+                : undefined,
+          default_model: context.model_name as string | undefined,
+          last_model_name: context.model_name as string | undefined,
+          status: "active",
+        });
 
         threadIdRef.current = gatewayThreadId;
 
