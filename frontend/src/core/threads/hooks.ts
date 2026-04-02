@@ -425,10 +425,6 @@ export function useThreadStream({
             streamResumable: true,
             config: {
               recursion_limit: 1000,
-              configurable: {
-                user_id: sessionUserId,
-                org_id: sessionOrgId,
-              },
             },
             context: {
               ...extraContext,

@@ -22,7 +22,8 @@ def get_user_context(config: dict | None = None) -> UserContext | None:
     """Extract user context from a RunnableConfig dict.
 
     Looks for x-user-id / x-org-id (nginx-injected) or user_id / org_id
-    (direct API) in the configurable section.
+    (direct API) in either the newer context section or the legacy configurable
+    section.
 
     Args:
         config: RunnableConfig dictionary from LangGraph runtime.
@@ -32,10 +33,11 @@ def get_user_context(config: dict | None = None) -> UserContext | None:
     """
     if not config:
         return None
+    context = config.get("context", {})
     configurable = config.get("configurable", {})
-    user_id = configurable.get("x-user-id") or configurable.get("user_id")
-    org_id = configurable.get("x-org-id") or configurable.get("org_id", "default")
-    run_id = configurable.get("run_id")
+    user_id = context.get("x-user-id") or context.get("user_id") or configurable.get("x-user-id") or configurable.get("user_id")
+    org_id = context.get("x-org-id") or context.get("org_id") or configurable.get("x-org-id") or configurable.get("org_id", "default")
+    run_id = context.get("run_id") or configurable.get("run_id")
     if user_id:
         return UserContext(user_id=user_id, org_id=org_id, run_id=run_id)
     return None
