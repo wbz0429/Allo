@@ -206,6 +206,7 @@ class DeerFlowClient:
             "system_prompt": apply_prompt_template(
                 subagent_enabled=subagent_enabled,
                 max_concurrent_subagents=max_concurrent_subagents,
+                enabled_skill_names=cfg.get("enabled_skill_names"),
             ),
             "state_schema": ThreadState,
         }

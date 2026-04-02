@@ -39,3 +39,63 @@ def get_user_context(config: dict | None = None) -> UserContext | None:
     if user_id:
         return UserContext(user_id=user_id, org_id=org_id, run_id=run_id)
     return None
+
+
+def get_runtime_thread_id(runtime) -> str | None:
+    """Extract thread_id from LangGraph runtime context.
+
+    LangGraph SDK calls may place thread_id in either:
+    - runtime.context["thread_id"]
+    - runtime.context["threadId"]
+    - runtime.context["configurable"]["thread_id"]
+    - runtime.context["configurable"]["threadId"]
+    - runtime.context["context"]["thread_id"]
+
+    We normalize these access patterns here so middlewares/tools don't depend on
+    one transport-specific shape.
+    """
+    if runtime is None:
+        return None
+
+    context = getattr(runtime, "context", None) or {}
+    thread_id = context.get("thread_id") or context.get("threadId")
+    if thread_id:
+        return thread_id
+
+    configurable = context.get("configurable") or {}
+    thread_id = configurable.get("thread_id") or configurable.get("threadId")
+    if thread_id:
+        return thread_id
+
+    nested_context = context.get("context") or {}
+    thread_id = nested_context.get("thread_id") or nested_context.get("threadId")
+    if thread_id:
+        return thread_id
+
+    runtime_config = getattr(runtime, "config", None) or {}
+    configurable = runtime_config.get("configurable") or {}
+    thread_id = configurable.get("thread_id") or configurable.get("threadId")
+    if thread_id:
+        return thread_id
+
+    return None
+
+
+def get_runtime_user_id(runtime) -> str | None:
+    """Extract normalized user_id from runtime context."""
+    if runtime is None:
+        return None
+
+    context = getattr(runtime, "context", None) or {}
+    runtime_config = getattr(runtime, "config", None) or {}
+    runtime_configurable = runtime_config.get("configurable") or {}
+    return (
+        context.get("x-user-id")
+        or context.get("user_id")
+        or (context.get("configurable") or {}).get("x-user-id")
+        or (context.get("configurable") or {}).get("user_id")
+        or (context.get("context") or {}).get("x-user-id")
+        or (context.get("context") or {}).get("user_id")
+        or runtime_configurable.get("x-user-id")
+        or runtime_configurable.get("user_id")
+    )

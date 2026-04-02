@@ -32,6 +32,7 @@ from app.gateway.services.marketplace_install_store_pg import PostgresMarketplac
 from app.gateway.services.mcp_config_store_pg import PostgresMcpConfigStore
 from app.gateway.services.memory_store_pg import PostgresMemoryStore
 from app.gateway.services.model_key_resolver_pg import PostgresModelKeyResolver
+from app.gateway.services.skill_catalog_store_pg import PostgresSkillCatalogStore
 from app.gateway.services.skill_config_store_pg import PostgresSkillConfigStore
 from app.gateway.services.soul_store_pg import PostgresSoulStore
 from deerflow.config.app_config import get_app_config
@@ -70,6 +71,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     register_store("memory", PostgresMemoryStore(async_session_factory))
     register_store("soul", PostgresSoulStore(async_session_factory))
     register_store("skill", PostgresSkillConfigStore(async_session_factory))
+    register_store("skill_catalog", PostgresSkillCatalogStore(async_session_factory))
     register_store("mcp", PostgresMcpConfigStore(async_session_factory))
     register_store("marketplace", PostgresMarketplaceInstallStore(async_session_factory))
     register_store("key", PostgresModelKeyResolver(async_session_factory, get_redis))

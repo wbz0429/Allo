@@ -6,6 +6,7 @@ from langgraph.runtime import Runtime
 
 from deerflow.agents.thread_state import ThreadDataState
 from deerflow.config.paths import Paths, get_paths
+from deerflow.context import get_runtime_thread_id, get_runtime_user_id
 
 
 class ThreadDataMiddlewareState(AgentState):
@@ -88,11 +89,11 @@ class ThreadDataMiddleware(AgentMiddleware[ThreadDataMiddlewareState]):
 
     @override
     def before_agent(self, state: ThreadDataMiddlewareState, runtime: Runtime) -> dict | None:
-        thread_id = runtime.context.get("thread_id")
+        thread_id = get_runtime_thread_id(runtime)
         if thread_id is None:
             raise ValueError("Thread ID is required in the context")
 
-        user_id = runtime.context.get("x-user-id")
+        user_id = get_runtime_user_id(runtime)
 
         if self._lazy_init:
             # Lazy initialization: only compute paths, don't create directories

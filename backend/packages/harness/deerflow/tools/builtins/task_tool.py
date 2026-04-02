@@ -1,5 +1,7 @@
 """Task tool for delegating work to subagents."""
 
+import asyncio
+import concurrent.futures
 import logging
 import time
 import uuid
@@ -16,6 +18,18 @@ from deerflow.subagents import SubagentExecutor, get_subagent_config
 from deerflow.subagents.executor import SubagentStatus, cleanup_background_task, get_background_task_result
 
 logger = logging.getLogger(__name__)
+
+
+def task_tool_run_coroutine_sync(coroutine):
+    """Run an async coroutine from sync task-tool code."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(asyncio.run, coroutine)
+        return future.result()
 
 
 @tool("task", parse_docstring=True)
@@ -65,7 +79,29 @@ def task_tool(
     # Build config overrides
     overrides: dict = {}
 
-    skills_section = get_skills_prompt_section()
+    # Extract user context for per-user skills
+    user_id = None
+    org_id = None
+    enabled_skill_names = None
+
+    if runtime is not None:
+        from deerflow.context import get_user_context
+        from deerflow.store_registry import get_store
+        from deerflow.stores import SkillCatalogStore
+
+        ctx = get_user_context(runtime.config)
+        if ctx:
+            user_id = ctx.user_id
+            org_id = ctx.org_id
+
+        skill_catalog_store = get_store("skill_catalog")
+        if isinstance(skill_catalog_store, SkillCatalogStore) and user_id is not None and org_id is not None:
+            enabled_skill_names = task_tool_run_coroutine_sync(skill_catalog_store.get_enabled_skill_names(user_id, org_id))
+
+    skills_section = get_skills_prompt_section(
+        user_id=user_id,
+        enabled_skill_names=enabled_skill_names,
+    )
     if skills_section:
         overrides["system_prompt"] = config.system_prompt + "\n\n" + skills_section
 

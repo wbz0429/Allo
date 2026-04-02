@@ -1,9 +1,7 @@
-import asyncio
 import os
 from pathlib import Path
 
 from deerflow.config.paths import get_paths
-from deerflow.stores import MarketplaceInstallStore, SkillConfigStore
 
 from .parser import parse_skill_file
 from .types import Skill
@@ -43,57 +41,11 @@ def _discover_skills(category_path: Path, category: str) -> list[Skill]:
     return skills
 
 
-def _run_coroutine_sync(coroutine):
-    """Run an async coroutine from sync code, even if an event loop is already running."""
-    try:
-        loop = asyncio.get_running_loop()  # noqa: F841
-    except RuntimeError:
-        return asyncio.run(coroutine)
-
-    import concurrent.futures
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(asyncio.run, coroutine)
-        return future.result()
-
-
-def _load_skill_toggles(user_id: str, skill_config_store: SkillConfigStore | None) -> dict[str, bool]:
-    """Load per-user skill toggles when a store is available."""
-    if skill_config_store is None:
-        return {}
-
-    try:
-        toggles = _run_coroutine_sync(skill_config_store.get_skill_toggles(user_id))
-        return toggles if isinstance(toggles, dict) else {}
-    except Exception:
-        return {}
-
-
-def _load_marketplace_skill_state(org_id: str | None, marketplace_store: MarketplaceInstallStore | None) -> tuple[set[str], set[str]]:
-    if org_id is None or marketplace_store is None:
-        return set(), set()
-
-    try:
-        managed = _run_coroutine_sync(marketplace_store.get_managed_runtime_skills())
-    except Exception:
-        managed = set()
-
-    try:
-        installed = _run_coroutine_sync(marketplace_store.get_installed_runtime_skills(org_id))
-    except Exception:
-        installed = set()
-
-    return set(managed or set()), set(installed or set())
-
-
 def load_skills(
     skills_path: Path | None = None,
     use_config: bool = True,
     enabled_only: bool = False,
     user_id: str | None = None,
-    org_id: str | None = None,
-    skill_config_store: SkillConfigStore | None = None,
-    marketplace_install_store: MarketplaceInstallStore | None = None,
 ) -> list[Skill]:
     """
     Load all skills from the skills directory.
@@ -135,36 +87,8 @@ def load_skills(
         for category in ["public", "custom"]:
             skills.extend(_discover_skills(skills_path / category, category=category))
 
-    # Load skills state configuration and update enabled status
-    # NOTE: We use ExtensionsConfig.from_file() instead of get_extensions_config()
-    # to always read the latest configuration from disk. This ensures that changes
-    # made through the Gateway API (which runs in a separate process) are immediately
-    # reflected in the LangGraph Server when loading skills.
-    user_toggles = _load_skill_toggles(user_id, skill_config_store) if user_id else {}
-    managed_marketplace_skills, installed_marketplace_skills = _load_marketplace_skill_state(org_id, marketplace_install_store)
-
-    try:
-        from deerflow.config.extensions_config import ExtensionsConfig
-
-        extensions_config = ExtensionsConfig.from_file()
-        for skill in skills:
-            enabled = extensions_config.is_skill_enabled(skill.name, skill.category)
-            if skill.name in managed_marketplace_skills and skill.name not in installed_marketplace_skills:
-                enabled = False
-            if user_id and skill.name in user_toggles:
-                enabled = user_toggles[skill.name]
-            skill.enabled = enabled
-    except Exception as e:
-        # If config loading fails, default to all enabled unless user toggle overrides it.
-        print(f"Warning: Failed to load extensions config: {e}")
-        for skill in skills:
-            if skill.name in managed_marketplace_skills and skill.name not in installed_marketplace_skills:
-                skill.enabled = False
-                continue
-            if user_id and skill.name in user_toggles:
-                skill.enabled = user_toggles[skill.name]
-            else:
-                skill.enabled = True
+    for skill in skills:
+        skill.enabled = True
 
     # Filter by enabled status if requested
     if enabled_only:

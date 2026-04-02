@@ -87,8 +87,8 @@ def test_load_skills_with_user_id_loads_public_and_user_custom_skills(tmp_path: 
     assert "legacy-skill" not in names
 
 
-def test_load_skills_with_user_toggle_store_can_disable_skills(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Per-user toggle store should override file-based enabled state when available."""
+def test_load_skills_defaults_all_discovered_skills_to_enabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Loader now only discovers skills; runtime enablement is resolved in Gateway."""
     skills_root = tmp_path / "skills"
     user_base_dir = tmp_path / ".deer-flow"
 
@@ -97,24 +97,10 @@ def test_load_skills_with_user_toggle_store_can_disable_skills(tmp_path: Path, m
 
     from deerflow.config.paths import Paths
 
-    class FakeSkillConfigStore:
-        async def get_skill_toggles(self, user_id: str) -> dict[str, bool]:
-            assert user_id == "user-123"
-            return {
-                "public-skill": False,
-                "secret-skill": True,
-            }
-
     monkeypatch.setattr("deerflow.skills.loader.get_paths", lambda: Paths(base_dir=user_base_dir))
 
-    skills = load_skills(
-        skills_path=skills_root,
-        use_config=False,
-        enabled_only=True,
-        user_id="user-123",
-        skill_config_store=FakeSkillConfigStore(),
-    )
+    skills = load_skills(skills_path=skills_root, use_config=False, enabled_only=True, user_id="user-123")
 
     names = {skill.name for skill in skills}
-    assert "public-skill" not in names
+    assert "public-skill" in names
     assert "secret-skill" in names

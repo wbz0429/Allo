@@ -15,7 +15,8 @@ from app.gateway.auth import AuthContext, get_auth_context
 from app.gateway.db.database import get_db_session
 from app.gateway.db.models import UserSkillConfig
 from app.gateway.path_utils import resolve_thread_virtual_path
-from deerflow.skills import Skill, load_skills
+from app.gateway.services.skill_catalog_resolver import get_user_skill_catalog
+from deerflow.skills import Skill
 from deerflow.skills.loader import get_skills_root_path
 from deerflow.skills.validation import _validate_skill_frontmatter
 
@@ -185,7 +186,10 @@ def _skill_to_response(skill: Skill) -> SkillResponse:
 async def list_skills(auth: AuthContext = Depends(get_auth_context), db: AsyncSession = Depends(get_db_session)) -> SkillsListResponse:
     """List all available skills.
 
-    Returns all skills regardless of their enabled status.
+    Returns the user's final skill catalog, which includes:
+    - Built-in public skills (excluding marketplace-managed skills not installed by org)
+    - User custom skills
+    - With user-level toggles applied
 
     Returns:
         A list of all skills with their metadata.
@@ -213,8 +217,7 @@ async def list_skills(auth: AuthContext = Depends(get_auth_context), db: AsyncSe
         ```
     """
     try:
-        skills = load_skills(enabled_only=False)
-        skills = _apply_user_toggles(skills, await _get_user_skill_toggles(db, auth))
+        skills = await get_user_skill_catalog(user_id=auth.user_id, org_id=auth.org_id, db=db, enabled_only=False)
         return SkillsListResponse(skills=[_skill_to_response(skill) for skill in skills])
     except Exception as e:
         logger.error(f"Failed to load skills: {e}", exc_info=True)
@@ -251,8 +254,7 @@ async def get_skill(skill_name: str, auth: AuthContext = Depends(get_auth_contex
         ```
     """
     try:
-        skills = load_skills(enabled_only=False)
-        skills = _apply_user_toggles(skills, await _get_user_skill_toggles(db, auth))
+        skills = await get_user_skill_catalog(user_id=auth.user_id, org_id=auth.org_id, db=db, enabled_only=False)
         skill = next((s for s in skills if s.name == skill_name), None)
 
         if skill is None:
@@ -270,7 +272,7 @@ async def get_skill(skill_name: str, auth: AuthContext = Depends(get_auth_contex
     "/skills/{skill_name}",
     response_model=SkillResponse,
     summary="Update Skill",
-    description="Update a skill's enabled status by modifying the extensions_config.json file.",
+    description="Update a skill's enabled status by modifying the user skill config.",
 )
 async def update_skill(
     skill_name: str,
@@ -280,7 +282,7 @@ async def update_skill(
 ) -> SkillResponse:
     """Update a skill's enabled status.
 
-    This will modify the extensions_config.json file to update the enabled state.
+    This will modify the user_skill_configs table to update the enabled state.
     The SKILL.md file itself is not modified.
 
     Args:
@@ -313,8 +315,7 @@ async def update_skill(
     """
     try:
         # Find the skill to verify it exists
-        skills = load_skills(enabled_only=False)
-        skills = _apply_user_toggles(skills, await _get_user_skill_toggles(db, auth))
+        skills = await get_user_skill_catalog(user_id=auth.user_id, org_id=auth.org_id, db=db, enabled_only=False)
         skill = next((s for s in skills if s.name == skill_name), None)
 
         if skill is None:
@@ -348,8 +349,7 @@ async def update_skill(
         await db.commit()
         await db.refresh(record)
 
-        skills = load_skills(enabled_only=False)
-        skills = _apply_user_toggles(skills, await _get_user_skill_toggles(db, auth))
+        skills = await get_user_skill_catalog(user_id=auth.user_id, org_id=auth.org_id, db=db, enabled_only=False)
         updated_skill = next((s for s in skills if s.name == skill_name), None)
 
         if updated_skill is None:

@@ -32,7 +32,10 @@ def _make_runtime() -> SimpleNamespace:
             },
         },
         context={"thread_id": "thread-1"},
-        config={"metadata": {"model_name": "ark-model", "trace_id": "trace-1"}},
+        config={
+            "metadata": {"model_name": "ark-model", "trace_id": "trace-1"},
+            "configurable": {"x-user-id": "user-1", "x-org-id": "org-1"},
+        },
     )
 
 
@@ -82,6 +85,12 @@ def test_task_tool_emits_running_and_completed_events(monkeypatch):
     captured = {}
     get_available_tools = MagicMock(return_value=["tool-a", "tool-b"])
 
+    class FakeSkillCatalogStore:
+        def get_enabled_skill_names(self, user_id: str, org_id: str) -> set[str]:
+            assert user_id == "user-1"
+            assert org_id == "org-1"
+            return {"bootstrap", "deep-research"}
+
     class DummyExecutor:
         def __init__(self, **kwargs):
             captured["executor_kwargs"] = kwargs
@@ -106,10 +115,13 @@ def test_task_tool_emits_running_and_completed_events(monkeypatch):
     monkeypatch.setattr(task_tool_module, "SubagentStatus", FakeSubagentStatus)
     monkeypatch.setattr(task_tool_module, "SubagentExecutor", DummyExecutor)
     monkeypatch.setattr(task_tool_module, "get_subagent_config", lambda _: config)
-    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda: "Skills Appendix")
+    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda **kwargs: "Skills Appendix")
+    monkeypatch.setattr(task_tool_module, "task_tool_run_coroutine_sync", lambda coroutine: {"bootstrap", "deep-research"})
     monkeypatch.setattr(task_tool_module, "get_background_task_result", lambda _: next(responses))
     monkeypatch.setattr(task_tool_module, "get_stream_writer", lambda: events.append)
     monkeypatch.setattr(task_tool_module.time, "sleep", lambda _: None)
+    monkeypatch.setattr("deerflow.store_registry.get_store", lambda name: FakeSkillCatalogStore() if name == "skill_catalog" else None)
+    monkeypatch.setattr("deerflow.stores.SkillCatalogStore", FakeSkillCatalogStore)
     # task_tool lazily imports from deerflow.tools at call time, so patch that module-level function.
     monkeypatch.setattr("deerflow.tools.get_available_tools", get_available_tools)
 
@@ -148,7 +160,7 @@ def test_task_tool_returns_failed_message(monkeypatch):
         type("DummyExecutor", (), {"__init__": lambda self, **kwargs: None, "execute_async": lambda self, prompt, task_id=None: task_id}),
     )
     monkeypatch.setattr(task_tool_module, "get_subagent_config", lambda _: config)
-    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda: "")
+    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda **kwargs: "")
     monkeypatch.setattr(
         task_tool_module,
         "get_background_task_result",
@@ -182,7 +194,7 @@ def test_task_tool_returns_timed_out_message(monkeypatch):
         type("DummyExecutor", (), {"__init__": lambda self, **kwargs: None, "execute_async": lambda self, prompt, task_id=None: task_id}),
     )
     monkeypatch.setattr(task_tool_module, "get_subagent_config", lambda _: config)
-    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda: "")
+    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda **kwargs: "")
     monkeypatch.setattr(
         task_tool_module,
         "get_background_task_result",
@@ -218,7 +230,7 @@ def test_task_tool_polling_safety_timeout(monkeypatch):
         type("DummyExecutor", (), {"__init__": lambda self, **kwargs: None, "execute_async": lambda self, prompt, task_id=None: task_id}),
     )
     monkeypatch.setattr(task_tool_module, "get_subagent_config", lambda _: config)
-    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda: "")
+    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda **kwargs: "")
     monkeypatch.setattr(
         task_tool_module,
         "get_background_task_result",
@@ -254,7 +266,7 @@ def test_cleanup_called_on_completed(monkeypatch):
         type("DummyExecutor", (), {"__init__": lambda self, **kwargs: None, "execute_async": lambda self, prompt, task_id=None: task_id}),
     )
     monkeypatch.setattr(task_tool_module, "get_subagent_config", lambda _: config)
-    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda: "")
+    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda **kwargs: "")
     monkeypatch.setattr(
         task_tool_module,
         "get_background_task_result",
@@ -294,7 +306,7 @@ def test_cleanup_called_on_failed(monkeypatch):
         type("DummyExecutor", (), {"__init__": lambda self, **kwargs: None, "execute_async": lambda self, prompt, task_id=None: task_id}),
     )
     monkeypatch.setattr(task_tool_module, "get_subagent_config", lambda _: config)
-    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda: "")
+    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda **kwargs: "")
     monkeypatch.setattr(
         task_tool_module,
         "get_background_task_result",
@@ -334,7 +346,7 @@ def test_cleanup_called_on_timed_out(monkeypatch):
         type("DummyExecutor", (), {"__init__": lambda self, **kwargs: None, "execute_async": lambda self, prompt, task_id=None: task_id}),
     )
     monkeypatch.setattr(task_tool_module, "get_subagent_config", lambda _: config)
-    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda: "")
+    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda **kwargs: "")
     monkeypatch.setattr(
         task_tool_module,
         "get_background_task_result",
@@ -381,7 +393,7 @@ def test_cleanup_not_called_on_polling_safety_timeout(monkeypatch):
         type("DummyExecutor", (), {"__init__": lambda self, **kwargs: None, "execute_async": lambda self, prompt, task_id=None: task_id}),
     )
     monkeypatch.setattr(task_tool_module, "get_subagent_config", lambda _: config)
-    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda: "")
+    monkeypatch.setattr(task_tool_module, "get_skills_prompt_section", lambda **kwargs: "")
     monkeypatch.setattr(
         task_tool_module,
         "get_background_task_result",

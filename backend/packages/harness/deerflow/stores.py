@@ -35,6 +35,17 @@ class SkillConfigStore(ABC):
     async def get_skill_toggles(self, user_id: str) -> dict[str, bool]: ...
 
 
+class SkillCatalogStore(ABC):
+    """Pre-resolved runtime skill catalog.
+
+    Gateway resolves the final enabled skill set by combining marketplace
+    installation state and user toggles. Harness consumes only the final result.
+    """
+
+    @abstractmethod
+    async def get_enabled_skill_names(self, user_id: str, org_id: str) -> set[str]: ...
+
+
 class McpConfigStore(ABC):
     """Abstract store for per-user MCP server configuration."""
 
