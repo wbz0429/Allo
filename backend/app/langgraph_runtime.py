@@ -73,6 +73,35 @@ async def _resolve_user_from_thread(config: dict) -> UserContext | None:
     return None
 
 
+async def _enforce_thread_ownership(ctx: UserContext, config: dict) -> None:
+    """Verify the authenticated user owns the requested thread.
+
+    Prevents user A from accessing user B's thread by guessing thread_id.
+    Raises ValueError if ownership check fails.
+    """
+    configurable = config.get("configurable", {})
+    thread_id = configurable.get("thread_id") or configurable.get("threadId")
+    if not thread_id:
+        return  # No thread_id in request (e.g. new thread creation)
+
+    try:
+        async with runtime_async_session_factory() as session:
+            result = await session.execute(select(Thread.user_id).where(Thread.id == thread_id).limit(1))
+            row = result.one_or_none()
+            if row is None:
+                return  # Thread doesn't exist in gateway DB yet (first message)
+            if row.user_id != ctx.user_id:
+                logger.warning(
+                    "Thread ownership violation: user %s attempted to access thread %s owned by %s",
+                    ctx.user_id, thread_id, row.user_id,
+                )
+                raise ValueError(f"Access denied: thread {thread_id} does not belong to user {ctx.user_id}")
+    except ValueError:
+        raise
+    except Exception as exc:
+        logger.warning("Thread ownership check failed for thread_id=%s: %s", thread_id, exc)
+
+
 async def make_lead_agent(config):
     _ensure_runtime_stores_registered()
 
@@ -85,6 +114,9 @@ async def make_lead_agent(config):
             # Inject back into config so downstream harness code sees it too
             config.setdefault("configurable", {})["user_id"] = ctx.user_id
             config["configurable"]["org_id"] = ctx.org_id
+    else:
+        # User context present (from nginx header or frontend) — enforce ownership
+        await _enforce_thread_ownership(ctx, config)
 
     metadata = config.setdefault("metadata", {})
 

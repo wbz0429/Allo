@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.gateway.auth import SESSION_COOKIE_NAME, AuthContext, cache_auth_context, clear_auth_context_cache, get_auth_context
 from app.gateway.db.database import get_db_session
 from app.gateway.db.models import Organization, OrganizationMember, Session, User
+from app.gateway.redis_client import get_redis
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -82,11 +83,14 @@ def _create_session(user_id: str) -> Session:
 
 
 def _set_session_cookie(response: Response, session_token: str) -> None:
+    import os
+
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=session_token,
         httponly=True,
         samesite="lax",
+        secure=os.getenv("ALLO_ENV") == "production",
         path="/",
         max_age=SESSION_MAX_AGE_SECONDS,
     )
@@ -115,9 +119,25 @@ def _build_session_response(user: User, org_id: str) -> SessionResponse:
 @router.post("/register", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     request: RegisterRequest,
+    raw_request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db_session),
 ) -> SessionResponse:
+    # Per-IP rate limit: max 5 registrations per hour
+    client_ip = raw_request.headers.get("x-forwarded-for", raw_request.client.host if raw_request.client else "unknown").split(",")[0].strip()
+    rate_key = f"register_rate:{client_ip}"
+    try:
+        redis = await get_redis()
+        count = await redis.incr(rate_key)
+        if count == 1:
+            await redis.expire(rate_key, 3600)
+        if count > 5:
+            raise HTTPException(status_code=429, detail="Too many registrations. Please try again later.")
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Redis failure should not block registration
+
     email = _normalize_email(request.email)
     display_name = _normalize_display_name(request.display_name)
 

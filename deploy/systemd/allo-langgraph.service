@@ -1,0 +1,47 @@
+[Unit]
+Description=Allo LangGraph Agent Service
+Documentation=https://github.com/your-org/allo
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=allo
+Group=allo
+WorkingDirectory=/srv/allo/backend
+
+# 加载环境变量
+EnvironmentFile=/etc/allo/allo.env
+
+# 启动命令
+# 注意：langgraph dev 仅用于开发，生产环境应使用 langgraph up
+# 如果使用 LangGraph Cloud 部署，则不需要此服务
+ExecStart=/home/allo/.cargo/bin/uv run langgraph up \
+    --host 127.0.0.1 \
+    --port 2024 \
+    --config /srv/allo/backend/langgraph.json
+
+# 重启策略
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/allo /var/log/allo /tmp
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=allo-langgraph
+
+[Install]
+WantedBy=multi-user.target
