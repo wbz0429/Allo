@@ -352,7 +352,12 @@ combined with a FastAPI gateway for REST API access [citation:FastAPI](https://f
 """
 
 
-def _get_memory_context(agent_name: str | None = None, memory_store: MemoryStore | None = None, user_id: str | None = None) -> str:
+def _get_memory_context(
+    agent_name: str | None = None,
+    memory_store: MemoryStore | None = None,
+    user_id: str | None = None,
+    resolved_memory: dict | None = None,
+) -> str:
     """Get memory context for injection into system prompt.
 
     Args:
@@ -369,7 +374,9 @@ def _get_memory_context(agent_name: str | None = None, memory_store: MemoryStore
         if not config.enabled or not config.injection_enabled:
             return ""
 
-        if memory_store is not None and user_id:
+        if isinstance(resolved_memory, dict):
+            memory_data = resolved_memory
+        elif memory_store is not None and user_id:
             memory_data = _run_coroutine_sync(memory_store.get_memory(user_id))
         else:
             memory_data = get_memory_data(agent_name)
@@ -441,14 +448,13 @@ You have access to skills that provide optimized workflows for specific tasks. E
 </skill_system>"""
 
 
-def get_agent_soul(agent_name: str | None, soul_store: SoulStore | None = None, user_id: str | None = None) -> str:
-    # Append SOUL.md (agent personality) if present
-    if soul_store is not None and user_id:
-        soul = _run_coroutine_sync(soul_store.get_soul(user_id))
-    else:
-        soul = load_agent_soul(agent_name)
-    if soul:
-        return f"<soul>\n{soul}\n</soul>\n" if soul else ""
+def get_agent_soul(agent_name: str | None, soul: str | None = None) -> str:
+    # Append SOUL.md (agent personality) if present.
+    # Prefer a pre-resolved soul string from the caller to avoid sync wrappers
+    # around async stores during prompt construction.
+    resolved_soul = soul if soul is not None else load_agent_soul(agent_name)
+    if resolved_soul:
+        return f"<soul>\n{resolved_soul}\n</soul>\n"
     return ""
 
 
@@ -486,10 +492,11 @@ def apply_prompt_template(
     user_id: str | None = None,
     enabled_skill_names: set[str] | None = None,
     memory_store: MemoryStore | None = None,
-    soul_store: SoulStore | None = None,
+    soul: str | None = None,
+    resolved_memory: dict | None = None,
 ) -> str:
     # Get memory context
-    memory_context = _get_memory_context(agent_name, memory_store=memory_store, user_id=user_id)
+    memory_context = _get_memory_context(agent_name, memory_store=memory_store, user_id=user_id, resolved_memory=resolved_memory)
 
     # Include subagent section only if enabled (from runtime parameter)
     n = max_concurrent_subagents
@@ -526,7 +533,7 @@ def apply_prompt_template(
     # Format the prompt with dynamic skills and memory
     prompt = SYSTEM_PROMPT_TEMPLATE.format(
         agent_name=agent_name or "Allo（元枢）",
-        soul=get_agent_soul(agent_name, soul_store=soul_store, user_id=user_id),
+        soul=get_agent_soul(agent_name, soul=soul),
         skills_section=skills_section,
         deferred_tools_section=deferred_tools_section,
         memory_context=memory_context,

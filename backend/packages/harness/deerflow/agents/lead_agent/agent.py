@@ -269,7 +269,7 @@ def _build_middlewares(
     middlewares.append(TitleMiddleware())
 
     # Add MemoryMiddleware (after TitleMiddleware)
-    middlewares.append(MemoryMiddleware(agent_name=agent_name, memory_store=memory_store))
+    middlewares.append(MemoryMiddleware(agent_name=agent_name, memory_store=memory_store, user_id=user_id))
 
     # Add ViewImageMiddleware only if the current model supports vision.
     # Use the resolved runtime model_name from make_lead_agent to avoid stale config values.
@@ -341,9 +341,16 @@ def make_lead_agent(config: RunnableConfig):
     if not isinstance(key_resolver, ModelKeyResolver):
         key_resolver = None
 
+    metadata = config.get("metadata", {})
+
     enabled_skill_names: set[str] | None = None
-    if skill_catalog_store is not None and user_id is not None and org_id is not None:
-        enabled_skill_names = _run_coroutine_sync(skill_catalog_store.get_enabled_skill_names(user_id, org_id))
+    resolved_skill_names = metadata.get("resolved_enabled_skill_names")
+    if isinstance(resolved_skill_names, list):
+        enabled_skill_names = {name for name in resolved_skill_names if isinstance(name, str)}
+
+    soul_content: str | None = metadata.get("resolved_soul") if isinstance(metadata.get("resolved_soul"), str) else None
+
+    resolved_memory = metadata.get("resolved_memory") if isinstance(metadata.get("resolved_memory"), dict) else None
 
     agent_config = load_agent_config(agent_name) if not is_bootstrap else None
     # Custom agent model or fallback to global/default model resolution
@@ -409,7 +416,8 @@ def make_lead_agent(config: RunnableConfig):
                 user_id=user_id,
                 enabled_skill_names=enabled_skill_names,
                 memory_store=memory_store,
-                soul_store=soul_store,
+                soul=soul_content,
+                resolved_memory=resolved_memory,
             ),
             state_schema=ThreadState,
         )
@@ -440,7 +448,8 @@ def make_lead_agent(config: RunnableConfig):
             user_id=user_id,
             enabled_skill_names=enabled_skill_names,
             memory_store=memory_store,
-            soul_store=soul_store,
+            soul=soul_content,
+            resolved_memory=resolved_memory,
         ),
         state_schema=ThreadState,
     )

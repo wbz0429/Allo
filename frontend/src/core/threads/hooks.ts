@@ -278,12 +278,6 @@ export function useThreadStream({
           throw new Error("Thread is not ready.");
         }
 
-        try {
-          const sessionResult = await getSession();
-          sessionUserId = sessionResult.data?.user_id;
-          sessionOrgId = sessionResult.data?.org_id;
-        } catch {}
-
         await createThread({
           thread_id: gatewayThreadId,
           agent_name:
@@ -309,6 +303,21 @@ export function useThreadStream({
                 : undefined,
           status: "running",
         });
+
+        sessionUserId = run.user_id;
+        sessionOrgId = run.org_id;
+
+        try {
+          if (!sessionUserId || !sessionOrgId) {
+            const sessionResult = await getSession();
+            sessionUserId = sessionResult.data?.user_id;
+            sessionOrgId = sessionResult.data?.org_id;
+          }
+        } catch {}
+
+        if (!sessionUserId || !sessionOrgId) {
+          throw new Error("Failed to load session context for LangGraph run.");
+        }
 
         currentRunIdRef.current = run.id;
 
@@ -403,41 +412,42 @@ export function useThreadStream({
           }),
         );
 
-        await thread.submit(
-          {
-            messages: [
-              {
-                type: "human",
-                content: [
-                  {
-                    type: "text",
-                    text,
-                  },
-                ],
-                additional_kwargs:
-                  filesForSubmit.length > 0 ? { files: filesForSubmit } : {},
-              },
-            ],
-          },
-          {
-            threadId: threadId,
-            streamSubgraphs: true,
-            streamResumable: true,
-            config: {
-              recursion_limit: 1000,
+        const input: Partial<AgentThreadState> = {
+          messages: [
+            {
+              type: "human" as const,
+              content: [
+                {
+                  type: "text" as const,
+                  text,
+                },
+              ],
+              additional_kwargs:
+                filesForSubmit.length > 0 ? { files: filesForSubmit } : {},
             },
-            context: {
-              ...extraContext,
-              ...context,
-              user_id: sessionUserId,
-              org_id: sessionOrgId,
-              thinking_enabled: context.mode !== "flash",
-              is_plan_mode: context.mode === "pro" || context.mode === "ultra",
-              subagent_enabled: context.mode === "ultra",
-              thread_id: gatewayThreadId,
-            },
+          ],
+        };
+
+        const runContext = {
+          ...extraContext,
+          ...context,
+          user_id: sessionUserId,
+          org_id: sessionOrgId,
+          thinking_enabled: context.mode !== "flash",
+          is_plan_mode: context.mode === "pro" || context.mode === "ultra",
+          subagent_enabled: context.mode === "ultra",
+          thread_id: gatewayThreadId,
+        };
+
+        await thread.submit(input, {
+          threadId: threadId,
+          streamSubgraphs: true,
+          streamResumable: true,
+          config: {
+            recursion_limit: 1000,
           },
-        );
+          context: runContext,
+        });
         void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
       } catch (error) {
         const finishedAt = new Date().toISOString();

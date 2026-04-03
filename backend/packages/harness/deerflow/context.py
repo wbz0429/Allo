@@ -75,6 +75,11 @@ def get_runtime_thread_id(runtime) -> str | None:
         return thread_id
 
     runtime_config = getattr(runtime, "config", None) or {}
+    runtime_context = runtime_config.get("context") or {}
+    thread_id = runtime_context.get("thread_id") or runtime_context.get("threadId")
+    if thread_id:
+        return thread_id
+
     configurable = runtime_config.get("configurable") or {}
     thread_id = configurable.get("thread_id") or configurable.get("threadId")
     if thread_id:
@@ -90,6 +95,7 @@ def get_runtime_user_id(runtime) -> str | None:
 
     context = getattr(runtime, "context", None) or {}
     runtime_config = getattr(runtime, "config", None) or {}
+    runtime_context = runtime_config.get("context") or {}
     runtime_configurable = runtime_config.get("configurable") or {}
     return (
         context.get("x-user-id")
@@ -98,6 +104,8 @@ def get_runtime_user_id(runtime) -> str | None:
         or (context.get("configurable") or {}).get("user_id")
         or (context.get("context") or {}).get("x-user-id")
         or (context.get("context") or {}).get("user_id")
+        or runtime_context.get("x-user-id")
+        or runtime_context.get("user_id")
         or runtime_configurable.get("x-user-id")
         or runtime_configurable.get("user_id")
     )

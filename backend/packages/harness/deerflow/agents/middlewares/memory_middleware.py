@@ -8,6 +8,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langgraph.runtime import Runtime
 
 from deerflow.agents.memory.queue import get_memory_queue
+from deerflow.context import get_runtime_thread_id, get_runtime_user_id
 from deerflow.config.memory_config import get_memory_config
 
 
@@ -95,16 +96,18 @@ class MemoryMiddleware(AgentMiddleware[MemoryMiddlewareState]):
 
     state_schema = MemoryMiddlewareState
 
-    def __init__(self, agent_name: str | None = None, memory_store: Any = None):
+    def __init__(self, agent_name: str | None = None, memory_store: Any = None, user_id: str | None = None):
         """Initialize the MemoryMiddleware.
 
         Args:
             agent_name: If provided, memory is stored per-agent. If None, uses global memory.
             memory_store: Optional MemoryStore for per-user persistence in multi-tenant mode.
+            user_id: Optional pre-resolved user ID from runtime config.
         """
         super().__init__()
         self._agent_name = agent_name
         self._memory_store = memory_store
+        self._user_id = user_id
 
     @override
     def after_agent(self, state: MemoryMiddlewareState, runtime: Runtime) -> dict | None:
@@ -121,8 +124,8 @@ class MemoryMiddleware(AgentMiddleware[MemoryMiddlewareState]):
         if not config.enabled:
             return None
 
-        # Get thread ID from runtime context
-        thread_id = runtime.context.get("thread_id")
+        # Get thread ID from normalized runtime context
+        thread_id = get_runtime_thread_id(runtime)
         if not thread_id:
             print("MemoryMiddleware: No thread_id in context, skipping memory update")
             return None
@@ -146,7 +149,7 @@ class MemoryMiddleware(AgentMiddleware[MemoryMiddlewareState]):
 
         # Queue the filtered conversation for memory update
         queue = get_memory_queue()
-        user_id = runtime.context.get("x-user-id") or runtime.context.get("user_id")
+        user_id = self._user_id or get_runtime_user_id(runtime)
         queue.add(
             thread_id=thread_id,
             messages=filtered_messages,

@@ -5,11 +5,27 @@ from pydantic import BaseModel, Field
 
 from app.gateway.auth import AuthContext, get_auth_context
 from deerflow import store_registry
-from deerflow.agents.memory.updater import get_memory_data, reload_memory_data
+from deerflow.agents.memory.updater import _create_empty_memory, get_memory_data, reload_memory_data
 from deerflow.config.memory_config import get_memory_config
 from deerflow.stores import MemoryStore
 
 router = APIRouter(prefix="/api", tags=["memory"])
+
+
+async def _load_memory_for_user(auth: AuthContext) -> dict:
+    """Load memory for the current user.
+
+    Gateway routes are already async, so when a real async MemoryStore is
+    registered we should await it directly instead of routing through the
+    harness sync wrapper in `get_memory_data()`. That wrapper is still useful
+    for sync harness call sites, but it can trigger cross-event-loop errors in
+    async FastAPI handlers.
+    """
+    memory_store = store_registry.get_store("memory")
+    if isinstance(memory_store, MemoryStore):
+        memory_data = await memory_store.get_memory(auth.user_id)
+        return memory_data if isinstance(memory_data, dict) and memory_data else _create_empty_memory()
+    return get_memory_data()
 
 
 class ContextSection(BaseModel):
@@ -115,11 +131,7 @@ async def get_memory(auth: AuthContext = Depends(get_auth_context)) -> MemoryRes
         }
         ```
     """
-    memory_store = store_registry.get_store("memory")
-    if isinstance(memory_store, MemoryStore):
-        memory_data = get_memory_data(memory_store=memory_store, user_id=auth.user_id)
-    else:
-        memory_data = get_memory_data()
+    memory_data = await _load_memory_for_user(auth)
     return MemoryResponse(**memory_data)
 
 
@@ -140,7 +152,8 @@ async def reload_memory(auth: AuthContext = Depends(get_auth_context)) -> Memory
     """
     memory_store = store_registry.get_store("memory")
     if isinstance(memory_store, MemoryStore):
-        memory_data = get_memory_data(memory_store=memory_store, user_id=auth.user_id)
+        memory_data = await memory_store.get_memory(auth.user_id)
+        memory_data = memory_data if isinstance(memory_data, dict) and memory_data else _create_empty_memory()
     else:
         memory_data = reload_memory_data()
     return MemoryResponse(**memory_data)
@@ -196,11 +209,7 @@ async def get_memory_status(auth: AuthContext = Depends(get_auth_context)) -> Me
         Combined memory configuration and current data.
     """
     config = get_memory_config()
-    memory_store = store_registry.get_store("memory")
-    if isinstance(memory_store, MemoryStore):
-        memory_data = get_memory_data(memory_store=memory_store, user_id=auth.user_id)
-    else:
-        memory_data = get_memory_data()
+    memory_data = await _load_memory_for_user(auth)
 
     return MemoryStatusResponse(
         config=MemoryConfigResponse(
