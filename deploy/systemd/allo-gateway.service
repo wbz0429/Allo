@@ -1,0 +1,46 @@
+[Unit]
+Description=Allo Gateway API Service
+Documentation=https://github.com/your-org/allo
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=allo
+Group=allo
+WorkingDirectory=/srv/allo/backend
+
+# 加载环境变量
+EnvironmentFile=/etc/allo/allo.env
+
+# 启动命令
+ExecStart=/home/allo/.cargo/bin/uv run uvicorn app.gateway.app:app \
+    --host 127.0.0.1 \
+    --port 8001 \
+    --workers 2 \
+    --log-level info
+
+# 重启策略
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/allo /var/log/allo /tmp
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=allo-gateway
+
+[Install]
+WantedBy=multi-user.target

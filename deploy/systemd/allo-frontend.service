@@ -1,0 +1,45 @@
+[Unit]
+Description=Allo Frontend Service (Next.js)
+Documentation=https://github.com/your-org/allo
+After=network.target
+
+[Service]
+Type=simple
+User=allo
+Group=allo
+WorkingDirectory=/srv/allo/frontend
+
+# 加载环境变量
+EnvironmentFile=/etc/allo/allo.env
+
+# 启动命令（使用 standalone 模式）
+ExecStart=/usr/bin/node /srv/allo/frontend/.next/standalone/server.js
+
+# 环境变量
+Environment="PORT=3000"
+Environment="HOSTNAME=127.0.0.1"
+
+# 重启策略
+Restart=always
+RestartSec=10
+StartLimitInterval=300
+StartLimitBurst=5
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/allo /tmp
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=allo-frontend
+
+[Install]
+WantedBy=multi-user.target
