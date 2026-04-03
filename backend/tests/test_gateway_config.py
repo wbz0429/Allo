@@ -7,8 +7,6 @@ and the global config cache behavior.
 import os
 from unittest.mock import patch
 
-import pytest
-
 from app.gateway.config import GatewayConfig, get_gateway_config
 
 
@@ -26,9 +24,9 @@ class TestGatewayConfigDefaults:
         assert config.port == 8001
 
     def test_default_cors_origins(self):
-        """Default CORS origins should include localhost:3000."""
+        """Default CORS origins should include localhost and 127.0.0.1."""
         config = GatewayConfig()
-        assert config.cors_origins == ["http://localhost:3000"]
+        assert config.cors_origins == ["http://localhost:3000", "http://127.0.0.1:3000"]
 
 
 class TestGetGatewayConfig:
@@ -48,9 +46,9 @@ class TestGetGatewayConfig:
 
     @patch.dict(os.environ, {}, clear=True)
     def test_default_cors_origins_from_env(self):
-        """When CORS_ORIGINS is not set, default to localhost:3000."""
+        """When CORS_ORIGINS is not set, default to localhost and 127.0.0.1."""
         config = get_gateway_config()
-        assert config.cors_origins == ["http://localhost:3000"]
+        assert config.cors_origins == ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     @patch.dict(os.environ, {"CORS_ORIGINS": "http://example.com"}, clear=True)
     def test_cors_origins_from_single_env_var(self):
@@ -83,28 +81,26 @@ class TestGetGatewayConfig:
         clear=True,
     )
     def test_whitespace_not_stripped_from_origins(self):
-        """Whitespace is preserved from origins (current behavior)."""
+        """Whitespace is stripped from origins."""
         import app.gateway.config as config_module
 
         config_module._gateway_config = None
 
         config = get_gateway_config()
-        # Note: Current implementation does not strip whitespace
         assert config.cors_origins == [
-            " http://localhost:3000 ",
-            " http://127.0.0.1:3000 ",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
         ]
 
     @patch.dict(os.environ, {"CORS_ORIGINS": "http://a.com,,http://b.com,"}, clear=True)
     def test_empty_strings_not_filtered(self):
-        """Empty strings from split are not filtered (current behavior)."""
+        """Empty strings from split are filtered out."""
         import app.gateway.config as config_module
 
         config_module._gateway_config = None
 
         config = get_gateway_config()
-        # Note: Current implementation does not filter empty strings
-        assert config.cors_origins == ["http://a.com", "", "http://b.com", ""]
+        assert config.cors_origins == ["http://a.com", "http://b.com"]
 
     def test_config_is_cached(self):
         """Calling get_gateway_config twice returns the same object."""
