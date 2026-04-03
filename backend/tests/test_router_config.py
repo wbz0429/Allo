@@ -1,7 +1,5 @@
 """Tests for the config router — tenant config overrides and merging."""
 
-
-
 from app.gateway.routers.config import (
     ConfigImportRequest,
     MergedConfigResponse,

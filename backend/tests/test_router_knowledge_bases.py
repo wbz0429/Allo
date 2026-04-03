@@ -161,9 +161,11 @@ class TestSearchResultItem:
 
 class TestSearchResponse:
     def test_creation(self) -> None:
-        resp = SearchResponse(results=[
-            SearchResultItem(id="c-1", content="Hi", score=0.9, chunk_index=0, doc_id="doc-1"),
-        ])
+        resp = SearchResponse(
+            results=[
+                SearchResultItem(id="c-1", content="Hi", score=0.9, chunk_index=0, doc_id="doc-1"),
+            ]
+        )
         assert len(resp.results) == 1
 
     def test_empty_results(self) -> None:
@@ -235,46 +237,55 @@ class TestKnowledgeBasesRouterAuth:
 
     def test_create_kb_has_auth(self) -> None:
         from app.gateway.routers.knowledge_bases import create_knowledge_base
+
         param = self._get_auth_param(create_knowledge_base)
         assert param is not None
         assert param.annotation is AuthContext
 
     def test_list_kb_has_auth(self) -> None:
         from app.gateway.routers.knowledge_bases import list_knowledge_bases
+
         param = self._get_auth_param(list_knowledge_bases)
         assert param is not None
 
     def test_get_kb_has_auth(self) -> None:
         from app.gateway.routers.knowledge_bases import get_knowledge_base
+
         param = self._get_auth_param(get_knowledge_base)
         assert param is not None
 
     def test_update_kb_has_auth(self) -> None:
         from app.gateway.routers.knowledge_bases import update_knowledge_base
+
         param = self._get_auth_param(update_knowledge_base)
         assert param is not None
 
     def test_delete_kb_has_auth(self) -> None:
         from app.gateway.routers.knowledge_bases import delete_knowledge_base
+
         param = self._get_auth_param(delete_knowledge_base)
         assert param is not None
 
     def test_upload_document_has_auth(self) -> None:
         from app.gateway.routers.knowledge_bases import upload_document
+
         param = self._get_auth_param(upload_document)
         assert param is not None
 
     def test_list_documents_has_auth(self) -> None:
         from app.gateway.routers.knowledge_bases import list_documents
+
         param = self._get_auth_param(list_documents)
         assert param is not None
 
     def test_delete_document_has_auth(self) -> None:
         from app.gateway.routers.knowledge_bases import delete_document
+
         param = self._get_auth_param(delete_document)
         assert param is not None
 
     def test_search_kb_has_auth(self) -> None:
         from app.gateway.routers.knowledge_bases import search_knowledge_base
+
         param = self._get_auth_param(search_knowledge_base)
         assert param is not None
