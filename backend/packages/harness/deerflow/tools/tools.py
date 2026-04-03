@@ -63,15 +63,28 @@ def get_available_tools(
     loaded_tools = [resolve_variable(tool.use, BaseTool) for tool in app_config.tools if groups is None or tool.group in groups]
 
     ctx = get_user_context(runtime_config)
-    marketplace_store = get_store("marketplace")
-    if ctx and isinstance(marketplace_store, MarketplaceInstallStore):
-        try:
-            managed = _run_coroutine_sync(marketplace_store.get_managed_runtime_tools())
-            installed = _run_coroutine_sync(marketplace_store.get_installed_runtime_tools(ctx.org_id))
-            if managed:
-                loaded_tools = [tool for tool in loaded_tools if getattr(tool, "name", None) not in managed or getattr(tool, "name", None) in installed]
-        except Exception as e:
-            logger.warning("Failed to apply marketplace tool gating: %s", e)
+    metadata = (runtime_config or {}).get("metadata", {})
+
+    # Prefer pre-resolved marketplace data (from app.langgraph_runtime) to avoid
+    # sync-wrapping async PG stores inside LangGraph's async event loop.
+    resolved_managed = metadata.get("resolved_managed_tools")
+    resolved_installed = metadata.get("resolved_installed_tools")
+
+    if resolved_managed is not None:
+        managed = set(resolved_managed)
+        installed = set(resolved_installed) if resolved_installed else set()
+        if managed:
+            loaded_tools = [tool for tool in loaded_tools if getattr(tool, "name", None) not in managed or getattr(tool, "name", None) in installed]
+    elif ctx:
+        marketplace_store = get_store("marketplace")
+        if isinstance(marketplace_store, MarketplaceInstallStore):
+            try:
+                managed = _run_coroutine_sync(marketplace_store.get_managed_runtime_tools())
+                installed = _run_coroutine_sync(marketplace_store.get_installed_runtime_tools(ctx.org_id))
+                if managed:
+                    loaded_tools = [tool for tool in loaded_tools if getattr(tool, "name", None) not in managed or getattr(tool, "name", None) in installed]
+            except Exception as e:
+                logger.warning("Failed to apply marketplace tool gating: %s", e)
 
     # Conditionally add tools based on config
     builtin_tools = BUILTIN_TOOLS.copy()

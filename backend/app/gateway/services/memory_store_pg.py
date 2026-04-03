@@ -8,6 +8,25 @@ from app.gateway.db.models import UserMemory, UserMemoryFact
 from deerflow.stores import MemoryStore
 
 
+def _empty_memory() -> dict:
+    """Return the canonical empty-memory structure expected by the harness updater."""
+    return {
+        "version": "1.0",
+        "lastUpdated": "",
+        "user": {
+            "workContext": {"summary": "", "updatedAt": ""},
+            "personalContext": {"summary": "", "updatedAt": ""},
+            "topOfMind": {"summary": "", "updatedAt": ""},
+        },
+        "history": {
+            "recentMonths": {"summary": "", "updatedAt": ""},
+            "earlierContext": {"summary": "", "updatedAt": ""},
+            "longTermBackground": {"summary": "", "updatedAt": ""},
+        },
+        "facts": [],
+    }
+
+
 class PostgresMemoryStore(MemoryStore):
     """Persist per-user memory data in gateway Postgres tables."""
 
@@ -19,12 +38,18 @@ class PostgresMemoryStore(MemoryStore):
             result = await session.execute(select(UserMemory).where(UserMemory.user_id == user_id).order_by(UserMemory.updated_at.desc()).limit(1))
             memory = result.scalar_one_or_none()
             if memory is None:
-                return {}
+                return _empty_memory()
 
             try:
-                return json.loads(memory.context_json)
+                data = json.loads(memory.context_json)
+                # Ensure required top-level keys exist (guards against partial data)
+                if "user" not in data or "history" not in data:
+                    base = _empty_memory()
+                    base.update(data)
+                    return base
+                return data
             except json.JSONDecodeError:
-                return {}
+                return _empty_memory()
 
     async def save_memory(self, user_id: str, data: dict) -> None:
         async with self._async_session_factory() as session:

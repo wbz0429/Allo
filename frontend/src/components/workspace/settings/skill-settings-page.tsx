@@ -63,6 +63,10 @@ function SkillSettingsList({
     () => skills.filter((skill) => skill.category === filter),
     [skills, filter],
   );
+  const hasMarketplace = useMemo(
+    () => skills.some((skill) => skill.category === "marketplace"),
+    [skills],
+  );
   const handleCreateSkill = () => {
     onClose?.();
     router.push("/workspace/chats/new?mode=skill");
@@ -75,6 +79,9 @@ function SkillSettingsList({
             <TabsList variant="line">
               <TabsTrigger value="public">{t.common.public}</TabsTrigger>
               <TabsTrigger value="custom">{t.common.custom}</TabsTrigger>
+              {hasMarketplace && (
+                <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
+              )}
             </TabsList>
           </Tabs>
         </div>

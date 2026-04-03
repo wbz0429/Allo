@@ -14,13 +14,18 @@ function getDateFnsLocale(locale: Locale) {
   }
 }
 
-export function formatTimeAgo(date: Date | string | number, locale?: Locale) {
+export function formatTimeAgo(date: Date | string | number, locale?: Locale): string {
+  // Guard against empty or unparseable values (e.g. new-user memory with "")
+  if (!date && date !== 0) return "—";
+  const parsed = date instanceof Date ? date : new Date(date);
+  if (isNaN(parsed.getTime())) return "—";
+
   const effectiveLocale =
     locale ??
     (getLocaleFromCookie() as Locale | null) ??
     // Fallback when cookie is missing (or on first render)
     detectLocale();
-  return formatDistanceToNow(date, {
+  return formatDistanceToNow(parsed, {
     addSuffix: true,
     locale: getDateFnsLocale(effectiveLocale),
   });

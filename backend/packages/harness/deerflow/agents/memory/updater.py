@@ -92,7 +92,14 @@ def get_memory_data(agent_name: str | None = None, memory_store: MemoryStore | N
     if memory_store is not None and user_id:
         try:
             memory_data = _run_coroutine_sync(memory_store.get_memory(user_id))
-            return memory_data if isinstance(memory_data, dict) else _create_empty_memory()
+            if not isinstance(memory_data, dict) or not memory_data:
+                return _create_empty_memory()
+            # Ensure required structure even if store returned partial data
+            if "user" not in memory_data or "history" not in memory_data:
+                base = _create_empty_memory()
+                base.update(memory_data)
+                return base
+            return memory_data
         except Exception as e:
             print(f"Failed to load memory from store: {e}")
             return _create_empty_memory()
@@ -315,10 +322,18 @@ class MemoryUpdater:
             updated_memory = _strip_upload_mentions_from_memory(updated_memory)
 
             # Save
+            print(
+                "Memory save path decision: store=%s user_id=%s thread_id=%s",
+                self._memory_store is not None,
+                self._user_id,
+                thread_id,
+            )
             if self._memory_store is not None and self._user_id:
+                print(f"Saving memory via MemoryStore for user {self._user_id}")
                 _run_coroutine_sync(self._memory_store.save_memory(self._user_id, updated_memory))
                 return True
 
+            print("Saving memory via file fallback")
             return _save_memory_to_file(updated_memory, agent_name)
 
         except json.JSONDecodeError as e:
@@ -346,6 +361,23 @@ class MemoryUpdater:
         """
         config = get_memory_config()
         now = datetime.utcnow().isoformat() + "Z"
+
+        # Ensure required top-level keys exist (defensive — PG store or file
+        # may return incomplete data for new users)
+        if "user" not in current_memory:
+            current_memory["user"] = {
+                "workContext": {"summary": "", "updatedAt": ""},
+                "personalContext": {"summary": "", "updatedAt": ""},
+                "topOfMind": {"summary": "", "updatedAt": ""},
+            }
+        if "history" not in current_memory:
+            current_memory["history"] = {
+                "recentMonths": {"summary": "", "updatedAt": ""},
+                "earlierContext": {"summary": "", "updatedAt": ""},
+                "longTermBackground": {"summary": "", "updatedAt": ""},
+            }
+        if "facts" not in current_memory:
+            current_memory["facts"] = []
 
         # Update user sections
         user_updates = update_data.get("user", {})
