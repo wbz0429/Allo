@@ -12,7 +12,8 @@ import uuid
 from pathlib import Path
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.gateway.db.database import DATABASE_URL
@@ -22,14 +23,31 @@ from app.gateway.services.skill_catalog_resolver import get_user_skill_catalog
 
 @pytest.fixture
 async def db_session():
-    """Provide a database session for tests."""
+    """Provide a database session that auto-rolls back all test data.
+
+    Wraps the session in a connection-level transaction. The fixture
+    replaces ``commit()`` with ``flush()`` semantics via ``begin_nested()``,
+    so test code can call ``commit()`` normally while all writes are
+    rolled back when the fixture tears down.
+    """
     engine = create_async_engine(DATABASE_URL, echo=False, poolclass=NullPool)
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_factory() as session:
-        try:
-            yield session
-        finally:
-            await session.rollback()
+    async with engine.connect() as conn:
+        # Start an outer transaction that we will NEVER commit
+        txn = await conn.begin()
+        session = AsyncSession(bind=conn, expire_on_commit=False)
+
+        # Intercept commit() → begin_nested() so data stays inside txn
+        @event.listens_for(session.sync_session, "after_transaction_end")
+        def _restart_savepoint(session_sync, transaction):
+            if transaction.nested and not transaction._parent.nested:
+                session_sync.begin_nested()
+
+        await session.begin_nested()
+
+        yield session
+
+        await session.close()
+        await txn.rollback()
     await engine.dispose()
 
 
