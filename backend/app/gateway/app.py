@@ -77,6 +77,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     register_store("key", PostgresModelKeyResolver(async_session_factory, get_redis))
     logger.info("PG stores registered (%.1fs)", time.monotonic() - t1)
 
+    # Ensure a stable local dev account exists (idempotent).
+    # Uses fixed IDs so install records, threads, memory etc. survive restarts.
+    import os
+
+    if os.getenv("ALLO_ENV", "development") != "production":
+        from app.gateway.dev_seed import ensure_dev_account
+
+        await ensure_dev_account(async_session_factory)
+
     # NOTE: MCP tools initialization is NOT done here because:
     # 1. Gateway doesn't use MCP tools - they are used by Agents in the LangGraph Server
     # 2. Gateway and LangGraph Server are separate processes with independent caches
