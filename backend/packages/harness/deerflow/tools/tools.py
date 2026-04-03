@@ -119,7 +119,8 @@ def get_available_tools(
 
             extensions_config = ExtensionsConfig.from_file()
             if extensions_config.get_enabled_mcp_servers():
-                mcp_tools = get_cached_mcp_tools()
+                mcp_user_id = ctx.user_id if ctx else None
+                mcp_tools = get_cached_mcp_tools(user_id=mcp_user_id)
                 if mcp_tools:
                     logger.info(f"Using {len(mcp_tools)} cached MCP tool(s)")
 

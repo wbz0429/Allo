@@ -91,19 +91,27 @@ def _skill_to_response(skill: MarketplaceSkill) -> SkillResponse:
     )
 
 
+_seed_done = False
+
+
 async def _ensure_seed_data(db: AsyncSession) -> None:
-    """Insert seed tools and skills if the marketplace_tools table is empty."""
-    count_stmt = select(MarketplaceTool.id).limit(1)
-    result = await db.execute(count_stmt)
-    if result.first() is not None:
+    """Idempotent upsert of seed tools and skills.
+
+    Uses ``merge()`` so rows are inserted on first run and silently
+    skipped (or updated) on subsequent runs.  A module-level flag
+    avoids repeated DB round-trips after the first successful check.
+    """
+    global _seed_done
+    if _seed_done:
         return
 
     for tool_data in SEED_TOOLS:
-        db.add(MarketplaceTool(**tool_data))
+        await db.merge(MarketplaceTool(**tool_data))
     for skill_data in SEED_SKILLS:
-        db.add(MarketplaceSkill(**skill_data))
+        await db.merge(MarketplaceSkill(**skill_data))
     await db.commit()
-    logger.info("Inserted marketplace seed data (%d tools, %d skills)", len(SEED_TOOLS), len(SEED_SKILLS))
+    _seed_done = True
+    logger.info("Marketplace seed data ensured (%d tools, %d skills)", len(SEED_TOOLS), len(SEED_SKILLS))
 
 
 # ---------------------------------------------------------------------------
