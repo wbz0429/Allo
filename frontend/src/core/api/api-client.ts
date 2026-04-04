@@ -6,6 +6,21 @@ import { getLangGraphBaseURL } from "../config";
 
 import { sanitizeRunStreamOptions } from "./stream-mode";
 
+const DEFAULT_ASSISTANT_ID = "lead_agent";
+
+export async function ensureLangGraphThread(
+  threadId: string,
+  isMock?: boolean,
+): Promise<void> {
+  const client = getAPIClient(isMock);
+
+  await client.threads.create({
+    threadId,
+    ifExists: "do_nothing",
+    graphId: DEFAULT_ASSISTANT_ID,
+  });
+}
+
 function createCompatibleClient(isMock?: boolean): LangGraphClient {
   const client = new LangGraphClient({
     apiUrl: getLangGraphBaseURL(isMock),

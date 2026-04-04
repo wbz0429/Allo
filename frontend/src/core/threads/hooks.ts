@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 
-import { getAPIClient } from "../api";
+import { ensureLangGraphThread, getAPIClient } from "../api";
 import { getSession } from "../auth/api";
 import { useI18n } from "../i18n/hooks";
 import type { FileInMessage } from "../messages/utils";
@@ -320,6 +320,7 @@ export function useThreadStream({
         }
 
         currentRunIdRef.current = run.id;
+        await ensureLangGraphThread(gatewayThreadId, isMock);
 
         // Upload files first if any
         if (message.files && message.files.length > 0) {
@@ -443,9 +444,6 @@ export function useThreadStream({
           threadId: threadId,
           streamSubgraphs: true,
           streamResumable: true,
-          config: {
-            recursion_limit: 1000,
-          },
           context: runContext,
         });
         void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
@@ -470,6 +468,7 @@ export function useThreadStream({
       context,
       queryClient,
       syncThreadRun,
+      isMock,
     ],
   );
 
