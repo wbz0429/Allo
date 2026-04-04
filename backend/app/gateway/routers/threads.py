@@ -5,9 +5,11 @@ frontend can consume them directly via ``AgentThread`` (which extends
 ``Thread<AgentThreadState>``).
 """
 
+import os
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -18,6 +20,8 @@ from app.gateway.db.database import get_db_session
 from app.gateway.db.models import Thread, ThreadRun
 
 router = APIRouter(prefix="/api/threads", tags=["threads"])
+
+LANGGRAPH_URL = os.getenv("LANGGRAPH_INTERNAL_URL", "http://127.0.0.1:2024")
 
 # ---------------------------------------------------------------------------
 # Request models
@@ -215,6 +219,14 @@ async def create_thread(
     db.add(thread)
     await db.commit()
     await db.refresh(thread)
+
+    # Sync to LangGraph checkpointer so runs/stream works immediately
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(f"{LANGGRAPH_URL}/threads", json={"thread_id": request.thread_id})
+    except Exception:
+        pass  # LangGraph will auto-create on first run if this fails
+
     return _thread_to_response(thread)
 
 
