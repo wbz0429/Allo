@@ -5,6 +5,7 @@ frontend can consume them directly via ``AgentThread`` (which extends
 ``Thread<AgentThreadState>``).
 """
 
+import logging
 import os
 from datetime import UTC, datetime
 from typing import Any
@@ -18,6 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.gateway.auth import AuthContext, get_auth_context
 from app.gateway.db.database import get_db_session
 from app.gateway.db.models import Thread, ThreadRun
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/threads", tags=["threads"])
 
@@ -224,8 +227,8 @@ async def create_thread(
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             await client.post(f"{LANGGRAPH_URL}/threads", json={"thread_id": request.thread_id})
-    except Exception:
-        pass  # LangGraph will auto-create on first run if this fails
+    except Exception as e:
+        logger.warning("Failed to sync thread %s to LangGraph checkpointer: %s", request.thread_id, e)
 
     return _thread_to_response(thread)
 

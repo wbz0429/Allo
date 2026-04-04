@@ -140,8 +140,8 @@ export function useThreadStream({
     client: getAPIClient(isMock),
     assistantId: "lead_agent",
     threadId: onStreamThreadId,
-    reconnectOnMount: true,
-    fetchStateHistory: { limit: 1 },
+    reconnectOnMount: !!onStreamThreadId,
+    fetchStateHistory: onStreamThreadId ? { limit: 1 } : undefined,
     onCreated(meta) {
       handleStreamStart(meta.thread_id);
       setOnStreamThreadId(meta.thread_id);
@@ -293,6 +293,8 @@ export function useThreadStream({
 
         threadIdRef.current = gatewayThreadId;
 
+        await ensureLangGraphThread(gatewayThreadId, isMock);
+
         const run = await createThreadRun(gatewayThreadId, {
           model_name: context.model_name as string | undefined,
           agent_name:
@@ -320,7 +322,6 @@ export function useThreadStream({
         }
 
         currentRunIdRef.current = run.id;
-        await ensureLangGraphThread(gatewayThreadId, isMock);
 
         // Upload files first if any
         if (message.files && message.files.length > 0) {

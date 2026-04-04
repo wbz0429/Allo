@@ -13,12 +13,23 @@ export async function ensureLangGraphThread(
   isMock?: boolean,
 ): Promise<void> {
   const client = getAPIClient(isMock);
-
-  await client.threads.create({
-    threadId,
-    ifExists: "do_nothing",
-    graphId: DEFAULT_ASSISTANT_ID,
-  });
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await client.threads.create({
+        threadId,
+        ifExists: "do_nothing",
+        graphId: DEFAULT_ASSISTANT_ID,
+      });
+      return;
+    } catch (error) {
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } else {
+        throw error;
+      }
+    }
+  }
 }
 
 function createCompatibleClient(isMock?: boolean): LangGraphClient {
