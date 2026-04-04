@@ -1,8 +1,10 @@
 "use client";
 
-import { SparklesIcon } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { SparklesIcon, UploadIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/core/i18n/hooks";
+import { uploadSkill } from "@/core/skills/api";
 import { useEnableSkill, useSkills } from "@/core/skills/hooks";
 import type { Skill } from "@/core/skills/type";
 import { env } from "@/env";
@@ -71,6 +74,39 @@ function SkillSettingsList({
     onClose?.();
     router.push("/workspace/chats/new?mode=skill");
   };
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleUpload = useCallback(
+    async (file: File) => {
+      setUploading(true);
+      try {
+        const result = await uploadSkill(file);
+        if (result.success) {
+          toast.success(`Skill "${result.skill_name}" installed`);
+          void queryClient.invalidateQueries({ queryKey: ["skills"] });
+        } else {
+          toast.error(result.message);
+        }
+      } catch {
+        toast.error("Upload failed");
+      } finally {
+        setUploading(false);
+      }
+    },
+    [queryClient],
+  );
+
+  const onFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) void handleUpload(file);
+      e.target.value = "";
+    },
+    [handleUpload],
+  );
   return (
     <div className="flex w-full flex-col gap-4">
       <header className="flex justify-between">
@@ -85,7 +121,12 @@ function SkillSettingsList({
             </TabsList>
           </Tabs>
         </div>
-        <div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+            <UploadIcon className="size-4" />
+            {uploading ? "Uploading..." : "Upload Skill"}
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".zip,.skill" className="hidden" onChange={onFileChange} />
           <Button size="sm" onClick={handleCreateSkill}>
             <SparklesIcon className="size-4" />
             {t.settings.skills.createSkill}

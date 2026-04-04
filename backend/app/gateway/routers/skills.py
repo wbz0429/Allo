@@ -6,7 +6,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,8 +16,8 @@ from app.gateway.db.database import get_db_session
 from app.gateway.db.models import UserSkillConfig
 from app.gateway.path_utils import resolve_thread_virtual_path
 from app.gateway.services.skill_catalog_resolver import get_user_skill_catalog
+from deerflow.config.paths import get_paths
 from deerflow.skills import Skill
-from deerflow.skills.loader import get_skills_root_path
 from deerflow.skills.validation import _validate_skill_frontmatter
 
 logger = logging.getLogger(__name__)
@@ -164,6 +164,45 @@ def _resolve_skill_dir_from_archive_root(temp_path: Path) -> Path:
     if len(extracted_items) == 1 and extracted_items[0].is_dir():
         return extracted_items[0]
     return temp_path
+
+
+def _get_user_custom_skills_dir(user_id: str) -> Path:
+    """Get the per-user custom skills directory, creating it if needed."""
+    custom_dir = get_paths().user_skills_dir(user_id)
+    custom_dir.mkdir(parents=True, exist_ok=True)
+    return custom_dir
+
+
+def _install_skill_from_zip(zip_path: Path, target_base_dir: Path) -> tuple[str, str]:
+    """Extract, validate, and install a skill from a zip/skill file.
+
+    Returns (skill_name, message) on success.
+    Raises HTTPException on failure.
+    """
+    if not zipfile.is_zipfile(zip_path):
+        raise HTTPException(status_code=400, detail="File is not a valid ZIP archive")
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            _safe_extract_skill_archive(zip_ref, temp_path)
+
+        skill_dir = _resolve_skill_dir_from_archive_root(temp_path)
+
+        is_valid, message, skill_name = _validate_skill_frontmatter(skill_dir)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail=f"Invalid skill: {message}")
+        if not skill_name:
+            raise HTTPException(status_code=400, detail="Could not determine skill name")
+
+        target_dir = target_base_dir / skill_name
+        if target_dir.exists():
+            raise HTTPException(status_code=409, detail=f"Skill '{skill_name}' already exists. Remove it first or use a different name.")
+
+        shutil.copytree(skill_dir, target_dir)
+
+    return skill_name, f"Skill '{skill_name}' installed successfully"
 
 
 def _skill_to_response(skill: Skill) -> SkillResponse:
@@ -409,63 +448,65 @@ async def install_skill(request: SkillInstallRequest, auth: AuthContext = Depend
         ```
     """
     try:
-        # Resolve the virtual path to actual file path
         skill_file_path = resolve_thread_virtual_path(request.thread_id, request.path)
 
-        # Check if file exists
         if not skill_file_path.exists():
             raise HTTPException(status_code=404, detail=f"Skill file not found: {request.path}")
-
-        # Check if it's a file
         if not skill_file_path.is_file():
             raise HTTPException(status_code=400, detail=f"Path is not a file: {request.path}")
-
-        # Check file extension
-        if not skill_file_path.suffix == ".skill":
+        if skill_file_path.suffix != ".skill":
             raise HTTPException(status_code=400, detail="File must have .skill extension")
 
-        # Verify it's a valid ZIP file
-        if not zipfile.is_zipfile(skill_file_path):
-            raise HTTPException(status_code=400, detail="File is not a valid ZIP archive")
+        custom_dir = _get_user_custom_skills_dir(auth.user_id)
+        skill_name, message = _install_skill_from_zip(skill_file_path, custom_dir)
 
-        # Get the custom skills directory
-        skills_root = get_skills_root_path()
-        custom_skills_dir = skills_root / "custom"
-
-        # Create custom directory if it doesn't exist
-        custom_skills_dir.mkdir(parents=True, exist_ok=True)
-
-        # Extract to a temporary directory first for validation
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir)
-
-            # Extract the .skill file with validation and protections.
-            with zipfile.ZipFile(skill_file_path, "r") as zip_ref:
-                _safe_extract_skill_archive(zip_ref, temp_path)
-
-            skill_dir = _resolve_skill_dir_from_archive_root(temp_path)
-
-            # Validate the skill
-            is_valid, message, skill_name = _validate_skill_frontmatter(skill_dir)
-            if not is_valid:
-                raise HTTPException(status_code=400, detail=f"Invalid skill: {message}")
-
-            if not skill_name:
-                raise HTTPException(status_code=400, detail="Could not determine skill name")
-
-            # Check if skill already exists
-            target_dir = custom_skills_dir / skill_name
-            if target_dir.exists():
-                raise HTTPException(status_code=409, detail=f"Skill '{skill_name}' already exists. Please remove it first or use a different name.")
-
-            # Move the skill directory to the custom skills directory
-            shutil.copytree(skill_dir, target_dir)
-
-        logger.info(f"Skill '{skill_name}' installed successfully to {target_dir}")
-        return SkillInstallResponse(success=True, skill_name=skill_name, message=f"Skill '{skill_name}' installed successfully")
+        logger.info("Skill '%s' installed for user %s", skill_name, auth.user_id)
+        return SkillInstallResponse(success=True, skill_name=skill_name, message=message)
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to install skill: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to install skill: {str(e)}")
+
+
+@router.post(
+    "/skills/upload",
+    response_model=SkillInstallResponse,
+    summary="Upload and Install Skill",
+    description="Upload a .zip or .skill file and install it to the user's custom skills directory.",
+)
+async def upload_skill(
+    file: UploadFile = File(..., description="ZIP or .skill archive containing SKILL.md"),
+    auth: AuthContext = Depends(get_auth_context),
+) -> SkillInstallResponse:
+    """Upload and install a skill from a ZIP archive.
+
+    The archive must contain a SKILL.md with valid frontmatter (name, description).
+    Supported formats: .zip, .skill. Max size: 50MB.
+    """
+    filename = file.filename or ""
+    if not filename.lower().endswith((".zip", ".skill")):
+        raise HTTPException(status_code=400, detail="File must be .zip or .skill format")
+
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+            content = await file.read()
+            if len(content) > 50 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="File too large (max 50MB)")
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+
+        try:
+            custom_dir = _get_user_custom_skills_dir(auth.user_id)
+            skill_name, message = _install_skill_from_zip(tmp_path, custom_dir)
+            logger.info("Skill '%s' uploaded and installed for user %s", skill_name, auth.user_id)
+            return SkillInstallResponse(success=True, skill_name=skill_name, message=message)
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to upload skill: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to upload skill: {str(e)}")
