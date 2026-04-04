@@ -445,7 +445,7 @@ export function useThreadStream({
           streamSubgraphs: true,
           streamResumable: true,
           context: runContext,
-          config: { recursion_limit: 100 },
+          config: { recursion_limit: 150 },
         });
         void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
       } catch (error) {
