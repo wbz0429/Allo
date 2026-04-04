@@ -6,6 +6,7 @@ import {
   BrainIcon,
   PaletteIcon,
   SparklesIcon,
+  UserIcon,
   WrenchIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -22,6 +23,7 @@ import { AppearanceSettingsPage } from "@/components/workspace/settings/appearan
 import { MemorySettingsPage } from "@/components/workspace/settings/memory-settings-page";
 import { NotificationSettingsPage } from "@/components/workspace/settings/notification-settings-page";
 import { SkillSettingsPage } from "@/components/workspace/settings/skill-settings-page";
+import { SoulSettingsPage } from "@/components/workspace/settings/soul-settings-page";
 import { ToolSettingsPage } from "@/components/workspace/settings/tool-settings-page";
 import { useI18n } from "@/core/i18n/hooks";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,7 @@ import { cn } from "@/lib/utils";
 type SettingsSection =
   | "appearance"
   | "memory"
+  | "soul"
   | "tools"
   | "skills"
   | "notification"
@@ -68,6 +71,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
         id: "memory",
         label: t.settings.sections.memory,
         icon: BrainIcon,
+      },
+      {
+        id: "soul",
+        label: "Personality",
+        icon: UserIcon,
       },
       { id: "tools", label: t.settings.sections.tools, icon: WrenchIcon },
       { id: "skills", label: t.settings.sections.skills, icon: SparklesIcon },
@@ -126,6 +134,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <div className="space-y-8 p-6">
               {activeSection === "appearance" && <AppearanceSettingsPage />}
               {activeSection === "memory" && <MemorySettingsPage />}
+              {activeSection === "soul" && <SoulSettingsPage />}
               {activeSection === "tools" && <ToolSettingsPage />}
               {activeSection === "skills" && (
                 <SkillSettingsPage
