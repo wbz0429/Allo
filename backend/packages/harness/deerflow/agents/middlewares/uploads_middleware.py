@@ -146,8 +146,15 @@ class UploadsMiddleware(AgentMiddleware[UploadsMiddlewareState]):
             return None
 
         # Resolve uploads directory for existence checks
-        thread_id = runtime.context.get("thread_id")
-        uploads_dir = self._paths.sandbox_uploads_dir(thread_id) if thread_id else None
+        from deerflow.context import get_runtime_thread_id, get_runtime_user_id
+        thread_id = get_runtime_thread_id(runtime)
+        user_id = get_runtime_user_id(runtime)
+        if thread_id and user_id:
+            uploads_dir = self._paths.user_sandbox_uploads_dir(user_id, thread_id)
+        elif thread_id:
+            uploads_dir = self._paths.sandbox_uploads_dir(thread_id)
+        else:
+            uploads_dir = None
 
         # Get newly uploaded files from the current message's additional_kwargs.files
         new_files = self._files_from_kwargs(last_message, uploads_dir) or []

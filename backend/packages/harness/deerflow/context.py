@@ -85,6 +85,22 @@ def get_runtime_thread_id(runtime) -> str | None:
     if thread_id:
         return thread_id
 
+    # Fallback: LangGraph Runtime.context may be None; read from RunnableConfig contextvar
+    try:
+        from langchain_core.runnables.config import var_child_runnable_config
+        rc = var_child_runnable_config.get()
+        if isinstance(rc, dict):
+            rc_configurable = rc.get("configurable") or {}
+            thread_id = rc_configurable.get("thread_id") or rc_configurable.get("threadId")
+            if thread_id:
+                return thread_id
+            rc_metadata = rc.get("metadata") or {}
+            thread_id = rc_metadata.get("thread_id") or rc_metadata.get("threadId")
+            if thread_id:
+                return thread_id
+    except (LookupError, ImportError):
+        pass
+
     return None
 
 
@@ -108,4 +124,24 @@ def get_runtime_user_id(runtime) -> str | None:
         or runtime_context.get("user_id")
         or runtime_configurable.get("x-user-id")
         or runtime_configurable.get("user_id")
+        or _get_user_id_from_runnable_config()
     )
+
+
+def _get_user_id_from_runnable_config() -> str | None:
+    """Fallback: read user_id from RunnableConfig contextvar."""
+    try:
+        from langchain_core.runnables.config import var_child_runnable_config
+        rc = var_child_runnable_config.get()
+        if isinstance(rc, dict):
+            rc_configurable = rc.get("configurable") or {}
+            user_id = rc_configurable.get("x-user-id") or rc_configurable.get("user_id")
+            if user_id:
+                return user_id
+            rc_metadata = rc.get("metadata") or {}
+            user_id = rc_metadata.get("x-user-id") or rc_metadata.get("user_id")
+            if user_id:
+                return user_id
+    except (LookupError, ImportError):
+        pass
+    return None
