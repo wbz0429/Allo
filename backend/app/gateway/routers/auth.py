@@ -161,12 +161,15 @@ async def register(
         await db.rollback()
         raise HTTPException(status_code=409, detail="Unable to create account") from exc
 
-    # Auto-install all public marketplace skills for the new org
+    # Auto-install all public marketplace skills and tools for the new org
     try:
-        from app.gateway.db.models import MarketplaceSkill, OrgInstalledSkill
-        result = await db.execute(select(MarketplaceSkill.id).where(MarketplaceSkill.is_public.is_(True)))
-        for row in result.all():
+        from app.gateway.db.models import MarketplaceSkill, MarketplaceTool, OrgInstalledSkill, OrgInstalledTool
+        skill_result = await db.execute(select(MarketplaceSkill.id).where(MarketplaceSkill.is_public.is_(True)))
+        for row in skill_result.all():
             db.add(OrgInstalledSkill(org_id=organization.id, skill_id=row[0]))
+        tool_result = await db.execute(select(MarketplaceTool.id).where(MarketplaceTool.is_public.is_(True)))
+        for row in tool_result.all():
+            db.add(OrgInstalledTool(org_id=organization.id, tool_id=row[0]))
         await db.commit()
     except Exception:
         pass  # Non-critical — user can install manually from marketplace

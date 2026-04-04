@@ -11,7 +11,7 @@ import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.gateway.db.models import MarketplaceSkill, Organization, OrganizationMember, OrgInstalledSkill, User
+from app.gateway.db.models import MarketplaceSkill, MarketplaceTool, Organization, OrganizationMember, OrgInstalledSkill, OrgInstalledTool, User
 
 logger = logging.getLogger(__name__)
 
@@ -24,24 +24,32 @@ DEV_DISPLAY_NAME = "Local Dev"
 
 
 async def _ensure_dev_marketplace_installs(db: AsyncSession) -> None:
-    """Auto-install all marketplace skills for the dev org."""
+    """Auto-install all marketplace skills and tools for the dev org."""
+    added = 0
+
+    # Skills
     result = await db.execute(select(MarketplaceSkill.id))
     all_skill_ids = [row[0] for row in result.all()]
-
-    existing = await db.execute(
-        select(OrgInstalledSkill.skill_id).where(OrgInstalledSkill.org_id == DEV_ORG_ID)
-    )
+    existing = await db.execute(select(OrgInstalledSkill.skill_id).where(OrgInstalledSkill.org_id == DEV_ORG_ID))
     already_installed = {row[0] for row in existing.all()}
-
-    added = 0
     for skill_id in all_skill_ids:
         if skill_id not in already_installed:
             db.add(OrgInstalledSkill(org_id=DEV_ORG_ID, skill_id=skill_id))
             added += 1
 
+    # Tools
+    tool_result = await db.execute(select(MarketplaceTool.id))
+    all_tool_ids = [row[0] for row in tool_result.all()]
+    existing_tools = await db.execute(select(OrgInstalledTool.tool_id).where(OrgInstalledTool.org_id == DEV_ORG_ID))
+    already_installed_tools = {row[0] for row in existing_tools.all()}
+    for tool_id in all_tool_ids:
+        if tool_id not in already_installed_tools:
+            db.add(OrgInstalledTool(org_id=DEV_ORG_ID, tool_id=tool_id))
+            added += 1
+
     if added:
         await db.flush()
-        logger.info("Auto-installed %d marketplace skills for dev org", added)
+        logger.info("Auto-installed %d marketplace items for dev org", added)
 
 
 async def ensure_dev_account(session_factory: async_sessionmaker[AsyncSession]) -> None:
