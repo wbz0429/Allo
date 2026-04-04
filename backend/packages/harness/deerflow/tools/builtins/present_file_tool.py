@@ -7,7 +7,7 @@ from langgraph.types import Command
 from langgraph.typing import ContextT
 
 from deerflow.agents.thread_state import ThreadState
-from deerflow.config.paths import VIRTUAL_PATH_PREFIX, get_paths
+from deerflow.config.paths import VIRTUAL_PATH_PREFIX
 
 OUTPUTS_VIRTUAL_PREFIX = f"{VIRTUAL_PATH_PREFIX}/outputs"
 
@@ -47,7 +47,13 @@ def _normalize_presented_filepath(
     virtual_prefix = VIRTUAL_PATH_PREFIX.lstrip("/")
 
     if stripped == virtual_prefix or stripped.startswith(virtual_prefix + "/"):
-        actual_path = get_paths().resolve_virtual_path(thread_id, filepath)
+        # Resolve relative to the per-user outputs dir (not global resolve_virtual_path)
+        # to avoid mismatch between per-user thread_data paths and global paths.
+        relative_from_virtual = stripped[len(virtual_prefix):].lstrip("/")
+        # outputs_dir is already the outputs/ subdir, but virtual path includes outputs/
+        # so we need to go up to user-data/ level
+        user_data_dir = outputs_dir.parent  # user-data/
+        actual_path = (user_data_dir / relative_from_virtual).resolve()
     else:
         actual_path = Path(filepath).expanduser().resolve()
 
