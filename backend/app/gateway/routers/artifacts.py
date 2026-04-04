@@ -102,7 +102,7 @@ async def get_artifact(thread_id: str, path: str, request: Request, auth: AuthCo
         skill_file_path = path[: marker_pos + len(".skill")]  # e.g., "mnt/user-data/outputs/my-skill.skill"
         internal_path = path[marker_pos + len(skill_marker) :]  # e.g., "SKILL.md"
 
-        actual_skill_path = resolve_thread_virtual_path(thread_id, skill_file_path)
+        actual_skill_path = resolve_thread_virtual_path(thread_id, skill_file_path, user_id=auth.user_id)
 
         if not actual_skill_path.exists():
             raise HTTPException(status_code=404, detail=f"Skill file not found: {skill_file_path}")
@@ -128,7 +128,7 @@ async def get_artifact(thread_id: str, path: str, request: Request, auth: AuthCo
         except UnicodeDecodeError:
             return Response(content=content, media_type=mime_type or "application/octet-stream", headers=cache_headers)
 
-    actual_path = resolve_thread_virtual_path(thread_id, path)
+    actual_path = resolve_thread_virtual_path(thread_id, path, user_id=auth.user_id)
 
     logger.info(f"Resolving artifact path: thread_id={thread_id}, requested_path={path}, actual_path={actual_path}")
 
