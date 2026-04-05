@@ -15,7 +15,6 @@ from sqlalchemy.pool import NullPool
 from app.gateway.db.database import DATABASE_URL
 from app.gateway.db.models import Thread
 from app.gateway.redis_client import get_redis
-from app.gateway.services.kb_store_pg import PostgresKBStore
 from app.gateway.services.marketplace_install_store_pg import PostgresMarketplaceInstallStore
 from app.gateway.services.mcp_config_store_pg import PostgresMcpConfigStore
 from app.gateway.services.memory_store_pg import PostgresMemoryStore
@@ -33,31 +32,6 @@ runtime_async_engine = create_async_engine(DATABASE_URL, echo=False, poolclass=N
 runtime_async_session_factory = async_sessionmaker(runtime_async_engine, class_=AsyncSession, expire_on_commit=False)
 
 
-def _config_keys(value: object) -> list[str]:
-    if isinstance(value, dict):
-        return sorted(str(key) for key in value.keys())
-    return []
-
-
-def _log_config_shape(config: dict) -> None:
-    context = config.get("context") or {}
-    configurable = config.get("configurable") or {}
-    metadata = config.get("metadata") or {}
-
-    logger.info(
-        "LangGraph config shape: top=%s context=%s configurable=%s metadata=%s flags=%s",
-        _config_keys(config),
-        _config_keys(context),
-        _config_keys(configurable),
-        _config_keys(metadata),
-        {
-            "has_run_id": bool(context.get("run_id") or configurable.get("run_id")),
-            "has_thread_id": bool(configurable.get("thread_id") or configurable.get("threadId") or context.get("thread_id") or context.get("threadId")),
-            "has_user_id": bool(context.get("x-user-id") or context.get("user_id") or configurable.get("x-user-id") or configurable.get("user_id")),
-        },
-    )
-
-
 def _ensure_runtime_stores_registered() -> None:
     if get_store("memory") is None:
         register_store("memory", PostgresMemoryStore(runtime_async_session_factory))
@@ -73,8 +47,6 @@ def _ensure_runtime_stores_registered() -> None:
         register_store("marketplace", PostgresMarketplaceInstallStore(runtime_async_session_factory))
     if get_store("key") is None:
         register_store("key", PostgresModelKeyResolver(runtime_async_session_factory, get_redis))
-    if get_store("kb") is None:
-        register_store("kb", PostgresKBStore(runtime_async_session_factory))
 
 
 async def _resolve_user_from_thread(config: dict) -> UserContext | None:
@@ -121,9 +93,7 @@ async def _enforce_thread_ownership(ctx: UserContext, config: dict) -> None:
             if row.user_id != ctx.user_id:
                 logger.warning(
                     "Thread ownership violation: user %s attempted to access thread %s owned by %s",
-                    ctx.user_id,
-                    thread_id,
-                    row.user_id,
+                    ctx.user_id, thread_id, row.user_id,
                 )
                 raise ValueError(f"Access denied: thread {thread_id} does not belong to user {ctx.user_id}")
     except ValueError:
@@ -134,7 +104,6 @@ async def _enforce_thread_ownership(ctx: UserContext, config: dict) -> None:
 
 async def make_lead_agent(config):
     _ensure_runtime_stores_registered()
-    _log_config_shape(config)
 
     ctx = get_user_context(config)
 
