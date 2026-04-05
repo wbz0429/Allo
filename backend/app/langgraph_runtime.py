@@ -93,7 +93,9 @@ async def _enforce_thread_ownership(ctx: UserContext, config: dict) -> None:
             if row.user_id != ctx.user_id:
                 logger.warning(
                     "Thread ownership violation: user %s attempted to access thread %s owned by %s",
-                    ctx.user_id, thread_id, row.user_id,
+                    ctx.user_id,
+                    thread_id,
+                    row.user_id,
                 )
                 raise ValueError(f"Access denied: thread {thread_id} does not belong to user {ctx.user_id}")
     except ValueError:
@@ -104,6 +106,24 @@ async def _enforce_thread_ownership(ctx: UserContext, config: dict) -> None:
 
 async def make_lead_agent(config):
     _ensure_runtime_stores_registered()
+
+    context = config.get("context") or {}
+    configurable = config.get("configurable") or {}
+    metadata = config.get("metadata") or {}
+    logger.info(
+        "Lead agent config summary top=%s context=%s configurable=%s metadata=%s flags=%s",
+        sorted(str(key) for key in config.keys()),
+        sorted(str(key) for key in context.keys()) if isinstance(context, dict) else [],
+        sorted(str(key) for key in configurable.keys()) if isinstance(configurable, dict) else [],
+        sorted(str(key) for key in metadata.keys()) if isinstance(metadata, dict) else [],
+        {
+            "has_context_run_id": bool(isinstance(context, dict) and context.get("run_id")),
+            "has_configurable_run_id": bool(isinstance(configurable, dict) and configurable.get("run_id")),
+            "has_context_user": bool(isinstance(context, dict) and (context.get("x-user-id") or context.get("user_id"))),
+            "has_configurable_user": bool(isinstance(configurable, dict) and (configurable.get("x-user-id") or configurable.get("user_id"))),
+            "has_thread_id": bool(isinstance(configurable, dict) and (configurable.get("thread_id") or configurable.get("threadId"))),
+        },
+    )
 
     ctx = get_user_context(config)
 
