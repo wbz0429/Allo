@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
+import { ArrowLeftIcon, DatabaseIcon, Trash2Icon } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { DocumentList } from "@/components/workspace/knowledge/document-list";
 import { DocumentUpload } from "@/components/workspace/knowledge/document-upload";
 import { SearchPanel } from "@/components/workspace/knowledge/search-panel";
 import {
+  useBuildIndex,
   useDeleteKnowledgeBase,
   useDocuments,
   useKnowledgeBase,
@@ -24,6 +25,14 @@ export default function KnowledgeBaseDetailPage() {
   const { knowledgeBase, isLoading } = useKnowledgeBase(kbId);
   const { documents, isLoading: docsLoading } = useDocuments(kbId);
   const deleteMutation = useDeleteKnowledgeBase();
+  const buildIndexMutation = useBuildIndex(kbId);
+
+  const unindexedCount = documents.filter(
+    (d) => d.index_status !== "indexed",
+  ).length;
+  const indexedCount = documents.filter(
+    (d) => d.index_status === "indexed",
+  ).length;
 
   const handleDelete = useCallback(async () => {
     if (!kbId) return;
@@ -38,6 +47,19 @@ export default function KnowledgeBaseDetailPage() {
       );
     }
   }, [kbId, deleteMutation, router]);
+
+  const handleBuildIndex = useCallback(async () => {
+    try {
+      const result = await buildIndexMutation.mutateAsync();
+      toast.success(
+        `索引完成: ${result.indexed} indexed, ${result.failed} failed, ${result.skipped} skipped`,
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to build index",
+      );
+    }
+  }, [buildIndexMutation]);
 
   if (isLoading) {
     return (
@@ -77,18 +99,34 @@ export default function KnowledgeBaseDetailPage() {
           </div>
           <Badge variant="secondary">
             {documents.length} {documents.length === 1 ? "doc" : "docs"}
+            {indexedCount > 0 && ` (${indexedCount} indexed)`}
           </Badge>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleDelete}
-          disabled={deleteMutation.isPending}
-          aria-label="Delete knowledge base"
-          className="text-destructive hover:text-destructive"
-        >
-          <Trash2Icon className="size-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {unindexedCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleBuildIndex()}
+              disabled={buildIndexMutation.isPending}
+            >
+              <DatabaseIcon className="mr-1 size-4" />
+              {buildIndexMutation.isPending
+                ? "索引中..."
+                : `生成索引 (${unindexedCount})`}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+            aria-label="Delete knowledge base"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2Icon className="size-4" />
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="documents" className="flex flex-1 flex-col">

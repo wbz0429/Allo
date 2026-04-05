@@ -16,8 +16,10 @@ export interface KnowledgeDocument {
   kb_id: string;
   filename: string;
   content_type: string;
+  file_size: number;
+  index_status: "none" | "indexing" | "indexed" | "error";
   chunk_count: number;
-  status: "processing" | "ready" | "error";
+  status: "ready" | "error";
   created_at: string;
 }
 
@@ -49,4 +51,22 @@ export interface UpdateKnowledgeBaseRequest {
   chunk_size?: number;
   chunk_overlap?: number;
   embedding_model?: string;
+}
+
+export interface KeywordSearchResult {
+  doc_id: string;
+  filename: string;
+  snippet: string;
+  score: number;
+}
+
+export interface BuildIndexResult {
+  indexed: number;
+  failed: number;
+  skipped: number;
+}
+
+export interface DocumentContent {
+  content: string;
+  filename: string;
 }

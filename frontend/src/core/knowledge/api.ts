@@ -1,7 +1,10 @@
 import { getBackendBaseURL } from "@/core/config";
 
 import type {
+  BuildIndexResult,
   CreateKnowledgeBaseRequest,
+  DocumentContent,
+  KeywordSearchResult,
   KnowledgeBase,
   KnowledgeDocument,
   SearchResult,
@@ -125,4 +128,48 @@ export async function searchKnowledgeBase(
   if (!res.ok) throw new Error(`Search failed: ${res.statusText}`);
   const data = (await res.json()) as { results: SearchResult[] };
   return data.results;
+}
+
+export async function buildIndex(kbId: string): Promise<BuildIndexResult> {
+  const res = await fetch(`${BASE()}/${kbId}/index`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { detail?: string };
+    throw new Error(err.detail ?? `Failed to build index: ${res.statusText}`);
+  }
+  return res.json() as Promise<BuildIndexResult>;
+}
+
+export async function keywordSearch(
+  kbId: string,
+  query: string,
+  topK = 5,
+): Promise<KeywordSearchResult[]> {
+  const res = await fetch(`${BASE()}/${kbId}/keyword-search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ query, top_k: topK }),
+  });
+  if (!res.ok) throw new Error(`Keyword search failed: ${res.statusText}`);
+  const data = (await res.json()) as { results: KeywordSearchResult[] };
+  return data.results;
+}
+
+export function getDocumentDownloadUrl(kbId: string, docId: string): string {
+  return `${BASE()}/${kbId}/documents/${docId}/download`;
+}
+
+export async function readDocumentContent(
+  kbId: string,
+  docId: string,
+): Promise<DocumentContent> {
+  const res = await fetch(`${BASE()}/${kbId}/documents/${docId}/content`, {
+    credentials: "include",
+  });
+  if (!res.ok)
+    throw new Error(`Failed to read document content: ${res.statusText}`);
+  return res.json() as Promise<DocumentContent>;
 }

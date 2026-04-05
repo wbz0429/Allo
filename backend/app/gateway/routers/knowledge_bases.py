@@ -2,10 +2,13 @@
 
 import json
 import logging
+import re
+import shutil
 import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +19,7 @@ from app.gateway.db.models import KnowledgeBase, KnowledgeChunk, KnowledgeDocume
 from app.gateway.rag.chunker import chunk_markdown
 from app.gateway.rag.embedder import embed_text, embed_texts
 from app.gateway.rag.retriever import search_chunks
+from deerflow.config.paths import get_paths
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["knowledge-bases"])
@@ -68,6 +72,8 @@ class KnowledgeDocumentResponse(BaseModel):
     kb_id: str
     filename: str
     content_type: str
+    file_size: int = 0
+    index_status: str = "none"
     chunk_count: int
     status: str
     created_at: str
@@ -96,6 +102,43 @@ class SearchResponse(BaseModel):
     results: list[SearchResultItem]
 
 
+class KeywordSearchRequest(BaseModel):
+    """Request body for keyword search."""
+
+    query: str = Field(..., description="Keyword search query")
+    top_k: int = Field(default=5, ge=1, le=50, description="Number of results to return")
+
+
+class KeywordSearchResultItem(BaseModel):
+    """A single keyword search result."""
+
+    doc_id: str
+    filename: str
+    snippet: str
+    score: float
+
+
+class KeywordSearchResponse(BaseModel):
+    """Response model for keyword search results."""
+
+    results: list[KeywordSearchResultItem]
+
+
+class BuildIndexResponse(BaseModel):
+    """Response model for build index operation."""
+
+    indexed: int
+    failed: int
+    skipped: int
+
+
+class DocumentContentResponse(BaseModel):
+    """Response model for reading document markdown content."""
+
+    content: str
+    filename: str
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -122,6 +165,8 @@ def _doc_to_response(doc: KnowledgeDocument) -> KnowledgeDocumentResponse:
         kb_id=doc.kb_id,
         filename=doc.filename,
         content_type=doc.content_type,
+        file_size=doc.file_size or 0,
+        index_status=doc.index_status or "none",
         chunk_count=doc.chunk_count,
         status=doc.status,
         created_at=doc.created_at.isoformat() if doc.created_at else "",
@@ -243,6 +288,14 @@ async def delete_knowledge_base(
 ) -> None:
     """Delete a knowledge base and all its documents and chunks."""
     kb = await _get_kb_or_404(db, kb_id, auth.org_id)
+
+    # Clean up disk directory for the entire KB
+    try:
+        kb_dir = get_paths().kb_dir(auth.org_id, kb.id)
+        shutil.rmtree(kb_dir, ignore_errors=True)
+    except Exception:
+        logger.warning(f"Failed to clean disk directory for KB {kb_id}", exc_info=True)
+
     await db.delete(kb)
     await db.commit()
     logger.info(f"Deleted knowledge base id={kb_id}")
@@ -262,12 +315,12 @@ async def upload_document(
 ) -> KnowledgeDocumentResponse:
     """Upload a document to a knowledge base.
 
-    Accepts text, markdown, PDF, PPT, and Word files. The file is converted
-    to markdown, chunked, embedded, and stored for semantic search.
+    Saves the original file and converted markdown to disk. No embedding is
+    performed — use the /index endpoint to generate embeddings on demand.
     """
     kb = await _get_kb_or_404(db, kb_id, auth.org_id)
 
-    filename = file.filename or "untitled"
+    filename = Path(file.filename or "untitled").name  # sanitize
     content_type = file.content_type or "application/octet-stream"
 
     # Enforce file size limit (50 MB)
@@ -276,66 +329,59 @@ async def upload_document(
     if len(file_bytes) > max_size:
         raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {max_size // (1024 * 1024)} MB")
 
-    # Create document record in "processing" state
-    doc = KnowledgeDocument(
-        kb_id=kb.id,
-        filename=filename,
-        content_type=content_type,
-    )
-    db.add(doc)
-    await db.commit()
-    await db.refresh(doc)
+    paths = get_paths()
+    originals_dir = paths.kb_originals_dir(auth.org_id, kb.id)
+    markdown_dir = paths.kb_markdown_dir(auth.org_id, kb.id)
+    originals_dir.mkdir(parents=True, exist_ok=True)
+    markdown_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save original file to disk
+    original_path = originals_dir / filename
+    original_path.write_bytes(file_bytes)
 
     try:
-        # Convert to markdown based on file type
+        # Convert to markdown
         markdown_content = await _convert_to_markdown(filename, file_bytes)
 
         if not markdown_content.strip():
-            doc.status = "error"
-            doc.content_md = ""
-            await db.commit()
+            original_path.unlink(missing_ok=True)
             raise HTTPException(status_code=422, detail="File produced no extractable text content")
 
-        doc.content_md = markdown_content
+        # Save markdown to disk
+        stem = Path(filename).stem
+        md_filename = f"{stem}.md"
+        md_path = markdown_dir / md_filename
+        md_path.write_text(markdown_content, encoding="utf-8")
 
-        # Chunk the content
-        chunks_text = chunk_markdown(markdown_content, chunk_size=kb.chunk_size, chunk_overlap=kb.chunk_overlap)
+        # Compute relative paths (relative to base_dir)
+        base = paths.base_dir
+        rel_original = str(original_path.relative_to(base))
+        rel_markdown = str(md_path.relative_to(base))
 
-        if not chunks_text:
-            doc.status = "ready"
-            doc.chunk_count = 0
-            await db.commit()
-            await db.refresh(doc)
-            return _doc_to_response(doc)
-
-        # Generate embeddings
-        embeddings = await embed_texts(chunks_text, model=kb.embedding_model)
-
-        # Store chunks with embeddings
-        for i, (text, embedding) in enumerate(zip(chunks_text, embeddings)):
-            chunk = KnowledgeChunk(
-                doc_id=doc.id,
-                kb_id=kb.id,
-                content=text,
-                chunk_index=i,
-                embedding=json.dumps(embedding),
-                metadata_json=json.dumps({"filename": filename, "chunk_index": i}),
-            )
-            db.add(chunk)
-
-        doc.chunk_count = len(chunks_text)
-        doc.status = "ready"
+        # Create document record — no chunking/embedding
+        doc = KnowledgeDocument(
+            kb_id=kb.id,
+            filename=filename,
+            content_type=content_type,
+            content_md=markdown_content,
+            file_path=rel_original,
+            markdown_path=rel_markdown,
+            file_size=len(file_bytes),
+            index_status="none",
+            chunk_count=0,
+            status="ready",
+        )
+        db.add(doc)
         await db.commit()
         await db.refresh(doc)
 
-        logger.info(f"Uploaded document '{filename}' to KB {kb_id}: {len(chunks_text)} chunks")
+        logger.info(f"Uploaded document '{filename}' to KB {kb_id} (file-system mode, no embedding)")
         return _doc_to_response(doc)
 
     except HTTPException:
         raise
     except Exception as e:
-        doc.status = "error"
-        await db.commit()
+        original_path.unlink(missing_ok=True)
         logger.error("Failed to process document '%s': %s", filename, e, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to process document. Please try again or use a different file format.")
 
@@ -370,6 +416,15 @@ async def delete_document(
     doc = result.scalar_one_or_none()
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
+
+    # Clean up disk files
+    base = get_paths().base_dir
+    for rel_path in (doc.file_path, doc.markdown_path):
+        if rel_path:
+            try:
+                (base / rel_path).unlink(missing_ok=True)
+            except Exception:
+                logger.warning(f"Failed to delete disk file {rel_path}", exc_info=True)
 
     await db.delete(doc)
     await db.commit()
@@ -409,6 +464,192 @@ async def search_knowledge_base(
             for r in results
         ]
     )
+
+
+# ---------------------------------------------------------------------------
+# Build Index (on-demand embedding)
+# ---------------------------------------------------------------------------
+
+
+@router.post("/knowledge-bases/{kb_id}/index", response_model=BuildIndexResponse, summary="Build Index")
+async def build_index(
+    kb_id: str,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> BuildIndexResponse:
+    """Generate embeddings for all unindexed documents in a knowledge base."""
+    kb = await _get_kb_or_404(db, kb_id, auth.org_id)
+
+    stmt = select(KnowledgeDocument).where(KnowledgeDocument.kb_id == kb_id, KnowledgeDocument.index_status != "indexed")
+    result = await db.execute(stmt)
+    docs = list(result.scalars().all())
+
+    indexed = 0
+    failed = 0
+    skipped = 0
+
+    for doc in docs:
+        content = doc.content_md
+        if not content and doc.markdown_path:
+            md_file = get_paths().base_dir / doc.markdown_path
+            if md_file.exists():
+                content = md_file.read_text(encoding="utf-8")
+
+        if not content or not content.strip():
+            skipped += 1
+            continue
+
+        try:
+            doc.index_status = "indexing"
+            await db.commit()
+
+            chunks_text = chunk_markdown(content, chunk_size=kb.chunk_size, chunk_overlap=kb.chunk_overlap)
+            if not chunks_text:
+                doc.index_status = "indexed"
+                doc.chunk_count = 0
+                await db.commit()
+                skipped += 1
+                continue
+
+            embeddings = await embed_texts(chunks_text, model=kb.embedding_model)
+
+            # Delete old chunks for this document
+            old_chunks_stmt = select(KnowledgeChunk).where(KnowledgeChunk.doc_id == doc.id)
+            old_result = await db.execute(old_chunks_stmt)
+            for old_chunk in old_result.scalars().all():
+                await db.delete(old_chunk)
+
+            # Create new chunks
+            for i, (text, embedding) in enumerate(zip(chunks_text, embeddings)):
+                chunk = KnowledgeChunk(
+                    doc_id=doc.id,
+                    kb_id=kb.id,
+                    content=text,
+                    chunk_index=i,
+                    embedding=json.dumps(embedding),
+                    metadata_json=json.dumps({"filename": doc.filename, "chunk_index": i}),
+                )
+                db.add(chunk)
+
+            doc.chunk_count = len(chunks_text)
+            doc.index_status = "indexed"
+            await db.commit()
+            indexed += 1
+            logger.info(f"Indexed document '{doc.filename}' ({len(chunks_text)} chunks)")
+
+        except Exception as e:
+            doc.index_status = "error"
+            await db.commit()
+            failed += 1
+            logger.error(f"Failed to index document '{doc.filename}': {e}", exc_info=True)
+
+    return BuildIndexResponse(indexed=indexed, failed=failed, skipped=skipped)
+
+
+# ---------------------------------------------------------------------------
+# Keyword Search
+# ---------------------------------------------------------------------------
+
+
+@router.post("/knowledge-bases/{kb_id}/keyword-search", response_model=KeywordSearchResponse, summary="Keyword Search")
+async def keyword_search(
+    kb_id: str,
+    request: KeywordSearchRequest,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> KeywordSearchResponse:
+    """Full-text keyword search across documents (no index needed)."""
+    await _get_kb_or_404(db, kb_id, auth.org_id)
+
+    query = request.query.strip()
+    if not query:
+        return KeywordSearchResponse(results=[])
+
+    stmt = select(KnowledgeDocument).where(KnowledgeDocument.kb_id == kb_id, KnowledgeDocument.content_md.ilike(f"%{query}%"))
+    result = await db.execute(stmt)
+    docs = result.scalars().all()
+
+    results: list[KeywordSearchResultItem] = []
+    for doc in docs:
+        content = doc.content_md or ""
+        # Count occurrences for scoring
+        count = len(re.findall(re.escape(query), content, re.IGNORECASE))
+        # Extract snippet around first match
+        match = re.search(re.escape(query), content, re.IGNORECASE)
+        if match:
+            start = max(0, match.start() - 200)
+            end = min(len(content), match.end() + 200)
+            snippet = content[start:end]
+            if start > 0:
+                snippet = "..." + snippet
+            if end < len(content):
+                snippet = snippet + "..."
+        else:
+            snippet = content[:400]
+
+        results.append(KeywordSearchResultItem(doc_id=doc.id, filename=doc.filename, snippet=snippet, score=float(count)))
+
+    results.sort(key=lambda r: r.score, reverse=True)
+    return KeywordSearchResponse(results=results[: request.top_k])
+
+
+# ---------------------------------------------------------------------------
+# File Access (download + content)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/knowledge-bases/{kb_id}/documents/{doc_id}/download", summary="Download Original File")
+async def download_document(
+    kb_id: str,
+    doc_id: str,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> FileResponse:
+    """Download the original uploaded file."""
+    await _get_kb_or_404(db, kb_id, auth.org_id)
+
+    stmt = select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id, KnowledgeDocument.kb_id == kb_id)
+    result = await db.execute(stmt)
+    doc = result.scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not doc.file_path:
+        raise HTTPException(status_code=404, detail="Original file not available")
+
+    file_path = (get_paths().base_dir / doc.file_path).resolve()
+    # Path traversal check
+    if not str(file_path).startswith(str(get_paths().base_dir.resolve())):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    return FileResponse(path=str(file_path), filename=doc.filename, media_type=doc.content_type)
+
+
+@router.get("/knowledge-bases/{kb_id}/documents/{doc_id}/content", response_model=DocumentContentResponse, summary="Read Document Content")
+async def read_document_content(
+    kb_id: str,
+    doc_id: str,
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+) -> DocumentContentResponse:
+    """Read a document's markdown content."""
+    await _get_kb_or_404(db, kb_id, auth.org_id)
+
+    stmt = select(KnowledgeDocument).where(KnowledgeDocument.id == doc_id, KnowledgeDocument.kb_id == kb_id)
+    result = await db.execute(stmt)
+    doc = result.scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    content = doc.content_md
+    if not content and doc.markdown_path:
+        md_file = get_paths().base_dir / doc.markdown_path
+        if md_file.exists():
+            content = md_file.read_text(encoding="utf-8")
+
+    return DocumentContentResponse(content=content or "", filename=doc.filename)
 
 
 # ---------------------------------------------------------------------------

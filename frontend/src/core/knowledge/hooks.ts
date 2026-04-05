@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  buildIndex,
   createKnowledgeBase,
   deleteDocument,
   deleteKnowledgeBase,
   getKnowledgeBase,
+  keywordSearch,
   listDocuments,
   listKnowledgeBases,
   searchKnowledgeBase,
@@ -101,5 +103,27 @@ export function useSearchKnowledgeBase(kbId: string) {
         queryKey: ["knowledge-bases", kbId, "search", query],
       });
     },
+  });
+}
+
+export function useBuildIndex(kbId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => buildIndex(kbId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["knowledge-bases", kbId, "documents"],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["knowledge-bases", kbId],
+      });
+    },
+  });
+}
+
+export function useKeywordSearch(kbId: string) {
+  return useMutation({
+    mutationFn: ({ query, topK }: { query: string; topK?: number }) =>
+      keywordSearch(kbId, query, topK),
   });
 }

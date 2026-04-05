@@ -8,7 +8,16 @@ from deerflow.context import get_user_context
 from deerflow.reflection import resolve_variable
 from deerflow.store_registry import get_store
 from deerflow.stores import MarketplaceInstallStore
-from deerflow.tools.builtins import ask_clarification_tool, present_file_tool, task_tool, view_image_tool
+from deerflow.tools.builtins import (
+    ask_clarification_tool,
+    knowledge_base_keyword_search_tool,
+    knowledge_base_list_tool,
+    knowledge_base_read_tool,
+    knowledge_base_search_tool,
+    present_file_tool,
+    task_tool,
+    view_image_tool,
+)
 from deerflow.tools.builtins.tool_search import reset_deferred_registry
 
 logger = logging.getLogger(__name__)
@@ -103,6 +112,19 @@ def get_available_tools(
     if model_config is not None and model_config.supports_vision:
         builtin_tools.append(view_image_tool)
         logger.info(f"Including view_image_tool for model '{model_name}' (supports_vision=True)")
+
+    # Add knowledge base tools if KB store is registered
+    from deerflow.stores import KnowledgeBaseStore
+
+    kb_store = get_store("kb")
+    if isinstance(kb_store, KnowledgeBaseStore):
+        builtin_tools.extend([
+            knowledge_base_list_tool,
+            knowledge_base_read_tool,
+            knowledge_base_keyword_search_tool,
+            knowledge_base_search_tool,
+        ])
+        logger.info("Including knowledge base tools (list, read, keyword_search, search)")
 
     # Get cached MCP tools if enabled
     # NOTE: We use ExtensionsConfig.from_file() instead of config.extensions

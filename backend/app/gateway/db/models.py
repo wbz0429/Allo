@@ -205,8 +205,12 @@ class KnowledgeDocument(Base):
     filename: Mapped[str] = mapped_column(String(512), nullable=False)
     content_type: Mapped[str] = mapped_column(String(255), nullable=False)
     content_md: Mapped[str] = mapped_column(Text, nullable=False, insert_default="")
+    file_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    markdown_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False, insert_default=0)
+    index_status: Mapped[str] = mapped_column(String(20), nullable=False, insert_default="none")
     chunk_count: Mapped[int] = mapped_column(Integer, nullable=False, insert_default=0)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, insert_default="processing")
+    status: Mapped[str] = mapped_column(String(50), nullable=False, insert_default="ready")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     knowledge_base: Mapped["KnowledgeBase"] = relationship("KnowledgeBase", back_populates="documents")
@@ -217,10 +221,14 @@ class KnowledgeDocument(Base):
             kwargs["id"] = str(uuid.uuid4())
         if "content_md" not in kwargs:
             kwargs["content_md"] = ""
+        if "file_size" not in kwargs:
+            kwargs["file_size"] = 0
+        if "index_status" not in kwargs:
+            kwargs["index_status"] = "none"
         if "chunk_count" not in kwargs:
             kwargs["chunk_count"] = 0
         if "status" not in kwargs:
-            kwargs["status"] = "processing"
+            kwargs["status"] = "ready"
         super().__init__(**kwargs)
 
     def __repr__(self) -> str:

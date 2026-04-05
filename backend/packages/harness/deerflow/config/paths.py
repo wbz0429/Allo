@@ -196,6 +196,18 @@ class Paths:
             d.mkdir(parents=True, exist_ok=True)
             d.chmod(0o777)
 
+    def kb_dir(self, org_id: str, kb_id: str) -> Path:
+        """Knowledge base root: {base_dir}/orgs/{org_id}/knowledge/{kb_id}/"""
+        return self.base_dir / "orgs" / org_id / "knowledge" / kb_id
+
+    def kb_originals_dir(self, org_id: str, kb_id: str) -> Path:
+        """Original uploaded files: {base_dir}/orgs/{org_id}/knowledge/{kb_id}/originals/"""
+        return self.kb_dir(org_id, kb_id) / "originals"
+
+    def kb_markdown_dir(self, org_id: str, kb_id: str) -> Path:
+        """Converted markdown files: {base_dir}/orgs/{org_id}/knowledge/{kb_id}/markdown/"""
+        return self.kb_dir(org_id, kb_id) / "markdown"
+
     def resolve_virtual_path(self, thread_id: str, virtual_path: str) -> Path:
         """Resolve a sandbox virtual path to the actual host filesystem path.
 

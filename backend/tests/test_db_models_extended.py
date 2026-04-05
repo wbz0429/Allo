@@ -127,7 +127,9 @@ class TestKnowledgeDocument:
         doc = KnowledgeDocument(kb_id="kb-1", filename="test.md", content_type="text/markdown")
         assert doc.content_md == ""
         assert doc.chunk_count == 0
-        assert doc.status == "processing"
+        assert doc.status == "ready"
+        assert doc.file_size == 0
+        assert doc.index_status == "none"
         uuid.UUID(doc.id)
 
     def test_repr(self) -> None:
@@ -142,7 +144,7 @@ class TestKnowledgeDocument:
 
     def test_columns(self) -> None:
         col_names = {c.name for c in KnowledgeDocument.__table__.columns}
-        expected = {"id", "kb_id", "filename", "content_type", "content_md", "chunk_count", "status", "created_at"}
+        expected = {"id", "kb_id", "filename", "content_type", "content_md", "file_path", "markdown_path", "file_size", "index_status", "chunk_count", "status", "created_at"}
         assert col_names == expected
 
     def test_kb_id_indexed(self) -> None:

@@ -80,3 +80,22 @@ class ModelKeyResolver(ABC):
     async def resolve_key(self, run_id: str) -> tuple[str, str | None]: ...
 
     # returns (api_key, base_url | None)
+
+
+class KnowledgeBaseStore(ABC):
+    """Abstract store for knowledge base operations."""
+
+    @abstractmethod
+    async def list_documents(self, kb_id: str) -> list[dict]: ...
+
+    @abstractmethod
+    async def read_document(self, kb_id: str, filename: str) -> str | None: ...
+
+    @abstractmethod
+    async def keyword_search(self, kb_ids: list[str], query: str, top_k: int = 5) -> list[dict]: ...
+
+    @abstractmethod
+    async def semantic_search(self, kb_ids: list[str], query: str, top_k: int = 5) -> list[dict]: ...
+
+    @abstractmethod
+    async def list_knowledge_bases(self, org_id: str) -> list[dict]: ...
