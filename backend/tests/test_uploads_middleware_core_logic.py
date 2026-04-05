@@ -30,6 +30,7 @@ def _middleware(tmp_path: Path) -> UploadsMiddleware:
 def _runtime(thread_id: str | None = THREAD_ID) -> MagicMock:
     rt = MagicMock()
     rt.context = {"thread_id": thread_id}
+    rt.config = {}
     return rt
 
 

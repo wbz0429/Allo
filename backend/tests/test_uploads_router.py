@@ -96,3 +96,47 @@ def test_upload_files_rejects_dotdot_and_dot_filenames(tmp_path):
 
     # Only the safely normalised file should exist
     assert [f.name for f in thread_uploads_dir.iterdir()] == ["passwd"]
+
+
+def test_upload_files_uses_user_scoped_dir_when_auth_has_user_id(tmp_path):
+    user_uploads_dir = tmp_path / "users" / "user-1" / "threads" / "thread-1" / "uploads"
+    user_uploads_dir.mkdir(parents=True)
+
+    provider = MagicMock()
+    provider.acquire.return_value = "local"
+    sandbox = MagicMock()
+    provider.get.return_value = sandbox
+
+    auth = MagicMock()
+    auth.user_id = "user-1"
+
+    with (
+        patch.object(uploads, "get_uploads_dir", return_value=user_uploads_dir) as get_uploads_dir,
+        patch.object(uploads, "get_sandbox_provider", return_value=provider),
+    ):
+        file = UploadFile(filename="notes.txt", file=BytesIO(b"hello uploads"))
+        result = asyncio.run(uploads.upload_files("thread-1", files=[file], auth=auth))
+
+    assert result.success is True
+    assert (user_uploads_dir / "notes.txt").read_bytes() == b"hello uploads"
+    get_uploads_dir.assert_called_once_with("thread-1", "user-1")
+
+
+def test_list_and_delete_uploaded_files_use_user_scoped_dir(tmp_path):
+    user_uploads_dir = tmp_path / "users" / "user-1" / "threads" / "thread-1" / "uploads"
+    user_uploads_dir.mkdir(parents=True)
+    (user_uploads_dir / "notes.txt").write_text("hello", encoding="utf-8")
+
+    auth = MagicMock()
+    auth.user_id = "user-1"
+
+    with patch.object(uploads, "get_uploads_dir", return_value=user_uploads_dir) as get_uploads_dir:
+        listed = asyncio.run(uploads.list_uploaded_files("thread-1", auth=auth))
+        deleted = asyncio.run(uploads.delete_uploaded_file("thread-1", "notes.txt", auth=auth))
+
+    assert listed["count"] == 1
+    assert listed["files"][0]["filename"] == "notes.txt"
+    assert deleted["success"] is True
+    assert not (user_uploads_dir / "notes.txt").exists()
+    assert get_uploads_dir.call_args_list[0].args == ("thread-1", "user-1")
+    assert get_uploads_dir.call_args_list[1].args == ("thread-1", "user-1")

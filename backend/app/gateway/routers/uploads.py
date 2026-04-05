@@ -24,16 +24,22 @@ class UploadResponse(BaseModel):
     message: str
 
 
-def get_uploads_dir(thread_id: str) -> Path:
+def get_auth_user_id(auth: AuthContext | object | None) -> str | None:
+    return getattr(auth, "user_id", None)
+
+
+def get_uploads_dir(thread_id: str, user_id: str | None = None) -> Path:
     """Get the uploads directory for a thread.
 
     Args:
         thread_id: The thread ID.
+        user_id: Optional authenticated user ID.
 
     Returns:
         Path to the uploads directory.
     """
-    base_dir = get_paths().sandbox_uploads_dir(thread_id)
+    paths = get_paths()
+    base_dir = paths.user_sandbox_uploads_dir(user_id, thread_id) if user_id else paths.sandbox_uploads_dir(thread_id)
     base_dir.mkdir(parents=True, exist_ok=True)
     return base_dir
 
@@ -59,7 +65,8 @@ async def upload_files(
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
 
-    uploads_dir = get_uploads_dir(thread_id)
+    user_id = get_auth_user_id(auth)
+    uploads_dir = get_uploads_dir(thread_id, user_id)
     paths = get_paths()
     uploaded_files = []
 
@@ -83,7 +90,8 @@ async def upload_files(
             file_path.write_bytes(content)
 
             # Build relative path from backend root
-            relative_path = str(paths.sandbox_uploads_dir(thread_id) / safe_filename)
+            relative_base = paths.user_sandbox_uploads_dir(user_id, thread_id) if user_id else paths.sandbox_uploads_dir(thread_id)
+            relative_path = str(relative_base / safe_filename)
             virtual_path = f"{VIRTUAL_PATH_PREFIX}/uploads/{safe_filename}"
 
             # Keep local sandbox source of truth in thread-scoped host storage.
@@ -106,7 +114,8 @@ async def upload_files(
             if file_ext in CONVERTIBLE_EXTENSIONS:
                 md_path = await convert_file_to_markdown(file_path)
                 if md_path:
-                    md_relative_path = str(paths.sandbox_uploads_dir(thread_id) / md_path.name)
+                    md_relative_base = paths.user_sandbox_uploads_dir(user_id, thread_id) if user_id else paths.sandbox_uploads_dir(thread_id)
+                    md_relative_path = str(md_relative_base / md_path.name)
                     md_virtual_path = f"{VIRTUAL_PATH_PREFIX}/uploads/{md_path.name}"
 
                     if sandbox_id != "local":
@@ -140,7 +149,8 @@ async def list_uploaded_files(thread_id: str, auth: AuthContext = Depends(get_au
     Returns:
         Dictionary containing list of files with their metadata.
     """
-    uploads_dir = get_uploads_dir(thread_id)
+    user_id = get_auth_user_id(auth)
+    uploads_dir = get_uploads_dir(thread_id, user_id)
 
     if not uploads_dir.exists():
         return {"files": [], "count": 0}
@@ -149,7 +159,9 @@ async def list_uploaded_files(thread_id: str, auth: AuthContext = Depends(get_au
     for file_path in sorted(uploads_dir.iterdir()):
         if file_path.is_file():
             stat = file_path.stat()
-            relative_path = str(get_paths().sandbox_uploads_dir(thread_id) / file_path.name)
+            paths = get_paths()
+            relative_base = paths.user_sandbox_uploads_dir(user_id, thread_id) if user_id else paths.sandbox_uploads_dir(thread_id)
+            relative_path = str(relative_base / file_path.name)
             files.append(
                 {
                     "filename": file_path.name,
@@ -176,7 +188,7 @@ async def delete_uploaded_file(thread_id: str, filename: str, auth: AuthContext 
     Returns:
         Success message.
     """
-    uploads_dir = get_uploads_dir(thread_id)
+    uploads_dir = get_uploads_dir(thread_id, get_auth_user_id(auth))
     file_path = uploads_dir / filename
 
     if not file_path.exists():
