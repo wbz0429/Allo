@@ -15,6 +15,7 @@ def _make_runtime(thread_id="test-thread"):
     """Build a minimal Runtime mock with context."""
     runtime = MagicMock()
     runtime.context = {"thread_id": thread_id}
+    runtime.config = {}
     return runtime
 
 
@@ -225,6 +226,18 @@ class TestLoopDetection:
         mw = LoopDetectionMiddleware(warn_threshold=2)
         runtime = MagicMock()
         runtime.context = {}
+        runtime.config = {}
+        call = [_bash_call("ls")]
+
+        mw._apply(_make_state(tool_calls=call), runtime)
+        assert "default" in mw._history
+
+    def test_fallback_thread_id_when_runtime_context_is_none(self):
+        """When runtime context is None, should use 'default' instead of crashing."""
+        mw = LoopDetectionMiddleware(warn_threshold=2)
+        runtime = MagicMock()
+        runtime.context = None
+        runtime.config = {}
         call = [_bash_call("ls")]
 
         mw._apply(_make_state(tool_calls=call), runtime)

@@ -24,6 +24,8 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import SystemMessage
 from langgraph.runtime import Runtime
 
+from deerflow.context import get_runtime_thread_id
+
 logger = logging.getLogger(__name__)
 
 # Defaults — can be overridden via constructor
@@ -99,7 +101,7 @@ class LoopDetectionMiddleware(AgentMiddleware[AgentState]):
 
     def _get_thread_id(self, runtime: Runtime) -> str:
         """Extract thread_id from runtime context for per-thread tracking."""
-        thread_id = runtime.context.get("thread_id")
+        thread_id = get_runtime_thread_id(runtime)
         if thread_id:
             return thread_id
         return "default"
