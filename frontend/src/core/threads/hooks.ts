@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import type { PromptInputMessage } from "@/components/ai-elements/prompt-input";
 
-import { ensureLangGraphThread, getAPIClient } from "../api";
+import { getAPIClient } from "../api";
 import { getSession } from "../auth/api";
 import { useI18n } from "../i18n/hooks";
 import type { FileInMessage } from "../messages/utils";
@@ -291,8 +291,6 @@ export function useThreadStream({
 
         threadIdRef.current = gatewayThreadId;
 
-        await ensureLangGraphThread(gatewayThreadId, isMock);
-
         const run = await createThreadRun(gatewayThreadId, {
           model_name: context.model_name as string | undefined,
           agent_name:
@@ -467,7 +465,6 @@ export function useThreadStream({
       context,
       queryClient,
       syncThreadRun,
-      isMock,
     ],
   );
 
