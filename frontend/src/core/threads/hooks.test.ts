@@ -23,3 +23,20 @@ void test("useThreadStream does not pre-create the LangGraph thread before submi
     "useThreadStream should let useStream.submit() create the LangGraph thread for new chats",
   )
 })
+
+void test("useThreadStream switches internal stream thread id before submit for new chats", async () => {
+  const file = new URL("./hooks.ts", import.meta.url)
+  const source = await readFile(file, "utf8")
+
+  assert.equal(
+    source.includes("setOnStreamThreadId(gatewayThreadId);"),
+    true,
+    "useThreadStream should set its internal stream thread id after Gateway creates the thread",
+  )
+
+  assert.equal(
+    source.includes("await waitForThread(gatewayThreadId);"),
+    true,
+    "useThreadStream should wait for useStream to bind the created thread before submit",
+  )
+})
