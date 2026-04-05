@@ -71,8 +71,9 @@ class SandboxMiddleware(AgentMiddleware[SandboxMiddlewareState]):
             get_sandbox_provider().release(sandbox_id)
             return None
 
-        if runtime.context.get("sandbox_id") is not None:
-            sandbox_id = runtime.context.get("sandbox_id")
+        context = getattr(runtime, "context", None) or {}
+        if context.get("sandbox_id") is not None:
+            sandbox_id = context.get("sandbox_id")
             logger.info(f"Releasing sandbox {sandbox_id} from context")
             get_sandbox_provider().release(sandbox_id)
             return None
