@@ -29,8 +29,8 @@ void test("useThreadStream switches internal stream thread id before submit for 
   const source = await readFile(file, "utf8")
 
   assert.equal(
-    source.includes("setOnStreamThreadId(gatewayThreadId);"),
-    false,
-    "welcome-page handoff should avoid internal stream thread patching before submit",
+    source.includes("setOnStreamThreadId(normalizedThreadId);"),
+    true,
+    "useThreadStream should sync internal stream thread id when the page switches to a real thread",
   )
 })

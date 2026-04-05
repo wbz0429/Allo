@@ -76,6 +76,9 @@ export function useThreadStream({
       startedRef.current = false;
       setOnStreamThreadId(normalizedThreadId);
     }
+    if (normalizedThreadId) {
+      setOnStreamThreadId(normalizedThreadId);
+    }
     threadIdRef.current = normalizedThreadId;
     currentRunIdRef.current = null;
     syncedTitleRef.current = null;
