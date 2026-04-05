@@ -266,8 +266,6 @@ export function useThreadStream({
       }
       setOptimisticMessages(newOptimistic);
 
-      _handleOnStart(threadId);
-
       let uploadedFileInfo: UploadedFileInfo[] = [];
       const gatewayThreadId = threadId;
       let sessionUserId: string | undefined;
@@ -465,7 +463,6 @@ export function useThreadStream({
     },
     [
       thread,
-      _handleOnStart,
       t.uploads.uploadingFiles,
       context,
       queryClient,
