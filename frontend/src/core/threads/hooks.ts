@@ -480,7 +480,7 @@ export function useThreadStream({
         } as typeof thread)
       : thread;
 
-  return [mergedThread, sendMessage] as const;
+  return [mergedThread, sendMessage, onStreamThreadId] as const;
 }
 
 export function useThreads(

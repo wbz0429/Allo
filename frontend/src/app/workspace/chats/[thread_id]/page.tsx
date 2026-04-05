@@ -34,7 +34,7 @@ export default function ChatPage() {
   const { showNotification } = useNotification();
   const consumedRef = useRef<string | null>(null);
 
-  const [thread, sendMessage] = useThreadStream({
+  const [thread, sendMessage, readyThreadId] = useThreadStream({
     threadId: isNewThread ? undefined : threadId,
     context: settings.context,
     isMock,
@@ -87,6 +87,10 @@ export default function ChatPage() {
       return;
     }
 
+    if (readyThreadId !== threadId) {
+      return;
+    }
+
     const pending = loadPendingThreadMessage(window.sessionStorage, threadId);
     if (!pending) {
       return;
@@ -94,7 +98,7 @@ export default function ChatPage() {
 
     consumedRef.current = threadId;
     void sendMessage(threadId, { text: pending.text, files: [] });
-  }, [isNewThread, sendMessage, threadId]);
+  }, [isNewThread, readyThreadId, sendMessage, threadId]);
 
   const handleStop = useCallback(async () => {
     await thread.stop();

@@ -19,6 +19,7 @@ void test("mounted thread page consumes pending first message once", async () =>
   const source = await readFile(file, "utf8")
 
   assert.equal(source.includes("loadPendingThreadMessage(window.sessionStorage, threadId)"), true)
+  assert.equal(source.includes("if (readyThreadId !== threadId) {"), true)
   assert.equal(source.includes("consumedRef.current = threadId;"), true)
   assert.equal(source.includes("void sendMessage(threadId, { text: pending.text, files: [] });"), true)
 })

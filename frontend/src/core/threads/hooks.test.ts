@@ -33,4 +33,10 @@ void test("useThreadStream switches internal stream thread id before submit for 
     true,
     "useThreadStream should sync internal stream thread id when the page switches to a real thread",
   )
+
+  assert.equal(
+    source.includes("return [mergedThread, sendMessage, onStreamThreadId] as const;"),
+    true,
+    "useThreadStream should expose the currently bound stream thread id to callers",
+  )
 })
