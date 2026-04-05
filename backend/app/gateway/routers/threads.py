@@ -7,6 +7,7 @@ frontend can consume them directly via ``AgentThread`` (which extends
 
 import logging
 import os
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 
@@ -25,6 +26,38 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/threads", tags=["threads"])
 
 LANGGRAPH_URL = os.getenv("LANGGRAPH_INTERNAL_URL", "http://127.0.0.1:2024")
+LANGGRAPH_THREAD_SYNC_RETRIES = 3
+
+
+async def _sync_langgraph_thread(thread_id: str) -> None:
+    last_error: Exception | None = None
+
+    for attempt in range(1, LANGGRAPH_THREAD_SYNC_RETRIES + 1):
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.post(f"{LANGGRAPH_URL}/threads", json={"thread_id": thread_id})
+                response.raise_for_status()
+                return
+        except Exception as error:
+            last_error = error
+            logger.warning(
+                "LangGraph thread sync failed: thread_id=%s attempt=%s/%s error_type=%s error=%r",
+                thread_id,
+                attempt,
+                LANGGRAPH_THREAD_SYNC_RETRIES,
+                type(error).__name__,
+                error,
+            )
+            if attempt < LANGGRAPH_THREAD_SYNC_RETRIES:
+                await asyncio.sleep(0.25 * attempt)
+
+    logger.warning(
+        "Failed to sync thread %s to LangGraph checkpointer after %s attempts: %r",
+        thread_id,
+        LANGGRAPH_THREAD_SYNC_RETRIES,
+        last_error,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Request models
@@ -224,11 +257,7 @@ async def create_thread(
     await db.refresh(thread)
 
     # Sync to LangGraph checkpointer so runs/stream works immediately
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            await client.post(f"{LANGGRAPH_URL}/threads", json={"thread_id": request.thread_id})
-    except Exception as e:
-        logger.warning("Failed to sync thread %s to LangGraph checkpointer: %s", request.thread_id, e)
+    await _sync_langgraph_thread(request.thread_id)
 
     return _thread_to_response(thread)
 
