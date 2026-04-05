@@ -95,16 +95,6 @@ export function useThreadStream({
     },
     [_handleOnStart],
   );
-
-  const waitForThread = useCallback(async (id: string) => {
-    for (let attempt = 0; attempt < 20; attempt++) {
-      if (threadIdRef.current === id && onStreamThreadId === id) {
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-    throw new Error(`Timed out waiting for stream thread ${id}`);
-  }, [onStreamThreadId]);
   
   const queryClient = useQueryClient();
   const updateSubtask = useUpdateSubtask();
@@ -300,8 +290,6 @@ export function useThreadStream({
         });
 
         threadIdRef.current = gatewayThreadId;
-        setOnStreamThreadId(gatewayThreadId);
-        await waitForThread(gatewayThreadId);
 
         const run = await createThreadRun(gatewayThreadId, {
           model_name: context.model_name as string | undefined,
@@ -477,7 +465,6 @@ export function useThreadStream({
       context,
       queryClient,
       syncThreadRun,
-      waitForThread,
     ],
   );
 

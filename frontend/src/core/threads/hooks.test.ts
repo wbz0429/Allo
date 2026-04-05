@@ -30,13 +30,7 @@ void test("useThreadStream switches internal stream thread id before submit for 
 
   assert.equal(
     source.includes("setOnStreamThreadId(gatewayThreadId);"),
-    true,
-    "useThreadStream should set its internal stream thread id after Gateway creates the thread",
-  )
-
-  assert.equal(
-    source.includes("await waitForThread(gatewayThreadId);"),
-    true,
-    "useThreadStream should wait for useStream to bind the created thread before submit",
+    false,
+    "welcome-page handoff should avoid internal stream thread patching before submit",
   )
 })
