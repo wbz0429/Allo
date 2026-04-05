@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { type PromptInputMessage } from "@/components/ai-elements/prompt-input";
 import { ArtifactTrigger } from "@/components/workspace/artifacts";
@@ -19,6 +19,7 @@ import { useI18n } from "@/core/i18n/hooks";
 import { useNotification } from "@/core/notification/hooks";
 import { useLocalSettings } from "@/core/settings";
 import { useThreadStream } from "@/core/threads/hooks";
+import { loadPendingThreadMessage, savePendingThreadMessage } from "@/core/threads/pending";
 import { textOfMessage } from "@/core/threads/utils";
 import { env } from "@/env";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ export default function ChatPage() {
   useSpecificChatMode();
 
   const { showNotification } = useNotification();
+  const consumedRef = useRef<string | null>(null);
 
   const [thread, sendMessage] = useThreadStream({
     threadId: isNewThread ? undefined : threadId,
@@ -61,10 +63,39 @@ export default function ChatPage() {
 
   const handleSubmit = useCallback(
     (message: PromptInputMessage) => {
+      if (isNewThread && message.files.length === 0 && typeof window !== "undefined") {
+        savePendingThreadMessage(window.sessionStorage, {
+          threadId,
+          text: message.text,
+        });
+        setIsNewThread(false);
+        history.replaceState(null, "", `/workspace/chats/${threadId}`);
+        return;
+      }
+
       void sendMessage(threadId, message);
     },
-    [sendMessage, threadId],
+    [isNewThread, sendMessage, setIsNewThread, threadId],
   );
+
+  useEffect(() => {
+    if (isNewThread || typeof window === "undefined") {
+      return;
+    }
+
+    if (consumedRef.current === threadId) {
+      return;
+    }
+
+    const pending = loadPendingThreadMessage(window.sessionStorage, threadId);
+    if (!pending) {
+      return;
+    }
+
+    consumedRef.current = threadId;
+    void sendMessage(threadId, { text: pending.text, files: [] });
+  }, [isNewThread, sendMessage, threadId]);
+
   const handleStop = useCallback(async () => {
     await thread.stop();
   }, [thread]);
