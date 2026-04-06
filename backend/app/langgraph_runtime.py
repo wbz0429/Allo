@@ -49,6 +49,8 @@ def _ensure_runtime_stores_registered() -> None:
         register_store("marketplace", PostgresMarketplaceInstallStore(runtime_async_session_factory))
     if get_store("key") is None:
         register_store("key", PostgresModelKeyResolver(runtime_async_session_factory, get_redis))
+    if get_store("kb") is None:
+        register_store("kb", PostgresKBStore(runtime_async_session_factory))
 
 
 async def _resolve_user_from_thread(config: dict) -> UserContext | None:
