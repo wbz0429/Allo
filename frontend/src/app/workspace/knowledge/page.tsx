@@ -44,7 +44,7 @@ export default function KnowledgeBasesPage() {
         err instanceof Error ? err.message : t.knowledge.createFailed,
       );
     }
-  }, [name, description, createMutation, t]);
+  }, [name, description, createMutation]);
 
   return (
     <div className="flex h-full flex-col">

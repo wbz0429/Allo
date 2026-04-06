@@ -36,7 +36,7 @@ export function SearchPanel({ kbId }: { kbId: string }) {
         err instanceof Error ? err.message : t.knowledge.keywordSearchFailed,
       );
     }
-  }, [query, keywordMutation, t]);
+  }, [query, keywordMutation]);
 
   const handleSemanticSearch = useCallback(async () => {
     if (!query.trim()) return;
@@ -48,7 +48,7 @@ export function SearchPanel({ kbId }: { kbId: string }) {
         err instanceof Error ? err.message : t.knowledge.semanticSearchFailed,
       );
     }
-  }, [query, semanticMutation, t]);
+  }, [query, semanticMutation]);
 
   const handleSearch = useCallback(() => {
     if (activeTab === "keyword") {

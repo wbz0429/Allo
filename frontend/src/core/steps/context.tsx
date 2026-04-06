@@ -52,8 +52,18 @@ export function StepProvider({ children }: { children: ReactNode }) {
   return <StepContext value={value}>{children}</StepContext>;
 }
 
+const NOOP_STEPS: StepContextValue = {
+  steps: [],
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  setSteps: () => {},
+  activeStepId: null,
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  setActiveStepId: () => {},
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  goToStep: () => {},
+};
+
 export function useSteps() {
   const ctx = useContext(StepContext);
-  if (!ctx) throw new Error("useSteps must be used within StepProvider");
-  return ctx;
+  return ctx ?? NOOP_STEPS;
 }
