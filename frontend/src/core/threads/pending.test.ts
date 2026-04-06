@@ -1,79 +1,94 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import test from "node:test";
+import assert from "node:assert/strict";
 
-class MemoryStorage implements Storage {
-  private map = new Map<string, string>()
 
-  get length() {
-    return this.map.size
-  }
-
-  clear() {
-    this.map.clear()
-  }
-
-  getItem(key: string) {
-    return this.map.get(key) ?? null
-  }
-
-  key(index: number) {
-    return Array.from(this.map.keys())[index] ?? null
-  }
-
-  removeItem(key: string) {
-    this.map.delete(key)
-  }
-
-  setItem(key: string, value: string) {
-    this.map.set(key, value)
-  }
+function createStorage(): Storage {
+  const map = new Map<string, string>();
+  return {
+    get length() {
+      return map.size;
+    },
+    clear() {
+      map.clear();
+    },
+    getItem(key: string) {
+      return map.get(key) ?? null;
+    },
+    key(index: number) {
+      return Array.from(map.keys())[index] ?? null;
+    },
+    removeItem(key: string) {
+      map.delete(key);
+    },
+    setItem(key: string, value: string) {
+      map.set(key, value);
+    },
+  } as Storage;
 }
 
 async function loadPendingModule() {
-  return import(new URL("./pending.ts", import.meta.url).href)
+  return import(new URL("./pending.ts", import.meta.url).href);
 }
 
-void test("pending thread message round-trips text payload", async () => {
-  const { loadPendingThreadMessage, savePendingThreadMessage } = await loadPendingModule()
-  const storage = new MemoryStorage()
+test("pending thread message preserves selected knowledge bases", async () => {
+  const { loadPendingThreadMessage, savePendingThreadMessage } = await loadPendingModule();
+  const storage = createStorage();
 
   savePendingThreadMessage(storage, {
     threadId: "thread-1",
     text: "hello",
-  })
+    knowledgeBases: [{ id: "kb-1", name: "Contracts" }],
+  });
 
   assert.deepEqual(loadPendingThreadMessage(storage, "thread-1"), {
     threadId: "thread-1",
     text: "hello",
-  })
-})
+    knowledgeBases: [{ id: "kb-1", name: "Contracts" }],
+  });
+});
 
-void test("loading pending thread message clears it", async () => {
-  const { loadPendingThreadMessage, savePendingThreadMessage } = await loadPendingModule()
-  const storage = new MemoryStorage()
+test("pending thread message round-trips text payload", async () => {
+  const { loadPendingThreadMessage, savePendingThreadMessage } = await loadPendingModule();
+  const storage = createStorage();
 
   savePendingThreadMessage(storage, {
     threadId: "thread-2",
     text: "hello again",
-  })
+  });
 
-  assert.equal(loadPendingThreadMessage(storage, "thread-2")?.text, "hello again")
-  assert.equal(loadPendingThreadMessage(storage, "thread-2"), null)
-})
+  assert.deepEqual(loadPendingThreadMessage(storage, "thread-2"), {
+    threadId: "thread-2",
+    text: "hello again",
+    knowledgeBases: undefined,
+  });
+});
 
-void test("clearPendingThreadMessage removes stored payload", async () => {
-  const {
-    clearPendingThreadMessage,
-    loadPendingThreadMessage,
-    savePendingThreadMessage,
-  } = await loadPendingModule()
-  const storage = new MemoryStorage()
+test("loading pending thread message clears it", async () => {
+  const { loadPendingThreadMessage, savePendingThreadMessage } = await loadPendingModule();
+  const storage = createStorage();
 
   savePendingThreadMessage(storage, {
     threadId: "thread-3",
     text: "bye",
-  })
-  clearPendingThreadMessage(storage, "thread-3")
+  });
 
-  assert.equal(loadPendingThreadMessage(storage, "thread-3"), null)
-})
+  assert.equal(loadPendingThreadMessage(storage, "thread-3")?.text, "bye");
+  assert.equal(loadPendingThreadMessage(storage, "thread-3"), null);
+});
+
+test("clearPendingThreadMessage removes stored payload", async () => {
+  const {
+    clearPendingThreadMessage,
+    loadPendingThreadMessage,
+    savePendingThreadMessage,
+  } = await loadPendingModule();
+  const storage = createStorage();
+
+  savePendingThreadMessage(storage, {
+    threadId: "thread-4",
+    text: "clear me",
+  });
+  clearPendingThreadMessage(storage, "thread-4");
+
+  assert.equal(loadPendingThreadMessage(storage, "thread-4"), null);
+});

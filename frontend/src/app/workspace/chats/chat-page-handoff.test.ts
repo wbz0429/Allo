@@ -21,5 +21,12 @@ void test("mounted thread page consumes pending first message once", async () =>
   assert.equal(source.includes("loadPendingThreadMessage(window.sessionStorage, threadId)"), true)
   assert.equal(source.includes("if (readyThreadId !== threadId) {"), true)
   assert.equal(source.includes("consumedRef.current = threadId;"), true)
-  assert.equal(source.includes("void sendMessage(threadId, { text: pending.text, files: [] });"), true)
+  assert.equal(source.includes("knowledgeBases: pending.knowledgeBases"), true)
+})
+
+void test("new chat page persists selected knowledge bases in pending handoff", async () => {
+  const file = new URL("./[thread_id]/page.tsx", import.meta.url)
+  const source = await readFile(file, "utf8")
+
+  assert.equal(source.includes("knowledgeBases: message.knowledgeBases,"), true)
 })

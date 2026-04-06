@@ -67,6 +67,7 @@ export default function ChatPage() {
         savePendingThreadMessage(window.sessionStorage, {
           threadId,
           text: message.text,
+          knowledgeBases: message.knowledgeBases,
         });
         setIsNewThread(false);
         history.replaceState(null, "", `/workspace/chats/${threadId}`);
@@ -97,7 +98,11 @@ export default function ChatPage() {
     }
 
     consumedRef.current = threadId;
-    void sendMessage(threadId, { text: pending.text, files: [] });
+    void sendMessage(threadId, {
+      text: pending.text,
+      files: [],
+      knowledgeBases: pending.knowledgeBases,
+    });
   }, [isNewThread, readyThreadId, sendMessage, threadId]);
 
   const handleStop = useCallback(async () => {

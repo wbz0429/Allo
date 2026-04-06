@@ -1,6 +1,7 @@
 export interface PendingThreadMessage {
   threadId: string
   text: string
+  knowledgeBases?: { id: string; name: string }[]
 }
 
 const KEY = "allo:pending-thread-message"
@@ -22,7 +23,16 @@ export function loadPendingThreadMessage(storage: Storage, threadId: string) {
     return null
   }
 
-  return { threadId: value.threadId, text: value.text }
+  return {
+    threadId: value.threadId,
+    text: value.text,
+    knowledgeBases: Array.isArray(value.knowledgeBases)
+      ? value.knowledgeBases.filter(
+          (kb): kb is { id: string; name: string } =>
+            typeof kb?.id === "string" && typeof kb?.name === "string",
+        )
+      : undefined,
+  }
 }
 
 export function clearPendingThreadMessage(storage: Storage, threadId: string) {
