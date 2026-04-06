@@ -1,5 +1,5 @@
 import type { Message } from "@langchain/langgraph-sdk";
-import { FileIcon, Loader2Icon } from "lucide-react";
+import { DatabaseIcon, FileIcon, Loader2Icon } from "lucide-react";
 import { useParams } from "next/navigation";
 import { memo, useMemo, type ImgHTMLAttributes } from "react";
 import rehypeKatex from "rehype-katex";
@@ -155,6 +155,24 @@ function MessageContent_({
       <RichFilesList files={files} threadId={thread_id} />
     ) : null;
 
+  const knowledgeBases = message.additional_kwargs?.knowledge_bases as
+    | { id: string; name: string }[]
+    | undefined;
+  const kbBadges =
+    isHuman && knowledgeBases && knowledgeBases.length > 0 ? (
+      <div className="flex flex-wrap justify-end gap-1">
+        {knowledgeBases.map((kb) => (
+          <span
+            key={kb.id}
+            className="bg-primary/10 text-primary inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px]"
+          >
+            <DatabaseIcon className="size-2.5" />
+            {kb.name}
+          </span>
+        ))}
+      </div>
+    ) : null;
+
   // Uploading state: mock AI message shown while files upload
   if (message.additional_kwargs?.element === "task") {
     return (
@@ -195,6 +213,7 @@ function MessageContent_({
     ) : null;
     return (
       <div className={cn("ml-auto flex flex-col gap-2", className)}>
+        {kbBadges}
         {filesList}
         {messageResponse && (
           <AIElementMessageContent className="w-fit">

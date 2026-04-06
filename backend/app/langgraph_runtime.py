@@ -170,18 +170,16 @@ async def make_lead_agent(config):
     if ctx is None:
         ctx = await _resolve_user_from_thread(config)
         if ctx is not None:
-            # Inject back into config so downstream harness code sees it too
             config.setdefault("configurable", {})["user_id"] = ctx.user_id
             config["configurable"]["org_id"] = ctx.org_id
 
-    # Fallback 2: resolve from langgraph_auth_user_id (new thread first message)
-    if ctx is None:
-        auth_user_id = configurable.get("langgraph_auth_user_id") or configurable.get("user_id")
-        if auth_user_id:
-            ctx = await _resolve_user_from_auth_id(auth_user_id)
-            if ctx is not None:
-                config.setdefault("configurable", {})["user_id"] = ctx.user_id
-                config["configurable"]["org_id"] = ctx.org_id
+    # Fallback 2: resolve real org_id when defaulted or missing
+    if ctx is not None and (not ctx.org_id or ctx.org_id == "default"):
+        resolved = await _resolve_user_from_auth_id(ctx.user_id)
+        if resolved is not None:
+            ctx = resolved
+            config.setdefault("configurable", {})["user_id"] = ctx.user_id
+            config["configurable"]["org_id"] = ctx.org_id
 
     # Enforce thread ownership only when ctx came from frontend (not fallback)
     ctx_from_frontend = get_user_context(config)

@@ -249,12 +249,19 @@ export function useThreadStream({
       );
 
       // Create optimistic human message (shown immediately)
+      const optimisticKwargs: Record<string, unknown> = {};
+      if (optimisticFiles.length > 0) {
+        optimisticKwargs.files = optimisticFiles;
+      }
+      if (message.knowledgeBases && message.knowledgeBases.length > 0) {
+        optimisticKwargs.knowledge_bases = message.knowledgeBases;
+      }
+
       const optimisticHumanMsg: Message = {
         type: "human",
         id: `opt-human-${Date.now()}`,
         content: text ? [{ type: "text", text }] : "",
-        additional_kwargs:
-          optimisticFiles.length > 0 ? { files: optimisticFiles } : {},
+        additional_kwargs: optimisticKwargs,
       };
 
       const newOptimistic: Message[] = [optimisticHumanMsg];
@@ -413,6 +420,14 @@ export function useThreadStream({
           }),
         );
 
+        const additionalKwargs: Record<string, unknown> = {};
+        if (filesForSubmit.length > 0) {
+          additionalKwargs.files = filesForSubmit;
+        }
+        if (message.knowledgeBases && message.knowledgeBases.length > 0) {
+          additionalKwargs.knowledge_bases = message.knowledgeBases;
+        }
+
         const input: Partial<AgentThreadState> = {
           messages: [
             {
@@ -423,8 +438,7 @@ export function useThreadStream({
                   text,
                 },
               ],
-              additional_kwargs:
-                filesForSubmit.length > 0 ? { files: filesForSubmit } : {},
+              additional_kwargs: additionalKwargs,
             },
           ],
         };
