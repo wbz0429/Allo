@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
+from deerflow.agents.thread_state import ThreadDataState
 from deerflow.sandbox.tools import (
     VIRTUAL_PATH_PREFIX,
     _is_skills_path,
@@ -16,10 +17,11 @@ from deerflow.sandbox.tools import (
     validate_local_tool_path,
 )
 
-_THREAD_DATA = {
+_THREAD_DATA: ThreadDataState = {
     "workspace_path": "/tmp/deer-flow/threads/t1/user-data/workspace",
     "uploads_path": "/tmp/deer-flow/threads/t1/user-data/uploads",
     "outputs_path": "/tmp/deer-flow/threads/t1/user-data/outputs",
+    "user_skills_path": "/tmp/deer-flow/users/u1/skills/custom",
 }
 
 
@@ -53,6 +55,15 @@ def test_mask_local_paths_in_output_hides_skills_host_paths() -> None:
 
         assert "/home/user/deer-flow/skills" not in masked
         assert "/mnt/skills/public/bootstrap/SKILL.md" in masked
+
+
+def test_mask_local_paths_in_output_hides_user_custom_skill_host_paths() -> None:
+    output = "Reading: /tmp/deer-flow/users/u1/skills/custom/demo/assets/reference_impl.py"
+
+    masked = mask_local_paths_in_output(output, _THREAD_DATA)
+
+    assert "/tmp/deer-flow/users/u1/skills/custom" not in masked
+    assert "/mnt/skills/custom/demo/assets/reference_impl.py" in masked
 
 
 # ---------- _reject_path_traversal ----------
@@ -167,7 +178,7 @@ def test_resolve_and_validate_user_data_path_resolves_correctly(tmp_path: Path) 
     """Resolved path should land inside the correct thread directory."""
     workspace = tmp_path / "workspace"
     workspace.mkdir()
-    thread_data = {
+    thread_data: ThreadDataState = {
         "workspace_path": str(workspace),
         "uploads_path": str(tmp_path / "uploads"),
         "outputs_path": str(tmp_path / "outputs"),
@@ -180,7 +191,7 @@ def test_resolve_and_validate_user_data_path_blocks_traversal(tmp_path: Path) ->
     """Even after resolution, path must stay within allowed roots."""
     workspace = tmp_path / "workspace"
     workspace.mkdir()
-    thread_data = {
+    thread_data: ThreadDataState = {
         "workspace_path": str(workspace),
         "uploads_path": str(tmp_path / "uploads"),
         "outputs_path": str(tmp_path / "outputs"),
@@ -295,6 +306,13 @@ def test_validate_local_bash_command_paths_allows_skills_path() -> None:
         )
 
 
+def test_validate_local_bash_command_paths_allows_user_custom_skill_host_path() -> None:
+    validate_local_bash_command_paths(
+        "cat /tmp/deer-flow/users/u1/skills/custom/demo/assets/reference_impl.py",
+        _THREAD_DATA,
+    )
+
+
 def test_validate_local_bash_command_paths_still_blocks_other_paths() -> None:
     """Paths outside virtual and system prefixes must still be blocked."""
     with patch("deerflow.sandbox.tools._get_skills_container_path", return_value="/mnt/skills"):
@@ -319,3 +337,20 @@ def test_validate_local_tool_path_skills_custom_container_path() -> None:
                 _THREAD_DATA,
                 read_only=True,
             )
+
+
+def test_replace_virtual_paths_in_command_rewrites_user_custom_skill_host_path() -> None:
+    cmd = "cat /tmp/deer-flow/users/u1/skills/custom/demo/assets/reference_impl.py"
+
+    result = replace_virtual_paths_in_command(cmd, _THREAD_DATA)
+
+    assert "/mnt/skills/custom/demo/assets/reference_impl.py" not in result
+    assert "/tmp/deer-flow/users/u1/skills/custom/demo/assets/reference_impl.py" in result
+
+
+def test_replace_virtual_paths_in_command_does_not_rewrite_similar_custom_skill_prefix() -> None:
+    cmd = "cat /tmp/deer-flow/users/u1/skills/custom-evil/demo.txt"
+
+    result = replace_virtual_paths_in_command(cmd, _THREAD_DATA)
+
+    assert result == cmd

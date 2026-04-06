@@ -120,6 +120,37 @@ def _path_variants(path: str) -> set[str]:
     return {path, path.replace("\\", "/"), path.replace("/", "\\")}
 
 
+def _compile_path_prefix_pattern(base: str) -> re.Pattern[str]:
+    escaped = re.escape(base).replace(r"\\", r"[/\\]")
+    return re.compile(escaped + r"(?=$|[/\\])(?:[/\\][^\s\"';&|<>()]*)?")
+
+
+def _get_user_skills_host_path(thread_data: ThreadDataState | None) -> str | None:
+    if thread_data is None:
+        return None
+
+    user_skills_path = thread_data.get("user_skills_path")
+    if not user_skills_path:
+        return None
+
+    return str(Path(user_skills_path))
+
+
+def _user_skills_virtual_path_for_host_path(path: str, thread_data: ThreadDataState | None) -> str | None:
+    user_skills_host = _get_user_skills_host_path(thread_data)
+    if not user_skills_host:
+        return None
+
+    resolved_path = str(Path(path))
+    try:
+        relative = str(Path(resolved_path).relative_to(Path(user_skills_host)))
+    except ValueError:
+        return None
+
+    relative = "" if relative == "." else relative.replace("\\", "/")
+    return "/mnt/skills/custom" if not relative else f"/mnt/skills/custom/{relative}"
+
+
 def _sanitize_error(error: Exception, runtime: "ToolRuntime[ContextT, ThreadState] | None" = None) -> str:
     """Sanitize an error message to avoid leaking host filesystem paths.
 
@@ -214,8 +245,7 @@ def mask_local_paths_in_output(output: str, thread_data: ThreadDataState | None)
         raw_base = str(Path(skills_host))
         resolved_base = str(Path(skills_host).resolve())
         for base in _path_variants(raw_base) | _path_variants(resolved_base):
-            escaped = re.escape(base).replace(r"\\", r"[/\\]")
-            pattern = re.compile(escaped + r"(?:[/\\][^\s\"';&|<>()]*)?")
+            pattern = _compile_path_prefix_pattern(base)
 
             def replace_skills(match: re.Match, _base: str = base) -> str:
                 matched_path = match.group(0)
@@ -225,6 +255,22 @@ def mask_local_paths_in_output(output: str, thread_data: ThreadDataState | None)
                 return f"{skills_container}/{relative}" if relative else skills_container
 
             result = pattern.sub(replace_skills, result)
+
+    user_skills_host = _get_user_skills_host_path(thread_data)
+    if user_skills_host:
+        raw_base = str(Path(user_skills_host))
+        resolved_base = str(Path(user_skills_host).resolve())
+        for base in _path_variants(raw_base) | _path_variants(resolved_base):
+            pattern = _compile_path_prefix_pattern(base)
+
+            def replace_user_skills(match: re.Match, _base: str = base) -> str:
+                matched_path = match.group(0)
+                if matched_path == _base:
+                    return "/mnt/skills/custom"
+                relative = matched_path[len(_base) :].lstrip("/\\")
+                return f"/mnt/skills/custom/{relative}" if relative else "/mnt/skills/custom"
+
+            result = pattern.sub(replace_user_skills, result)
 
     # Mask user-data host paths
     if thread_data is None:
@@ -372,6 +418,10 @@ def validate_local_bash_command_paths(command: str, thread_data: ThreadDataState
             _reject_path_traversal(absolute_path)
             continue
 
+        if _user_skills_virtual_path_for_host_path(absolute_path, thread_data):
+            _reject_path_traversal(absolute_path)
+            continue
+
         if any(absolute_path == prefix.rstrip("/") or absolute_path.startswith(prefix) for prefix in _LOCAL_BASH_SYSTEM_PATH_PREFIXES):
             continue
 
@@ -393,6 +443,20 @@ def replace_virtual_paths_in_command(command: str, thread_data: ThreadDataState 
         The command with all virtual paths replaced.
     """
     result = command
+
+    if thread_data is not None:
+        user_skills_host = _get_user_skills_host_path(thread_data)
+        if user_skills_host:
+            raw_base = str(Path(user_skills_host))
+            resolved_base = str(Path(user_skills_host).resolve())
+            for base in _path_variants(raw_base) | _path_variants(resolved_base):
+                pattern = _compile_path_prefix_pattern(base)
+
+                def replace_user_skill_host(match: re.Match) -> str:
+                    replacement = _user_skills_virtual_path_for_host_path(match.group(0), thread_data)
+                    return replacement or match.group(0)
+
+                result = pattern.sub(replace_user_skill_host, result)
 
     # Replace skills paths
     skills_container = _get_skills_container_path()
