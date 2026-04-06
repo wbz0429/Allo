@@ -1,14 +1,14 @@
 """Knowledge base list tool — list all knowledge bases and their documents."""
 
 from langchain.tools import tool
-from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables import ensure_config
 
 from deerflow.context import get_user_context
 from deerflow.store_registry import get_store
 
 
 @tool("knowledge_base_list", parse_docstring=True)
-def knowledge_base_list_tool(config: RunnableConfig) -> str:
+def knowledge_base_list_tool() -> str:
     """List all available knowledge bases and their documents.
 
     Use this to see what knowledge bases and files are available.
@@ -19,7 +19,7 @@ def knowledge_base_list_tool(config: RunnableConfig) -> str:
     if not isinstance(store, KnowledgeBaseStore):
         return "Knowledge base store not available."
 
-    ctx = get_user_context(config)
+    ctx = get_user_context(ensure_config())
     if ctx is None or not ctx.org_id:
         return "Cannot determine organization context."
 

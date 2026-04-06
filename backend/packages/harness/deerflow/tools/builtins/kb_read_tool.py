@@ -1,14 +1,14 @@
 """Knowledge base read tool — read a document's full markdown content."""
 
 from langchain.tools import tool
-from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables import ensure_config
 
 from deerflow.context import get_user_context
 from deerflow.store_registry import get_store
 
 
 @tool("knowledge_base_read", parse_docstring=True)
-def knowledge_base_read_tool(filename: str, config: RunnableConfig) -> str:
+def knowledge_base_read_tool(filename: str) -> str:
     """Read a document's full markdown content by filename.
 
     Always available (no index needed). Use when you know which file to read.
@@ -23,7 +23,7 @@ def knowledge_base_read_tool(filename: str, config: RunnableConfig) -> str:
     if not isinstance(store, KnowledgeBaseStore):
         return "Knowledge base store not available."
 
-    ctx = get_user_context(config)
+    ctx = get_user_context(ensure_config())
     if ctx is None or not ctx.org_id:
         return "Cannot determine organization context."
 

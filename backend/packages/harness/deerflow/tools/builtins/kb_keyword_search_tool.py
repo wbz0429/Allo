@@ -1,14 +1,14 @@
 """Knowledge base keyword search tool — full-text search without index."""
 
 from langchain.tools import tool
-from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables import ensure_config
 
 from deerflow.context import get_user_context
 from deerflow.store_registry import get_store
 
 
 @tool("knowledge_base_keyword_search", parse_docstring=True)
-def knowledge_base_keyword_search_tool(query: str, config: RunnableConfig, top_k: int = 5) -> str:
+def knowledge_base_keyword_search_tool(query: str, top_k: int = 5) -> str:
     """Full-text keyword search across all knowledge base documents.
 
     Always available (no index needed). Use when searching for specific terms or phrases.
@@ -24,7 +24,7 @@ def knowledge_base_keyword_search_tool(query: str, config: RunnableConfig, top_k
     if not isinstance(store, KnowledgeBaseStore):
         return "Knowledge base store not available."
 
-    ctx = get_user_context(config)
+    ctx = get_user_context(ensure_config())
     if ctx is None or not ctx.org_id:
         return "Cannot determine organization context."
 
