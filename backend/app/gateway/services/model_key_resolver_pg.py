@@ -13,7 +13,6 @@ class PostgresModelKeyResolver(ModelKeyResolver):
         self._redis_factory = redis_factory
 
     async def resolve_key(self, run_id: str) -> tuple[str, str | None]:
-        del self._async_session_factory
         payload = await self._redis_factory().get(f"run:{run_id}:key")
         if not payload:
             return "", None
