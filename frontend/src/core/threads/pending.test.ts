@@ -43,7 +43,26 @@ test("pending thread message preserves selected knowledge bases", async () => {
   assert.deepEqual(loadPendingThreadMessage(storage, "thread-1"), {
     threadId: "thread-1",
     text: "hello",
+    files: undefined,
     knowledgeBases: [{ id: "kb-1", name: "Contracts" }],
+  });
+});
+
+test("pending thread message preserves first-message files", async () => {
+  const { loadPendingThreadMessage, savePendingThreadMessage } = await loadPendingModule();
+  const storage = createStorage();
+
+  savePendingThreadMessage(storage, {
+    threadId: "thread-files",
+    text: "hello with file",
+    files: [{ type: "file", filename: "report.pdf", mediaType: "application/pdf", url: "blob:abc" }],
+  });
+
+  assert.deepEqual(loadPendingThreadMessage(storage, "thread-files"), {
+    threadId: "thread-files",
+    text: "hello with file",
+    files: [{ type: "file", filename: "report.pdf", mediaType: "application/pdf", url: "blob:abc" }],
+    knowledgeBases: undefined,
   });
 });
 
@@ -59,6 +78,7 @@ test("pending thread message round-trips text payload", async () => {
   assert.deepEqual(loadPendingThreadMessage(storage, "thread-2"), {
     threadId: "thread-2",
     text: "hello again",
+    files: undefined,
     knowledgeBases: undefined,
   });
 });

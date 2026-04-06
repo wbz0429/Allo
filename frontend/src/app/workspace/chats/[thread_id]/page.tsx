@@ -63,10 +63,11 @@ export default function ChatPage() {
 
   const handleSubmit = useCallback(
     (message: PromptInputMessage) => {
-      if (isNewThread && message.files.length === 0 && typeof window !== "undefined") {
+      if (isNewThread && typeof window !== "undefined") {
         savePendingThreadMessage(window.sessionStorage, {
           threadId,
           text: message.text,
+          files: message.files,
           knowledgeBases: message.knowledgeBases,
         });
         setIsNewThread(false);
@@ -100,7 +101,7 @@ export default function ChatPage() {
     consumedRef.current = threadId;
     void sendMessage(threadId, {
       text: pending.text,
-      files: [],
+      files: pending.files ?? [],
       knowledgeBases: pending.knowledgeBases,
     });
   }, [isNewThread, readyThreadId, sendMessage, threadId]);

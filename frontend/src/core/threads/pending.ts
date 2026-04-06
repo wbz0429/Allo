@@ -1,6 +1,9 @@
+import type { FileUIPart } from "ai"
+
 export interface PendingThreadMessage {
   threadId: string
   text: string
+  files?: FileUIPart[]
   knowledgeBases?: { id: string; name: string }[]
 }
 
@@ -26,6 +29,12 @@ export function loadPendingThreadMessage(storage: Storage, threadId: string) {
   return {
     threadId: value.threadId,
     text: value.text,
+    files: Array.isArray(value.files)
+      ? value.files.filter(
+          (file): file is FileUIPart =>
+            typeof file?.type === "string" && typeof file?.mediaType === "string",
+        )
+      : undefined,
     knowledgeBases: Array.isArray(value.knowledgeBases)
       ? value.knowledgeBases.filter(
           (kb): kb is { id: string; name: string } =>
