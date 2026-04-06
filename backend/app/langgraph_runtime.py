@@ -16,6 +16,7 @@ from sqlalchemy.pool import NullPool
 from app.gateway.db.database import DATABASE_URL
 from app.gateway.db.models import Thread
 from app.gateway.redis_client import get_redis
+from app.gateway.services.kb_store_pg import PostgresKBStore
 from app.gateway.services.marketplace_install_store_pg import PostgresMarketplaceInstallStore
 from app.gateway.services.mcp_config_store_pg import PostgresMcpConfigStore
 from app.gateway.services.memory_store_pg import PostgresMemoryStore
@@ -192,6 +193,11 @@ async def make_lead_agent(config):
             metadata["resolved_installed_tools"] = sorted(await marketplace_store.get_installed_runtime_tools(ctx.org_id))
         t7 = time.monotonic()
         logger.info("[perf] marketplace_resolution=%.1fms", (t7 - t6) * 1000)
+
+        # Pre-resolve knowledge bases for prompt injection
+        kb_store = get_store("kb")
+        if isinstance(kb_store, PostgresKBStore):
+            metadata["resolved_knowledge_bases"] = await kb_store.list_knowledge_bases(ctx.org_id)
 
     t_harness_start = time.monotonic()
     result = harness_make_lead_agent(config)

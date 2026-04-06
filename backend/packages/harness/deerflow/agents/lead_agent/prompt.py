@@ -6,7 +6,7 @@ from datetime import datetime
 
 from deerflow.config.agents_config import load_agent_soul
 from deerflow.skills import load_skills
-from deerflow.stores import MemoryStore, SoulStore
+from deerflow.stores import MemoryStore
 
 logger = logging.getLogger(__name__)
 
@@ -484,6 +484,29 @@ def get_deferred_tools_prompt_section() -> str:
     return f"<available-deferred-tools>\n{names}\n</available-deferred-tools>"
 
 
+def _build_kb_section(knowledge_bases: list[dict] | None) -> str:
+    """Build knowledge base context section for the system prompt."""
+    if not knowledge_bases:
+        return ""
+
+    rows = "\n".join(f"- **{kb['name']}** (ID: `{kb['id']}`){': ' + kb['description'] if kb.get('description') else ''}" for kb in knowledge_bases)
+
+    return f"""
+<knowledge_bases>
+你可以访问以下知识库，使用 knowledge_base_* 工具查询：
+
+{rows}
+
+可用工具：
+- knowledge_base_list(kb_id) — 列出知识库中的文件
+- knowledge_base_read(kb_id, filename) — 读取文件全文
+- knowledge_base_keyword_search(query, kb_ids) — 关键字搜索（不需要索引）
+
+当用户提到"知识库"或需要查找文档时，优先使用这些工具。
+</knowledge_bases>
+"""
+
+
 def apply_prompt_template(
     subagent_enabled: bool = False,
     max_concurrent_subagents: int = 3,
@@ -495,6 +518,7 @@ def apply_prompt_template(
     memory_store: MemoryStore | None = None,
     soul: str | None = None,
     resolved_memory: dict | None = None,
+    resolved_knowledge_bases: list[dict] | None = None,
 ) -> str:
     # Get memory context
     t0 = time.monotonic()
@@ -551,4 +575,7 @@ def apply_prompt_template(
         subagent_thinking=subagent_thinking,
     )
 
-    return prompt + f"\n<current_date>{datetime.now().strftime('%Y-%m-%d, %A')}</current_date>"
+    # Build knowledge base context section
+    kb_section = _build_kb_section(resolved_knowledge_bases)
+
+    return prompt + kb_section + f"\n<current_date>{datetime.now().strftime('%Y-%m-%d, %A')}</current_date>"

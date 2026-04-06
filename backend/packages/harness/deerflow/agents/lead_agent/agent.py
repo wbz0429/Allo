@@ -386,6 +386,8 @@ def make_lead_agent(config: RunnableConfig):
 
     resolved_memory = metadata.get("resolved_memory") if isinstance(metadata.get("resolved_memory"), dict) else None
 
+    resolved_knowledge_bases = metadata.get("resolved_knowledge_bases") if isinstance(metadata.get("resolved_knowledge_bases"), list) else None
+
     agent_config = load_agent_config(agent_name) if not is_bootstrap else None
     # Custom agent model or fallback to global/default model resolution
     agent_model_name = agent_config.model if agent_config and agent_config.model else _resolve_model_name()
@@ -452,6 +454,7 @@ def make_lead_agent(config: RunnableConfig):
                 memory_store=memory_store,
                 soul=soul_content,
                 resolved_memory=resolved_memory,
+                resolved_knowledge_bases=resolved_knowledge_bases,
             ),
             state_schema=ThreadState,
         )
@@ -493,6 +496,7 @@ def make_lead_agent(config: RunnableConfig):
         memory_store=memory_store,
         soul=soul_content,
         resolved_memory=resolved_memory,
+        resolved_knowledge_bases=resolved_knowledge_bases,
     )
     t_create = time.monotonic()
     logger.info("[perf:harness] apply_prompt_template=%.1fms", (t_create - t_prompt) * 1000)
