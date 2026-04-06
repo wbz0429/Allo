@@ -84,6 +84,9 @@ def _build_runtime_middlewares(
         from deerflow.agents.middlewares.uploads_middleware import UploadsMiddleware
 
         middlewares.insert(1, UploadsMiddleware())
+        from deerflow.agents.middlewares.kb_selection_middleware import KnowledgeBaseSelectionMiddleware
+
+        middlewares.insert(2, KnowledgeBaseSelectionMiddleware())
 
     if include_dangling_tool_call_patch:
         from deerflow.agents.middlewares.dangling_tool_call_middleware import DanglingToolCallMiddleware

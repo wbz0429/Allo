@@ -505,7 +505,9 @@ def _build_kb_section(knowledge_bases: list[dict] | None) -> str:
 
     return f"""
 <knowledge_bases>
-你可以访问以下知识库：
+你可以访问以下知识库。
+
+如果当前对话里用户明确选择了某些知识库，请优先参考那些被用户选中的知识库及其文件；如果它们不足以回答问题，你仍然可以继续查看其他知识库：
 
 {rows}
 
