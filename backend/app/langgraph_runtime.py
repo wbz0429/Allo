@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.gateway.db.database import DATABASE_URL
-from app.gateway.db.models import Thread
+from app.gateway.db.models import OrganizationMember, Thread
 from app.gateway.redis_client import get_redis
 from app.gateway.services.kb_store_pg import PostgresKBStore
 from app.gateway.services.marketplace_install_store_pg import PostgresMarketplaceInstallStore
@@ -74,6 +74,22 @@ async def _resolve_user_from_thread(config: dict) -> UserContext | None:
     except Exception as exc:
         logger.warning("Failed to resolve user from thread_id=%s: %s", thread_id, exc)
 
+    return None
+
+
+async def _resolve_user_from_auth_id(auth_user_id: str) -> UserContext | None:
+    """Fallback: resolve org_id from organization_members table using auth user ID."""
+    try:
+        async with runtime_async_session_factory() as session:
+            result = await session.execute(
+                select(OrganizationMember.org_id).where(OrganizationMember.user_id == auth_user_id).limit(1)
+            )
+            row = result.one_or_none()
+            if row is not None:
+                logger.info("Resolved user context from org_members: user_id=%s org_id=%s", auth_user_id, row.org_id)
+                return UserContext(user_id=auth_user_id, org_id=row.org_id)
+    except Exception as exc:
+        logger.warning("Failed to resolve user from auth_id=%s: %s", auth_user_id, exc)
     return None
 
 
@@ -157,9 +173,20 @@ async def make_lead_agent(config):
             # Inject back into config so downstream harness code sees it too
             config.setdefault("configurable", {})["user_id"] = ctx.user_id
             config["configurable"]["org_id"] = ctx.org_id
-    else:
-        # User context present (from nginx header or frontend) — enforce ownership
-        await _enforce_thread_ownership(ctx, config)
+
+    # Fallback 2: resolve from langgraph_auth_user_id (new thread first message)
+    if ctx is None:
+        auth_user_id = configurable.get("langgraph_auth_user_id") or configurable.get("user_id")
+        if auth_user_id:
+            ctx = await _resolve_user_from_auth_id(auth_user_id)
+            if ctx is not None:
+                config.setdefault("configurable", {})["user_id"] = ctx.user_id
+                config["configurable"]["org_id"] = ctx.org_id
+
+    # Enforce thread ownership only when ctx came from frontend (not fallback)
+    ctx_from_frontend = get_user_context(config)
+    if ctx_from_frontend is not None:
+        await _enforce_thread_ownership(ctx_from_frontend, config)
     t2 = time.monotonic()
     logger.info("[perf] user_context_resolution=%.1fms", (t2 - t1) * 1000)
 
