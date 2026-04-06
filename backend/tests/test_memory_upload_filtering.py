@@ -229,7 +229,10 @@ class TestMemoryStoreBackedLoading:
 
         result = get_memory_data(memory_store=FakeMemoryStore(), user_id="user-123")
 
-        assert result == {"version": "store", "facts": [{"content": "from-store"}]}
+        assert result["version"] == "store"
+        assert result["facts"] == [{"content": "from-store"}]
+        assert "user" in result
+        assert "history" in result
 
     def test_get_memory_data_falls_back_to_empty_memory_when_store_fails(self):
         class BrokenMemoryStore:
@@ -284,7 +287,20 @@ class TestMemoryUpdaterStoreBackedSaving:
 
                 return Response()
 
-        monkeypatch.setattr("deerflow.agents.memory.updater.get_memory_config", lambda: type("Config", (), {"enabled": True, "model_name": "fake", "fact_confidence_threshold": 0.1, "max_facts": 10})())
+        monkeypatch.setattr(
+            "deerflow.agents.memory.updater.get_memory_config",
+            lambda: type(
+                "Config",
+                (),
+                {
+                    "enabled": True,
+                    "model_name": "fake",
+                    "fact_confidence_threshold": 0.1,
+                    "max_facts": 10,
+                    "storage_path": ".deer-flow/memory.json",
+                },
+            )(),
+        )
 
         updater = __import__("deerflow.agents.memory.updater", fromlist=["MemoryUpdater"]).MemoryUpdater(memory_store=FakeMemoryStore(), user_id="user-123")
         monkeypatch.setattr(updater, "_get_model", lambda: FakeModel())
@@ -294,3 +310,45 @@ class TestMemoryUpdaterStoreBackedSaving:
         assert result is True
         assert "user-123" in saved
         assert any(fact["content"] == "User prefers Python" for fact in saved["user-123"]["facts"])
+
+    def test_update_memory_does_not_fallback_to_shared_file_when_user_missing(self, monkeypatch):
+        class FakeMemoryStore:
+            async def get_memory(self, user_id: str) -> dict:
+                raise AssertionError("get_memory should not be called without a user id")
+
+            async def save_memory(self, user_id: str, data: dict) -> None:
+                raise AssertionError("save_memory should not be called without a user id")
+
+            async def get_facts(self, user_id: str, limit: int = 15) -> list[dict]:
+                return []
+
+        class FakeModel:
+            def invoke(self, prompt: str):
+                class Response:
+                    content = """{
+  \"user\": {},
+  \"history\": {},
+  \"factsToRemove\": [],
+  \"newFacts\": []
+}"""
+
+                return Response()
+
+        monkeypatch.setattr("deerflow.agents.memory.updater.get_memory_config", lambda: type("Config", (), {"enabled": True, "model_name": "fake", "fact_confidence_threshold": 0.1, "max_facts": 10})())
+
+        file_fallback_called = False
+
+        def fake_save_memory_to_file(memory_data: dict, agent_name: str | None = None) -> bool:
+            nonlocal file_fallback_called
+            file_fallback_called = True
+            return True
+
+        monkeypatch.setattr("deerflow.agents.memory.updater._save_memory_to_file", fake_save_memory_to_file)
+
+        updater = __import__("deerflow.agents.memory.updater", fromlist=["MemoryUpdater"]).MemoryUpdater(memory_store=FakeMemoryStore(), user_id=None)
+        monkeypatch.setattr(updater, "_get_model", lambda: FakeModel())
+
+        result = updater.update_memory([HumanMessage(content="Remember this")], thread_id="thread-shared-risk")
+
+        assert result is False
+        assert file_fallback_called is False

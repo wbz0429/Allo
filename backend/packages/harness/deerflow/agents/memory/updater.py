@@ -328,6 +328,10 @@ class MemoryUpdater:
                 self._user_id,
                 thread_id,
             )
+            if self._memory_store is not None and not self._user_id:
+                print("Skipping memory persistence because user_id is missing; refusing shared file fallback in multi-tenant mode")
+                return False
+
             if self._memory_store is not None and self._user_id:
                 print(f"Saving memory via MemoryStore for user {self._user_id}")
                 _run_coroutine_sync(self._memory_store.save_memory(self._user_id, updated_memory))
