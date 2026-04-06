@@ -509,12 +509,12 @@ def _build_kb_section(knowledge_bases: list[dict] | None) -> str:
 
 {rows}
 
-当用户提到"知识库"、"文档"、"找一下"等关键词时，使用以下工具：
-- knowledge_base_list() — 查看所有知识库和文档列表
-- knowledge_base_read(filename) — 读取指定文件全文
-- knowledge_base_keyword_search(query) — 关键字搜索所有知识库
+**重要：你无法直接看到文档内容，必须使用工具才能读取。** 当用户要求查找、阅读、搜索文档时，你必须调用以下工具：
+- knowledge_base_read(filename) — 读取指定文件的完整内容（你必须调用此工具才能看到文件内容）
+- knowledge_base_keyword_search(query) — 在所有知识库中搜索关键字
+- knowledge_base_list() — 列出所有知识库和文档
 
-工具会自动搜索你能访问的所有知识库，不需要指定 KB ID。
+不要猜测文档内容，不要说"我无法访问"。直接调用工具获取内容。
 </knowledge_bases>
 """
 
