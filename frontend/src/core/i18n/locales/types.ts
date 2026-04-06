@@ -32,6 +32,7 @@ export interface Translations {
     save: string;
     install: string;
     create: string;
+    signOut: string;
   };
 
   // Welcome
@@ -105,6 +106,9 @@ export interface Translations {
     chats: string;
     demoChats: string;
     agents: string;
+    knowledge: string;
+    marketplace: string;
+    admin: string;
   };
 
   // Agents
@@ -300,10 +304,41 @@ export interface Translations {
 
   // Admin
   admin: {
+    dashboard: string;
+    dashboardDescription: string;
+    usage: string;
+    usageDescription: string;
+    platformAdmin: string;
+    backToWorkspace: string;
+    checkingAccess: string;
+    usageLoadFailed: string;
+    organizationsLoadFailed: string;
     organizations: string;
     organizationsDescription: string;
     allOrganizations: string;
     orgCount: (count: number) => string;
+    usageRecords: string;
+    inputTokens: string;
+    outputTokens: string;
+    totalTokens: string;
+    totalApiCalls: string;
+    tokensToday: string;
+    apiCallsToday: string;
+    tokenUsageByOrganization: string;
+    topOrganizationsByTokenConsumption: string;
+    inputTokensLabel: string;
+    outputTokensLabel: string;
+    apiCallsLabel: string;
+    apiCallsByOrganization: string;
+    totalApiCallVolume: string;
+    noUsageData: string;
+    detailedBreakdown: string;
+    usagePerOrganization: string;
+    organization: string;
+    members: string;
+    tokensUsed: string;
+    created: string;
+    noOrganizationsFound: string;
   };
 
   // Streaming status
@@ -379,6 +414,9 @@ export interface Translations {
     skills: {
       title: string;
       description: string;
+      marketplace: string;
+      uploadSkill: string;
+      uploading: string;
       createSkill: string;
       emptyTitle: string;
       emptyDescription: string;

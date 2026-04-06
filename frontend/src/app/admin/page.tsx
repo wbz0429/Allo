@@ -15,6 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUsageByOrg, getUsageSummary } from "@/core/admin/api";
 import type { OrgUsageBreakdown, UsageSummary } from "@/core/admin/types";
+import { useI18n } from "@/core/i18n/hooks";
 
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -23,6 +24,7 @@ function formatNumber(n: number): string {
 }
 
 export default function AdminDashboardPage() {
+  const { t } = useI18n();
   const [summary, setSummary] = useState<UsageSummary | null>(null);
   const [orgUsage, setOrgUsage] = useState<OrgUsageBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,15 +36,16 @@ export default function AdminDashboardPage() {
         setOrgUsage(u);
       })
       .catch((err: Error) => {
-        toast.error(err.message);
+        toast.error(err.message || t.admin.usageLoadFailed);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [t.admin.usageLoadFailed]);
 
   if (loading) {
     return (
       <div className="flex flex-col gap-6">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <h1 className="text-2xl font-semibold">{t.admin.dashboard}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t.admin.dashboardDescription}</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
@@ -60,10 +63,10 @@ export default function AdminDashboardPage() {
   }
 
   const stats = [
-    { label: "Organizations", value: orgUsage.length, href: "/admin/organizations" },
-    { label: "Usage Records", value: summary?.record_count ?? 0 },
-    { label: "Input Tokens", value: summary?.total_input_tokens ?? 0, href: "/admin/usage" },
-    { label: "API Calls", value: summary?.total_api_calls ?? 0, href: "/admin/usage" },
+    { label: t.admin.organizations, value: orgUsage.length, href: "/admin/organizations" },
+    { label: t.admin.usageRecords, value: summary?.record_count ?? 0 },
+    { label: t.admin.inputTokens, value: summary?.total_input_tokens ?? 0, href: "/admin/usage" },
+    { label: t.admin.apiCallsLabel, value: summary?.total_api_calls ?? 0, href: "/admin/usage" },
   ];
 
   const chartBars = orgUsage.slice(0, 10).map((o) => ({
@@ -75,7 +78,10 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <div>
+        <h1 className="text-2xl font-semibold">{t.admin.dashboard}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t.admin.dashboardDescription}</p>
+      </div>
 
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -106,15 +112,15 @@ export default function AdminDashboardPage() {
       {chartBars.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Token Usage by Organization</CardTitle>
-            <CardDescription>Top 10 organizations by token consumption</CardDescription>
+            <CardTitle>{t.admin.tokenUsageByOrganization}</CardTitle>
+            <CardDescription>{t.admin.topOrganizationsByTokenConsumption}</CardDescription>
           </CardHeader>
           <CardContent>
             <UsageChart
               title=""
               bars={chartBars}
-              primaryLabel="Input tokens"
-              secondaryLabel="Output tokens"
+              primaryLabel={t.admin.inputTokensLabel}
+              secondaryLabel={t.admin.outputTokensLabel}
             />
           </CardContent>
         </Card>

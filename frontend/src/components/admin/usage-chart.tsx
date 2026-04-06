@@ -18,6 +18,10 @@ interface UsageChartProps {
   formatValue?: (value: number) => string;
 }
 
+export function buildUsageChartBarKey(bar: UsageChartBar, index: number): string {
+  return bar.id ?? `${bar.label}-${index}`;
+}
+
 function defaultFormat(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
@@ -55,12 +59,12 @@ export function UsageChart({
         </div>
       </div>
       <div className="flex items-end gap-1.5" style={{ height: 160 }}>
-        {bars.map((bar) => {
+        {bars.map((bar, index) => {
           const total = bar.value + (bar.secondaryValue ?? 0);
           const pct = (total / maxValue) * 100;
           const primaryPct =
             total > 0 ? (bar.value / total) * 100 : 0;
-          const barKey = bar.id ?? `${bar.label}-${bar.value}-${bar.secondaryValue ?? 0}`;
+          const barKey = buildUsageChartBarKey(bar, index);
 
           return (
             <div

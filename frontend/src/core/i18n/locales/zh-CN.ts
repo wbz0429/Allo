@@ -43,6 +43,7 @@ export const zhCN: Translations = {
     save: "保存",
     install: "安装",
     create: "创建",
+    signOut: "退出登录",
   },
 
   // Welcome
@@ -154,6 +155,9 @@ export const zhCN: Translations = {
     recentChats: "最近的对话",
     demoChats: "演示对话",
     agents: "智能体",
+    knowledge: "知识库",
+    marketplace: "市场",
+    admin: "管理后台",
   },
 
   // Agents
@@ -352,10 +356,41 @@ export const zhCN: Translations = {
 
   // Admin
   admin: {
+    dashboard: "仪表盘",
+    dashboardDescription: "查看平台级运行指标与近期使用情况。",
+    usage: "用量",
+    usageDescription: "全平台使用统计",
+    platformAdmin: "平台管理后台",
+    backToWorkspace: "返回工作区",
+    checkingAccess: "正在检查访问权限...",
+    usageLoadFailed: "加载使用数据失败",
+    organizationsLoadFailed: "加载组织列表失败",
     organizations: "组织",
     organizationsDescription: "管理平台上的所有组织",
     allOrganizations: "所有组织",
     orgCount: (count: number) => `${count} 个组织`,
+    usageRecords: "使用记录",
+    inputTokens: "输入 Tokens",
+    outputTokens: "输出 Tokens",
+    totalTokens: "总 Tokens",
+    totalApiCalls: "总 API 调用数",
+    tokensToday: "今日 Tokens",
+    apiCallsToday: "今日 API 调用数",
+    tokenUsageByOrganization: "按组织划分的 Token 用量",
+    topOrganizationsByTokenConsumption: "Token 消耗最高的组织",
+    inputTokensLabel: "输入 Tokens",
+    outputTokensLabel: "输出 Tokens",
+    apiCallsLabel: "API 调用数",
+    apiCallsByOrganization: "按组织划分的 API 调用",
+    totalApiCallVolume: "API 调用总量",
+    noUsageData: "暂无使用数据",
+    detailedBreakdown: "详细明细",
+    usagePerOrganization: "各组织使用情况",
+    organization: "组织",
+    members: "成员数",
+    tokensUsed: "已用 Tokens",
+    created: "创建时间",
+    noOrganizationsFound: "暂无组织",
   },
 
   // Streaming status
@@ -432,6 +467,9 @@ export const zhCN: Translations = {
     skills: {
       title: "技能",
       description: "管理 Agent Skill 配置和启用状态。",
+      marketplace: "市场",
+      uploadSkill: "上传技能",
+      uploading: "上传中...",
       createSkill: "新建技能",
       emptyTitle: "还没有技能",
       emptyDescription:

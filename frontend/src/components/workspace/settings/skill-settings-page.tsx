@@ -116,7 +116,7 @@ function SkillSettingsList({
               <TabsTrigger value="public">{t.common.public}</TabsTrigger>
               <TabsTrigger value="custom">{t.common.custom}</TabsTrigger>
               {hasMarketplace && (
-                <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
+                <TabsTrigger value="marketplace">{t.settings.skills.marketplace}</TabsTrigger>
               )}
             </TabsList>
           </Tabs>
@@ -124,7 +124,7 @@ function SkillSettingsList({
         <div className="flex gap-2">
           <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
             <UploadIcon className="size-4" />
-            {uploading ? "Uploading..." : "Upload Skill"}
+            {uploading ? t.settings.skills.uploading : t.settings.skills.uploadSkill}
           </Button>
           <input ref={fileInputRef} type="file" accept=".zip,.skill" className="hidden" onChange={onFileChange} />
           <Button size="sm" onClick={handleCreateSkill}>

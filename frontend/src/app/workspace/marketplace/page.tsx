@@ -55,12 +55,12 @@ export default function MarketplacePage() {
       setInstalledSkills(orgSkills);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to load marketplace data",
+        error instanceof Error ? error.message : t.marketplace.loadFailed,
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t.marketplace.loadFailed]);
 
   useEffect(() => {
     void fetchData();
@@ -96,7 +96,7 @@ export default function MarketplacePage() {
         setActionLoading(null);
       }
     },
-    [],
+    [t.marketplace.installToolFailed, t.marketplace.toolInstalled],
   );
 
   const handleToolUninstall = useCallback(async (tool: MarketplaceTool) => {
@@ -110,7 +110,7 @@ export default function MarketplacePage() {
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [t.marketplace.toolUninstalled, t.marketplace.uninstallToolFailed]);
 
   const handleSkillInstall = useCallback(async (skill: MarketplaceSkill) => {
     setActionLoading(skill.id);
@@ -123,7 +123,7 @@ export default function MarketplacePage() {
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [t.marketplace.installSkillFailed, t.marketplace.skillInstalled]);
 
   const handleSkillUninstall = useCallback(async (skill: MarketplaceSkill) => {
     setActionLoading(skill.id);
@@ -138,7 +138,7 @@ export default function MarketplacePage() {
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [t.marketplace.skillUninstalled, t.marketplace.uninstallSkillFailed]);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">

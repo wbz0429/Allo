@@ -14,6 +14,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { logout } from "@/core/auth/api";
+import { useI18n } from "@/core/i18n/hooks";
 
 import { RecentChatList } from "./recent-chat-list";
 import { WorkspaceHeader } from "./workspace-header";
@@ -25,6 +26,7 @@ export function WorkspaceSidebar({
 }: React.ComponentProps<typeof Sidebar>) {
   const { open: isSidebarOpen } = useSidebar();
   const router = useRouter();
+  const { t } = useI18n();
 
   async function handleLogout() {
     const result = await logout();
@@ -56,7 +58,7 @@ export function WorkspaceSidebar({
             onClick={handleLogout}
           >
             <LogOutIcon className="size-4" />
-            {isSidebarOpen && <span>Sign out</span>}
+            {isSidebarOpen && <span>{t.common.signOut}</span>}
           </Button>
         </SidebarFooter>
         <SidebarRail />

@@ -44,7 +44,7 @@ export function WorkspaceNavChatList() {
           >
             <Link className="text-muted-foreground" href="/workspace/knowledge">
               <BookOpenIcon />
-              <span>Knowledge Base</span>
+              <span>{t.sidebar.knowledge}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -55,7 +55,7 @@ export function WorkspaceNavChatList() {
           >
             <Link className="text-muted-foreground" href="/workspace/marketplace">
               <ShoppingBagIcon />
-              <span>Marketplace</span>
+              <span>{t.sidebar.marketplace}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -66,7 +66,7 @@ export function WorkspaceNavChatList() {
           >
             <Link className="text-muted-foreground" href="/admin">
               <ShieldIcon />
-              <span>Admin</span>
+              <span>{t.sidebar.admin}</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

@@ -7,27 +7,29 @@ import { useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
 
 import { getSession } from "@/core/auth/api";
+import { useI18n } from "@/core/i18n/hooks";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/organizations", label: "Organizations" },
-  { href: "/admin/usage", label: "Usage" },
-];
 
 export default function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useI18n();
   const [queryClient] = useState(() => new QueryClient());
   const [authorized, setAuthorized] = useState(false);
 
+  const navItems = [
+    { href: "/admin", label: t.admin.dashboard },
+    { href: "/admin/organizations", label: t.admin.organizations },
+    { href: "/admin/usage", label: t.admin.usage },
+  ];
+
   useEffect(() => {
     void getSession().then((res) => {
-      if (!res.data?.user_id) {
-        if (res.error) {
-          toast.error(res.error.message ?? "Failed to verify session");
+        if (!res.data?.user_id) {
+          if (res.error) {
+            toast.error(res.error.message ?? "Failed to verify session");
         }
 
         router.replace("/login?callbackUrl=" + encodeURIComponent(pathname));
@@ -41,7 +43,7 @@ export default function AdminLayout({
   if (!authorized) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Checking access...</p>
+        <p className="text-muted-foreground">{t.admin.checkingAccess}</p>
       </div>
     );
   }
@@ -53,7 +55,7 @@ export default function AdminLayout({
         <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-6">
             <Link href="/admin" className="text-sm font-semibold">
-              Platform Admin
+              {t.admin.platformAdmin}
             </Link>
             <nav className="flex items-center gap-1">
               {navItems.map((item) => {
@@ -82,7 +84,7 @@ export default function AdminLayout({
                 href="/workspace"
                 className="text-sm text-muted-foreground hover:text-foreground"
               >
-                Back to Workspace
+                {t.admin.backToWorkspace}
               </Link>
             </div>
           </div>

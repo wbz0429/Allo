@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import type { OrgSummary } from "@/core/admin/types";
+import { useI18n } from "@/core/i18n/hooks";
 import { cn } from "@/lib/utils";
 
 
@@ -26,16 +27,18 @@ function formatDate(iso: string): string {
 }
 
 export function OrgTable({ organizations, className, onSelect }: OrgTableProps) {
+  const { t } = useI18n();
+
   return (
     <div className={cn("overflow-x-auto rounded-md border", className)}>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/50">
-            <th className="px-4 py-3 text-left font-medium">Organization</th>
-            <th className="px-4 py-3 text-left font-medium">Members</th>
-            <th className="px-4 py-3 text-left font-medium">Tokens Used</th>
-            <th className="px-4 py-3 text-left font-medium">API Calls</th>
-            <th className="px-4 py-3 text-left font-medium">Created</th>
+            <th className="px-4 py-3 text-left font-medium">{t.admin.organization}</th>
+            <th className="px-4 py-3 text-left font-medium">{t.admin.members}</th>
+            <th className="px-4 py-3 text-left font-medium">{t.admin.tokensUsed}</th>
+            <th className="px-4 py-3 text-left font-medium">{t.admin.apiCallsLabel}</th>
+            <th className="px-4 py-3 text-left font-medium">{t.admin.created}</th>
           </tr>
         </thead>
         <tbody>
@@ -45,7 +48,7 @@ export function OrgTable({ organizations, className, onSelect }: OrgTableProps) 
                 colSpan={5}
                 className="px-4 py-8 text-center text-muted-foreground"
               >
-                No organizations found
+                {t.admin.noOrganizationsFound}
               </td>
             </tr>
           )}

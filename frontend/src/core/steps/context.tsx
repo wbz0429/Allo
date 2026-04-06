@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { areStepsEqual } from "./equality";
 import type { ExecutionStep } from "./types";
 
 interface StepContextValue {
@@ -24,6 +25,18 @@ const StepContext = createContext<StepContextValue | null>(null);
 export function StepProvider({ children }: { children: ReactNode }) {
   const [steps, setSteps] = useState<ExecutionStep[]>([]);
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
+
+  const handleSetSteps = useCallback((nextSteps: ExecutionStep[]) => {
+    setSteps((currentSteps) =>
+      areStepsEqual(currentSteps, nextSteps) ? currentSteps : nextSteps,
+    );
+    setActiveStepId((currentActiveStepId) => {
+      if (!currentActiveStepId) return currentActiveStepId;
+      return nextSteps.some((step) => step.id === currentActiveStepId)
+        ? currentActiveStepId
+        : null;
+    });
+  }, []);
 
   const goToStep = useCallback(
     (direction: "prev" | "next") => {
@@ -45,8 +58,8 @@ export function StepProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ steps, setSteps, activeStepId, setActiveStepId, goToStep }),
-    [steps, activeStepId, goToStep],
+    () => ({ steps, setSteps: handleSetSteps, activeStepId, setActiveStepId, goToStep }),
+    [steps, handleSetSteps, activeStepId, goToStep],
   );
 
   return <StepContext value={value}>{children}</StepContext>;

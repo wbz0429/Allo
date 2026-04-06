@@ -43,6 +43,7 @@ export const enUS: Translations = {
     save: "Save",
     install: "Install",
     create: "Create",
+    signOut: "Sign out",
   },
 
   // Welcome
@@ -160,6 +161,9 @@ export const enUS: Translations = {
     recentChats: "Recent chats",
     demoChats: "Demo chats",
     agents: "Agents",
+    knowledge: "Knowledge Base",
+    marketplace: "Marketplace",
+    admin: "Admin",
   },
 
   // Agents
@@ -369,11 +373,42 @@ export const enUS: Translations = {
 
   // Admin
   admin: {
+    dashboard: "Dashboard",
+    dashboardDescription: "Platform-wide operational metrics and recent usage.",
+    usage: "Usage",
+    usageDescription: "Global platform usage statistics",
+    platformAdmin: "Platform Admin",
+    backToWorkspace: "Back to Workspace",
+    checkingAccess: "Checking access...",
+    usageLoadFailed: "Failed to load usage data",
+    organizationsLoadFailed: "Failed to load organizations",
     organizations: "Organizations",
     organizationsDescription: "Manage all organizations on the platform",
     allOrganizations: "All Organizations",
     orgCount: (count: number) =>
       `${count} organization${count !== 1 ? "s" : ""}`,
+    usageRecords: "Usage Records",
+    inputTokens: "Input Tokens",
+    outputTokens: "Output Tokens",
+    totalTokens: "Total Tokens",
+    totalApiCalls: "Total API Calls",
+    tokensToday: "Tokens Today",
+    apiCallsToday: "API Calls Today",
+    tokenUsageByOrganization: "Token Usage by Organization",
+    topOrganizationsByTokenConsumption: "Top organizations by token consumption",
+    inputTokensLabel: "Input tokens",
+    outputTokensLabel: "Output tokens",
+    apiCallsLabel: "API calls",
+    apiCallsByOrganization: "API Calls by Organization",
+    totalApiCallVolume: "Total API call volume",
+    noUsageData: "No usage data yet",
+    detailedBreakdown: "Detailed Breakdown",
+    usagePerOrganization: "Usage per organization",
+    organization: "Organization",
+    members: "Members",
+    tokensUsed: "Tokens Used",
+    created: "Created",
+    noOrganizationsFound: "No organizations found",
   },
 
   // Streaming status
@@ -452,6 +487,9 @@ export const enUS: Translations = {
       title: "Agent Skills",
       description:
         "Manage the configuration and enabled status of the agent skills.",
+      marketplace: "Marketplace",
+      uploadSkill: "Upload Skill",
+      uploading: "Uploading...",
       createSkill: "Create skill",
       emptyTitle: "No agent skill yet",
       emptyDescription:
