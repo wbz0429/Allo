@@ -1,13 +1,14 @@
 """Knowledge base semantic search tool — requires indexed documents."""
 
 from langchain.tools import tool
+from langchain_core.runnables import RunnableConfig
 
 from deerflow.context import get_user_context
 from deerflow.store_registry import get_store
 
 
 @tool("knowledge_base_search", parse_docstring=True)
-def knowledge_base_search_tool(query: str, top_k: int = 5) -> str:
+def knowledge_base_search_tool(query: str, config: RunnableConfig, top_k: int = 5) -> str:
     """Semantic search across all indexed knowledge base documents.
 
     Only works on documents that have been indexed (embeddings generated).
@@ -24,7 +25,7 @@ def knowledge_base_search_tool(query: str, top_k: int = 5) -> str:
     if not isinstance(store, KnowledgeBaseStore):
         return "Knowledge base store not available."
 
-    ctx = get_user_context()
+    ctx = get_user_context(config)
     if ctx is None or not ctx.org_id:
         return "Cannot determine organization context."
 
