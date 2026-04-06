@@ -229,11 +229,9 @@ async def make_lead_agent(config):
             all_kbs = await kb_store.list_knowledge_bases(ctx.org_id)
             # If user @mentioned specific KBs, filter to only those
             kb_ids = configurable.get("kb_ids")
-            logger.info("KB resolution: kb_ids=%s all_kbs=%d", kb_ids, len(all_kbs))
             if kb_ids and isinstance(kb_ids, list):
                 kb_id_set = set(kb_ids)
                 metadata["resolved_knowledge_bases"] = [kb for kb in all_kbs if kb["id"] in kb_id_set]
-                logger.info("KB filtered to %d KBs (from %d)", len(metadata["resolved_knowledge_bases"]), len(all_kbs))
             else:
                 metadata["resolved_knowledge_bases"] = all_kbs
 

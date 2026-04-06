@@ -589,7 +589,5 @@ def apply_prompt_template(
 
     # Build knowledge base context section
     kb_section = _build_kb_section(resolved_knowledge_bases)
-    if kb_section:
-        logger.info("KB section injected (%d chars): %s", len(kb_section), kb_section[:300])
 
     return prompt + kb_section + f"\n<current_date>{datetime.now().strftime('%Y-%m-%d, %A')}</current_date>"
