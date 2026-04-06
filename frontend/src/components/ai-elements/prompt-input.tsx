@@ -433,6 +433,7 @@ export const PromptInputActionAddAttachments = ({
 export type PromptInputMessage = {
   text: string;
   files: FileUIPart[];
+  knowledgeBases?: { id: string; name: string }[];
 };
 
 export type PromptInputProps = Omit<

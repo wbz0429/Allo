@@ -89,11 +89,16 @@ class PostgresKBStore(KnowledgeBaseStore):
         async with self._async_session_factory() as session:
             stmt = select(KnowledgeBase).where(KnowledgeBase.org_id == org_id).order_by(KnowledgeBase.created_at.desc())
             result = await session.execute(stmt)
-            return [
-                {
+            kbs = []
+            for kb in result.scalars().all():
+                # Fetch document filenames for each KB
+                doc_stmt = select(KnowledgeDocument.filename).where(KnowledgeDocument.kb_id == kb.id).order_by(KnowledgeDocument.created_at.desc())
+                doc_result = await session.execute(doc_stmt)
+                filenames = [row[0] for row in doc_result.all()]
+                kbs.append({
                     "id": kb.id,
                     "name": kb.name,
                     "description": kb.description,
-                }
-                for kb in result.scalars().all()
-            ]
+                    "documents": filenames,
+                })
+            return kbs

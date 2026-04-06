@@ -199,7 +199,14 @@ async def make_lead_agent(config):
         # Pre-resolve knowledge bases for prompt injection
         kb_store = get_store("kb")
         if isinstance(kb_store, PostgresKBStore):
-            metadata["resolved_knowledge_bases"] = await kb_store.list_knowledge_bases(ctx.org_id)
+            all_kbs = await kb_store.list_knowledge_bases(ctx.org_id)
+            # If user @mentioned specific KBs, filter to only those
+            kb_ids = configurable.get("kb_ids")
+            if kb_ids and isinstance(kb_ids, list):
+                kb_id_set = set(kb_ids)
+                metadata["resolved_knowledge_bases"] = [kb for kb in all_kbs if kb["id"] in kb_id_set]
+            else:
+                metadata["resolved_knowledge_bases"] = all_kbs
 
     t_harness_start = time.monotonic()
     result = harness_make_lead_agent(config)

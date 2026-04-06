@@ -489,20 +489,32 @@ def _build_kb_section(knowledge_bases: list[dict] | None) -> str:
     if not knowledge_bases:
         return ""
 
-    rows = "\n".join(f"- **{kb['name']}** (ID: `{kb['id']}`){': ' + kb['description'] if kb.get('description') else ''}" for kb in knowledge_bases)
+    kb_lines = []
+    for kb in knowledge_bases:
+        docs = kb.get("documents", [])
+        desc = f" ({kb['description']})" if kb.get("description") else ""
+        if docs:
+            doc_list = ", ".join(docs[:20])
+            if len(docs) > 20:
+                doc_list += f" ... and {len(docs) - 20} more"
+            kb_lines.append(f"- **{kb['name']}**{desc} — {len(docs)} files: {doc_list}")
+        else:
+            kb_lines.append(f"- **{kb['name']}**{desc} — empty")
+
+    rows = "\n".join(kb_lines)
 
     return f"""
 <knowledge_bases>
-你可以访问以下知识库，使用 knowledge_base_* 工具查询：
+你可以访问以下知识库：
 
 {rows}
 
-可用工具：
-- knowledge_base_list(kb_id) — 列出知识库中的文件
-- knowledge_base_read(kb_id, filename) — 读取文件全文
-- knowledge_base_keyword_search(query, kb_ids) — 关键字搜索（不需要索引）
+当用户提到"知识库"、"文档"、"找一下"等关键词时，使用以下工具：
+- knowledge_base_list() — 查看所有知识库和文档列表
+- knowledge_base_read(filename) — 读取指定文件全文
+- knowledge_base_keyword_search(query) — 关键字搜索所有知识库
 
-当用户提到"知识库"或需要查找文档时，优先使用这些工具。
+工具会自动搜索你能访问的所有知识库，不需要指定 KB ID。
 </knowledge_bases>
 """
 

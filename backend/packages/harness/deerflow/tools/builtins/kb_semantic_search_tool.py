@@ -2,19 +2,20 @@
 
 from langchain.tools import tool
 
+from deerflow.context import get_user_context
 from deerflow.store_registry import get_store
 
 
 @tool("knowledge_base_search", parse_docstring=True)
-def knowledge_base_search_tool(query: str, kb_ids: list[str], top_k: int = 5) -> str:
-    """Semantic search across indexed knowledge bases.
+def knowledge_base_search_tool(query: str, top_k: int = 5) -> str:
+    """Semantic search across all indexed knowledge base documents.
 
     Only works on documents that have been indexed (embeddings generated).
-    If no indexed documents are found, suggests using keyword_search or read instead.
+    If no results, try knowledge_base_keyword_search or knowledge_base_read instead.
+    Automatically searches across all available knowledge bases.
 
     Args:
         query: The search query for semantic matching.
-        kb_ids: List of knowledge base IDs to search across.
         top_k: Maximum number of results to return.
     """
     from deerflow.stores import KnowledgeBaseStore
@@ -23,16 +24,27 @@ def knowledge_base_search_tool(query: str, kb_ids: list[str], top_k: int = 5) ->
     if not isinstance(store, KnowledgeBaseStore):
         return "Knowledge base store not available."
 
+    ctx = get_user_context()
+    if ctx is None or not ctx.org_id:
+        return "Cannot determine organization context."
+
     import asyncio
     import concurrent.futures
 
+    async def _search_all():
+        kbs = await store.list_knowledge_bases(ctx.org_id)
+        kb_ids = [kb["id"] for kb in kbs]
+        if not kb_ids:
+            return []
+        return await store.semantic_search(kb_ids, query, top_k)
+
     def _run():
-        return asyncio.run(store.semantic_search(kb_ids, query, top_k))
+        return asyncio.run(_search_all())
 
     try:
         asyncio.get_running_loop()
     except RuntimeError:
-        results = asyncio.run(store.semantic_search(kb_ids, query, top_k))
+        results = asyncio.run(_search_all())
     else:
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             results = pool.submit(_run).result()
@@ -40,8 +52,8 @@ def knowledge_base_search_tool(query: str, kb_ids: list[str], top_k: int = 5) ->
     if not results:
         return (
             f"No semantic search results for '{query}'. "
-            "This may mean no documents have been indexed yet. "
-            "Try using knowledge_base_keyword_search (no index needed) or knowledge_base_read instead."
+            "Documents may not be indexed yet. "
+            "Try knowledge_base_keyword_search or knowledge_base_read instead."
         )
 
     lines = []

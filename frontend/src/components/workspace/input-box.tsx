@@ -3,6 +3,7 @@
 import type { ChatStatus } from "ai";
 import {
   CheckIcon,
+  DatabaseIcon,
   GraduationCapIcon,
   LightbulbIcon,
   PaperclipIcon,
@@ -57,6 +58,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getBackendBaseURL } from "@/core/config";
 import { useI18n } from "@/core/i18n/hooks";
+import { useKnowledgeBases } from "@/core/knowledge/hooks";
 import { useModels } from "@/core/models/hooks";
 import type { AgentThreadContext } from "@/core/threads";
 import { textOfMessage } from "@/core/threads/utils";
@@ -157,6 +159,10 @@ export function InputBox({
   const [pendingSuggestion, setPendingSuggestion] = useState<string | null>(
     null,
   );
+  const [selectedKBs, setSelectedKBs] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const { knowledgeBases } = useKnowledgeBases();
 
   useEffect(() => {
     if (models.length === 0) {
@@ -246,9 +252,13 @@ export function InputBox({
       setFollowups([]);
       setFollowupsHidden(false);
       setFollowupsLoading(false);
-      onSubmit?.(message);
+      onSubmit?.({
+        ...message,
+        knowledgeBases: selectedKBs.length > 0 ? selectedKBs : undefined,
+      });
+      setSelectedKBs([]);
     },
-    [onSubmit, onStop, status],
+    [onSubmit, onStop, status, selectedKBs],
   );
 
   const requestFormSubmit = useCallback(() => {
@@ -394,6 +404,30 @@ export function InputBox({
         <PromptInputAttachments>
           {(attachment) => <PromptInputAttachment data={attachment} />}
         </PromptInputAttachments>
+        {selectedKBs.length > 0 && (
+          <div className="flex flex-wrap gap-1 px-3 pt-2">
+            {selectedKBs.map((kb) => (
+              <span
+                key={kb.id}
+                className="bg-primary/10 text-primary inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs"
+              >
+                <DatabaseIcon className="size-3" />
+                {kb.name}
+                <button
+                  type="button"
+                  className="hover:text-destructive ml-0.5"
+                  onClick={() =>
+                    setSelectedKBs((prev) =>
+                      prev.filter((k) => k.id !== kb.id),
+                    )
+                  }
+                >
+                  <XIcon className="size-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <PromptInputBody className="absolute top-0 right-0 left-0 z-3">
           <PromptInputTextarea
             className={cn("size-full")}
@@ -415,6 +449,53 @@ export function InputBox({
             </PromptInputActionMenuContent>
           </PromptInputActionMenu> */}
           <AddAttachmentsButton className="px-2!" />
+          {knowledgeBases.length > 0 && (
+            <PromptInputActionMenu>
+              <PromptInputActionMenuTrigger className="gap-1! px-2!">
+                <DatabaseIcon className="size-3" />
+                <span className="text-xs">知识库</span>
+                {selectedKBs.length > 0 && (
+                  <span className="bg-primary text-primary-foreground rounded-full px-1 text-[10px]">
+                    {selectedKBs.length}
+                  </span>
+                )}
+              </PromptInputActionMenuTrigger>
+              <PromptInputActionMenuContent>
+                <DropdownMenuLabel className="text-xs">选择知识库</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  {knowledgeBases.map((kb) => {
+                    const isSelected = selectedKBs.some((s) => s.id === kb.id);
+                    return (
+                      <PromptInputActionMenuItem
+                        key={kb.id}
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          if (isSelected) {
+                            setSelectedKBs((prev) =>
+                              prev.filter((s) => s.id !== kb.id),
+                            );
+                          } else {
+                            setSelectedKBs((prev) => [
+                              ...prev,
+                              { id: kb.id, name: kb.name },
+                            ]);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={cn("size-3.5 rounded border flex items-center justify-center", isSelected && "bg-primary border-primary")}>
+                            {isSelected && <CheckIcon className="text-primary-foreground size-2.5" />}
+                          </div>
+                          <span>{kb.name}</span>
+                        </div>
+                      </PromptInputActionMenuItem>
+                    );
+                  })}
+                </DropdownMenuGroup>
+              </PromptInputActionMenuContent>
+            </PromptInputActionMenu>
+          )}
           <PromptInputActionMenu>
             <ModeHoverGuide
               mode={

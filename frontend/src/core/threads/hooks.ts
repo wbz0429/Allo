@@ -438,6 +438,7 @@ export function useThreadStream({
           is_plan_mode: context.mode === "pro" || context.mode === "ultra",
           subagent_enabled: context.mode === "ultra",
           thread_id: gatewayThreadId,
+          kb_ids: message.knowledgeBases?.map((kb) => kb.id),
         };
 
         await thread.submit(input, {
