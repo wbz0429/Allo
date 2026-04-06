@@ -69,7 +69,7 @@ export function StreamingStatus({
 }) {
   const { t } = useI18n();
 
-  const label = t.streaming[phase];
+  const label = t.streaming?.[phase] ?? "...";
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
