@@ -9,7 +9,17 @@ from pathlib import Path
 import yaml
 
 # Allowed properties in SKILL.md frontmatter
-ALLOWED_FRONTMATTER_PROPERTIES = {"name", "description", "license", "allowed-tools", "metadata", "compatibility", "version", "author"}
+ALLOWED_FRONTMATTER_PROPERTIES = {
+    "name",
+    "description",
+    "license",
+    "allowed-tools",
+    "metadata",
+    "compatibility",
+    "version",
+    "author",
+    "user_invocable",
+}
 
 
 def _validate_skill_frontmatter(skill_dir: Path) -> tuple[bool, str, str | None]:
@@ -54,6 +64,9 @@ def _validate_skill_frontmatter(skill_dir: Path) -> tuple[bool, str, str | None]
         return False, "Missing 'name' in frontmatter", None
     if "description" not in frontmatter:
         return False, "Missing 'description' in frontmatter", None
+
+    if "user_invocable" in frontmatter and not isinstance(frontmatter["user_invocable"], bool):
+        return False, "'user_invocable' must be a boolean", None
 
     # Validate name
     name = frontmatter.get("name", "")

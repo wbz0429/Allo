@@ -17,10 +17,21 @@ app.include_router(router)
 TEST_USER_ID = "test-upload-user-001"
 
 
-def _make_skill_zip(name: str = "test-skill", description: str = "A test skill", extra_files: dict[str, str] | None = None) -> bytes:
+def _make_skill_zip(
+    name: str = "test-skill",
+    description: str = "A test skill",
+    extra_files: dict[str, str] | None = None,
+    extra_frontmatter: dict[str, str | bool | int] | None = None,
+) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
-        frontmatter = f"---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n"
+        frontmatter_lines = ["---", f"name: {name}", f"description: {description}"]
+        if extra_frontmatter:
+            for key, value in extra_frontmatter.items():
+                rendered = str(value).lower() if isinstance(value, bool) else value
+                frontmatter_lines.append(f"{key}: {rendered}")
+        frontmatter_lines.extend(["---", "", f"# {name}"])
+        frontmatter = "\n".join(frontmatter_lines) + "\n"
         zf.writestr(f"{name}/SKILL.md", frontmatter)
         if extra_files:
             for path, content in extra_files.items():
@@ -61,6 +72,29 @@ async def test_upload_valid_skill():
     assert body["success"] is True
     assert body["skill_name"] == "upload-ok"
     assert (_get_user_custom_skills_dir(TEST_USER_ID) / "upload-ok" / "SKILL.md").exists()
+
+
+@pytest.mark.asyncio
+async def test_upload_skill_allows_user_invocable_frontmatter():
+    data = _make_skill_zip("user-invocable-skill", extra_frontmatter={"user_invocable": True})
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.post("/api/skills/upload", files={"file": ("s.zip", data, "application/zip")})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["success"] is True
+    assert body["skill_name"] == "user-invocable-skill"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid_value", ["maybe", 1])
+async def test_upload_skill_rejects_invalid_user_invocable_value(invalid_value: str | int):
+    data = _make_skill_zip("bad-user-invocable", extra_frontmatter={"user_invocable": invalid_value})
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        resp = await c.post("/api/skills/upload", files={"file": ("s.zip", data, "application/zip")})
+
+    assert resp.status_code == 400
+    assert "user_invocable" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
