@@ -7,6 +7,7 @@ harness entrypoint.
 """
 
 import logging
+import time
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -104,14 +105,31 @@ async def _enforce_thread_ownership(ctx: UserContext, config: dict) -> None:
         logger.warning("Thread ownership check failed for thread_id=%s: %s", thread_id, exc)
 
 
+def _is_history_request(config: dict) -> bool:
+    """Detect whether this graph invocation is a history/state retrieval (not a real run).
+
+    History requests have thread_id but no run_id in configurable, and empty metadata.
+    """
+    configurable = config.get("configurable") or {}
+    has_thread_id = bool(configurable.get("thread_id") or configurable.get("threadId"))
+    has_run_id = bool(configurable.get("run_id"))
+    metadata = config.get("metadata") or {}
+    has_metadata_run_id = bool(metadata.get("run_id"))
+    return has_thread_id and not has_run_id and not has_metadata_run_id
+
+
 async def make_lead_agent(config):
+    t0 = time.monotonic()
     _ensure_runtime_stores_registered()
 
     context = config.get("context") or {}
     configurable = config.get("configurable") or {}
     metadata = config.get("metadata") or {}
+
+    is_history = _is_history_request(config)
+
     logger.info(
-        "Lead agent config summary top=%s context=%s configurable=%s metadata=%s flags=%s",
+        "Lead agent config summary top=%s context=%s configurable=%s metadata=%s flags=%s is_history=%s",
         sorted(str(key) for key in config.keys()),
         sorted(str(key) for key in context.keys()) if isinstance(context, dict) else [],
         sorted(str(key) for key in configurable.keys()) if isinstance(configurable, dict) else [],
@@ -123,8 +141,10 @@ async def make_lead_agent(config):
             "has_configurable_user": bool(isinstance(configurable, dict) and (configurable.get("x-user-id") or configurable.get("user_id"))),
             "has_thread_id": bool(isinstance(configurable, dict) and (configurable.get("thread_id") or configurable.get("threadId"))),
         },
+        is_history,
     )
 
+    t1 = time.monotonic()
     ctx = get_user_context(config)
 
     # Fallback: resolve user context from threads table for history/resume
@@ -137,26 +157,45 @@ async def make_lead_agent(config):
     else:
         # User context present (from nginx header or frontend) — enforce ownership
         await _enforce_thread_ownership(ctx, config)
+    t2 = time.monotonic()
+    logger.info("[perf] user_context_resolution=%.1fms", (t2 - t1) * 1000)
 
     metadata = config.setdefault("metadata", {})
 
-    if ctx is not None:
+    # --- History fast path: skip expensive pre-resolution for non-run requests ---
+    if is_history:
+        logger.info("[perf] history fast path: skipping skill/memory/soul/marketplace pre-resolution")
+    elif ctx is not None:
+        t3 = time.monotonic()
         skill_catalog_store = get_store("skill_catalog")
         if isinstance(skill_catalog_store, PostgresSkillCatalogStore):
             metadata["resolved_enabled_skill_names"] = sorted(await skill_catalog_store.get_enabled_skill_names(ctx.user_id, ctx.org_id))
+        t4 = time.monotonic()
+        logger.info("[perf] skill_catalog_resolution=%.1fms", (t4 - t3) * 1000)
 
         memory_store = get_store("memory")
         if isinstance(memory_store, PostgresMemoryStore):
             metadata["resolved_memory"] = await memory_store.get_memory(ctx.user_id)
+        t5 = time.monotonic()
+        logger.info("[perf] memory_resolution=%.1fms", (t5 - t4) * 1000)
 
         soul_store = get_store("soul")
         if isinstance(soul_store, PostgresSoulStore):
             metadata["resolved_soul"] = await soul_store.get_soul(ctx.user_id)
+        t6 = time.monotonic()
+        logger.info("[perf] soul_resolution=%.1fms", (t6 - t5) * 1000)
 
         # Pre-resolve marketplace tool gating (avoids sync-wrapper-in-async-loop errors)
         marketplace_store = get_store("marketplace")
         if isinstance(marketplace_store, PostgresMarketplaceInstallStore):
             metadata["resolved_managed_tools"] = sorted(await marketplace_store.get_managed_runtime_tools())
             metadata["resolved_installed_tools"] = sorted(await marketplace_store.get_installed_runtime_tools(ctx.org_id))
+        t7 = time.monotonic()
+        logger.info("[perf] marketplace_resolution=%.1fms", (t7 - t6) * 1000)
 
-    return harness_make_lead_agent(config)
+    t_harness_start = time.monotonic()
+    result = harness_make_lead_agent(config)
+    t_harness_end = time.monotonic()
+    logger.info("[perf] harness_make_lead_agent=%.1fms total_make_lead_agent=%.1fms is_history=%s", (t_harness_end - t_harness_start) * 1000, (t_harness_end - t0) * 1000, is_history)
+
+    return result

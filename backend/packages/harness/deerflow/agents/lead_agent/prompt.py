@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import logging
+import time
 from datetime import datetime
 
 from deerflow.config.agents_config import load_agent_soul
@@ -496,7 +497,10 @@ def apply_prompt_template(
     resolved_memory: dict | None = None,
 ) -> str:
     # Get memory context
+    t0 = time.monotonic()
     memory_context = _get_memory_context(agent_name, memory_store=memory_store, user_id=user_id, resolved_memory=resolved_memory)
+    t1 = time.monotonic()
+    logger.info("[perf:prompt] _get_memory_context=%.1fms resolved_memory_type=%s", (t1 - t0) * 1000, type(resolved_memory).__name__)
 
     # Include subagent section only if enabled (from runtime parameter)
     n = max_concurrent_subagents
@@ -521,14 +525,19 @@ def apply_prompt_template(
     )
 
     # Get skills section
+    t2 = time.monotonic()
     skills_section = get_skills_prompt_section(
         available_skills,
         user_id=user_id,
         enabled_skill_names=enabled_skill_names,
     )
+    t3 = time.monotonic()
+    logger.info("[perf:prompt] get_skills_prompt_section=%.1fms", (t3 - t2) * 1000)
 
     # Get deferred tools section (tool_search)
     deferred_tools_section = get_deferred_tools_prompt_section()
+    t4 = time.monotonic()
+    logger.info("[perf:prompt] get_deferred_tools_prompt_section=%.1fms", (t4 - t3) * 1000)
 
     # Format the prompt with dynamic skills and memory
     prompt = SYSTEM_PROMPT_TEMPLATE.format(

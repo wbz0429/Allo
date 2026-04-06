@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import logging
+import time
 
 from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
@@ -301,12 +302,47 @@ def _build_middlewares(
     return middlewares
 
 
+def _make_skeleton_agent():
+    """Return a minimal agent with only the correct state schema.
+
+    Used for history/state retrieval requests where LangGraph needs a graph
+    object but never actually invokes it.  Skips model init, tool loading,
+    middleware construction, and prompt generation — turning a 10-40 s factory
+    call into < 50 ms.
+    """
+    t0 = time.monotonic()
+    model = create_chat_model(thinking_enabled=False)
+    agent = create_agent(
+        model=model,
+        tools=[],
+        middleware=[],
+        system_prompt="skeleton",
+        state_schema=ThreadState,
+    )
+    logger.info("[perf:harness] skeleton agent built in %.1fms", (time.monotonic() - t0) * 1000)
+    return agent
+
+
 def make_lead_agent(config: RunnableConfig):
+    # --- History fast path ------------------------------------------------
+    # History / state-retrieval requests don't invoke the graph; LangGraph
+    # only needs an object with the right state_schema.  Return a skeleton
+    # agent to avoid the full (expensive) initialisation.
+    cfg = config.get("configurable", {})
+    metadata = config.get("metadata", {})
+    is_history = bool(
+        (cfg.get("thread_id") or cfg.get("threadId"))
+        and not cfg.get("run_id")
+        and not metadata.get("run_id")
+    )
+    if is_history:
+        logger.info("[perf:harness] history fast path — returning skeleton agent")
+        return _make_skeleton_agent()
+
+    # --- Full agent construction (runs / bootstrap) -----------------------
     # Lazy import to avoid circular dependency
     from deerflow.tools import get_available_tools
     from deerflow.tools.builtins import setup_agent
-
-    cfg = config.get("configurable", {})
 
     thinking_enabled = cfg.get("thinking_enabled", True)
     reasoning_effort = cfg.get("reasoning_effort", None)
@@ -340,8 +376,6 @@ def make_lead_agent(config: RunnableConfig):
     key_resolver = get_store("key")
     if not isinstance(key_resolver, ModelKeyResolver):
         key_resolver = None
-
-    metadata = config.get("metadata", {})
 
     enabled_skill_names: set[str] | None = None
     resolved_skill_names = metadata.get("resolved_enabled_skill_names")
@@ -429,27 +463,48 @@ def make_lead_agent(config: RunnableConfig):
     if base_url:
         model_kwargs["base_url"] = base_url
 
-    return create_agent(
-        model=create_chat_model(**model_kwargs),
-        tools=get_available_tools(model_name=model_name, groups=agent_config.tool_groups if agent_config else None, subagent_enabled=subagent_enabled, runtime_config=config),
-        middleware=_build_middlewares(
-            config,
-            model_name=model_name,
-            agent_name=agent_name,
-            user_id=user_id,
-            memory_store=memory_store,
-            soul_store=soul_store,
-            mcp_config_store=mcp_config_store,
-        ),
-        system_prompt=apply_prompt_template(
-            subagent_enabled=subagent_enabled,
-            max_concurrent_subagents=max_concurrent_subagents,
-            agent_name=agent_name,
-            user_id=user_id,
-            enabled_skill_names=enabled_skill_names,
-            memory_store=memory_store,
-            soul=soul_content,
-            resolved_memory=resolved_memory,
-        ),
+    t_model = time.monotonic()
+    model = create_chat_model(**model_kwargs)
+    t_tools = time.monotonic()
+    logger.info("[perf:harness] create_chat_model=%.1fms", (t_tools - t_model) * 1000)
+
+    tools = get_available_tools(model_name=model_name, groups=agent_config.tool_groups if agent_config else None, subagent_enabled=subagent_enabled, runtime_config=config)
+    t_middleware = time.monotonic()
+    logger.info("[perf:harness] get_available_tools=%.1fms", (t_middleware - t_tools) * 1000)
+
+    middleware = _build_middlewares(
+        config,
+        model_name=model_name,
+        agent_name=agent_name,
+        user_id=user_id,
+        memory_store=memory_store,
+        soul_store=soul_store,
+        mcp_config_store=mcp_config_store,
+    )
+    t_prompt = time.monotonic()
+    logger.info("[perf:harness] build_middlewares=%.1fms", (t_prompt - t_middleware) * 1000)
+
+    system_prompt = apply_prompt_template(
+        subagent_enabled=subagent_enabled,
+        max_concurrent_subagents=max_concurrent_subagents,
+        agent_name=agent_name,
+        user_id=user_id,
+        enabled_skill_names=enabled_skill_names,
+        memory_store=memory_store,
+        soul=soul_content,
+        resolved_memory=resolved_memory,
+    )
+    t_create = time.monotonic()
+    logger.info("[perf:harness] apply_prompt_template=%.1fms", (t_create - t_prompt) * 1000)
+
+    agent = create_agent(
+        model=model,
+        tools=tools,
+        middleware=middleware,
+        system_prompt=system_prompt,
         state_schema=ThreadState,
     )
+    t_done = time.monotonic()
+    logger.info("[perf:harness] create_agent=%.1fms total_harness=%.1fms", (t_done - t_create) * 1000, (t_done - t_model) * 1000)
+
+    return agent

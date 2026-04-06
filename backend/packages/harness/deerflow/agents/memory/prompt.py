@@ -1,15 +1,37 @@
 """Prompt templates for memory update and injection."""
 
+import logging
 import math
+import os
 import re
 from typing import Any
 
+# Allow disabling tiktoken entirely via environment variable to avoid
+# blocking network downloads on servers with restricted connectivity.
+_TIKTOKEN_DISABLED = os.environ.get("TIKTOKEN_DISABLED", "").lower() in ("1", "true", "yes")
+
 try:
+    if _TIKTOKEN_DISABLED:
+        raise ImportError("tiktoken disabled via TIKTOKEN_DISABLED env var")
     import tiktoken
 
     TIKTOKEN_AVAILABLE = True
 except ImportError:
     TIKTOKEN_AVAILABLE = False
+
+# Module-level cache for tiktoken encoding.
+# Eagerly initialized at import time so the cost (including potential network
+# download of the ~1.6 MB encoding file) is paid once during process startup
+# rather than on the first user request.
+_tiktoken_encoding = None
+_tiktoken_init_failed = False
+
+if TIKTOKEN_AVAILABLE:
+    try:
+        _tiktoken_encoding = tiktoken.get_encoding("cl100k_base")
+    except Exception as _exc:
+        _tiktoken_init_failed = True
+        logging.getLogger(__name__).warning("tiktoken encoding init failed, falling back to char estimation: %s", _exc)
 
 # Prompt template for updating memory based on conversation
 MEMORY_UPDATE_PROMPT = """You are a memory management system. Your task is to analyze a conversation and update the user's memory profile.
@@ -148,6 +170,9 @@ Return ONLY valid JSON."""
 def _count_tokens(text: str, encoding_name: str = "cl100k_base") -> int:
     """Count tokens in text using tiktoken.
 
+    Uses a module-level cached encoding to avoid repeated get_encoding() calls
+    which can trigger slow network downloads on first use.
+
     Args:
         text: The text to count tokens for.
         encoding_name: The encoding to use (default: cl100k_base for GPT-4/3.5).
@@ -155,15 +180,21 @@ def _count_tokens(text: str, encoding_name: str = "cl100k_base") -> int:
     Returns:
         The number of tokens in the text.
     """
-    if not TIKTOKEN_AVAILABLE:
-        # Fallback to character-based estimation if tiktoken is not available
+    global _tiktoken_encoding, _tiktoken_init_failed
+
+    if not TIKTOKEN_AVAILABLE or _tiktoken_init_failed:
         return len(text) // 4
 
+    if _tiktoken_encoding is None:
+        try:
+            _tiktoken_encoding = tiktoken.get_encoding(encoding_name)
+        except Exception:
+            _tiktoken_init_failed = True
+            return len(text) // 4
+
     try:
-        encoding = tiktoken.get_encoding(encoding_name)
-        return len(encoding.encode(text))
+        return len(_tiktoken_encoding.encode(text))
     except Exception:
-        # Fallback to character-based estimation on error
         return len(text) // 4
 
 
