@@ -74,7 +74,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
       },
       {
         id: "soul",
-        label: "Personality",
+        label: t.soul.title,
         icon: UserIcon,
       },
       { id: "tools", label: t.settings.sections.tools, icon: WrenchIcon },
@@ -84,6 +84,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     [
       t.settings.sections.appearance,
       t.settings.sections.memory,
+      t.soul.title,
       t.settings.sections.tools,
       t.settings.sections.skills,
       t.settings.sections.notification,

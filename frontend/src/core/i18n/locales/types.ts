@@ -204,6 +204,116 @@ export interface Translations {
     failed: string;
   };
 
+  // Auth
+  auth: {
+    login: {
+      title: string;
+      description: string;
+      email: string;
+      password: string;
+      emailPlaceholder: string;
+      submit: string;
+      submitting: string;
+      failed: string;
+      unexpectedError: string;
+      noAccount: string;
+      register: string;
+      devAccount: string;
+      fillDevAccount: string;
+    };
+    register: {
+      title: string;
+      description: string;
+      name: string;
+      namePlaceholder: string;
+      email: string;
+      emailPlaceholder: string;
+      password: string;
+      submit: string;
+      submitting: string;
+      failed: string;
+      unexpectedError: string;
+      hasAccount: string;
+      signIn: string;
+    };
+  };
+
+  // Knowledge
+  knowledge: {
+    title: string;
+    newButton: string;
+    createTitle: string;
+    createDescription: string;
+    name: string;
+    namePlaceholder: string;
+    description: string;
+    descriptionPlaceholder: string;
+    creating: string;
+    created: string;
+    createFailed: string;
+    empty: string;
+    createFirst: string;
+    searchPlaceholder: string;
+    searching: string;
+    searchButton: string;
+    keywordSearch: string;
+    semanticSearch: string;
+    noResults: string;
+    noResultsIndexHint: string;
+    resultCount: (count: number) => string;
+    matches: string;
+    relevance: string;
+    chunk: string;
+    keywordSearchFailed: string;
+    semanticSearchFailed: string;
+  };
+
+  // Marketplace
+  marketplace: {
+    title: string;
+    description: string;
+    tools: string;
+    skills: string;
+    loadingTools: string;
+    loadingSkills: string;
+    noTools: string;
+    noSkills: string;
+    toolInstalled: string;
+    toolUninstalled: string;
+    skillInstalled: string;
+    skillUninstalled: string;
+    installToolFailed: string;
+    uninstallToolFailed: string;
+    installSkillFailed: string;
+    uninstallSkillFailed: string;
+    loadFailed: string;
+  };
+
+  // Soul / Personality
+  soul: {
+    title: string;
+    description: string;
+    placeholder: string;
+    hint: string;
+    saving: string;
+  };
+
+  // Admin
+  admin: {
+    organizations: string;
+    organizationsDescription: string;
+    allOrganizations: string;
+    orgCount: (count: number) => string;
+  };
+
+  // Streaming status
+  streaming: {
+    connecting: string;
+    thinking: string;
+    executing: string;
+    generating: string;
+  };
+
   // Settings
   settings: {
     title: string;

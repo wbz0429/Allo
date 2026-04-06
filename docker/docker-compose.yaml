@@ -1,4 +1,4 @@
-# DeerFlow Production Environment
+# Allo Production Environment
 # Usage: make up
 #
 # Services:
@@ -27,8 +27,8 @@ services:
     image: postgres:16-alpine
     container_name: deer-flow-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-deerflow}
-      POSTGRES_USER: ${POSTGRES_USER:-deerflow}
+      POSTGRES_DB: ${POSTGRES_DB:-allo}
+      POSTGRES_USER: ${POSTGRES_USER:-allo}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres-data:/var/lib/postgresql/data

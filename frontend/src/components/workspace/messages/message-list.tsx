@@ -1,4 +1,5 @@
 import type { BaseStream } from "@langchain/langgraph-sdk/react";
+import { useEffect, useMemo } from "react";
 
 import {
   Conversation,
@@ -15,13 +16,19 @@ import {
   hasReasoning,
 } from "@/core/messages/utils";
 import { useRehypeSplitWordsIntoSpans } from "@/core/rehype";
+import { useSteps } from "@/core/steps/context";
+import { extractSteps } from "@/core/steps/extract-steps";
 import type { Subtask } from "@/core/tasks";
 import { useUpdateSubtask } from "@/core/tasks/context";
 import type { AgentThreadState } from "@/core/threads";
 import { cn } from "@/lib/utils";
 
 import { ArtifactFileList } from "../artifacts/artifact-file-list";
-import { StreamingIndicator } from "../streaming-indicator";
+import { StepTimeline } from "../steps/step-timeline";
+import {
+  inferStreamingPhase,
+  StreamingStatus,
+} from "../streaming-status";
 
 import { MarkdownContent } from "./markdown-content";
 import { MessageGroup } from "./message-group";
@@ -44,6 +51,24 @@ export function MessageList({
   const rehypePlugins = useRehypeSplitWordsIntoSpans(thread.isLoading);
   const updateSubtask = useUpdateSubtask();
   const messages = thread.messages;
+
+  // Step timeline: extract steps from messages and sync to context
+  const { setSteps } = useSteps();
+  const steps = useMemo(
+    () => extractSteps(messages, t, thread.isLoading),
+    [messages, t, thread.isLoading],
+  );
+  useEffect(() => {
+    setSteps(steps);
+  }, [steps, setSteps]);
+
+  const handleScrollToStep = (groupId: string) => {
+    const el = document.querySelector(`[data-group-id="${groupId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
   if (thread.isThreadLoading && messages.length === 0) {
     return <MessageListSkeleton />;
   }
@@ -198,7 +223,19 @@ export function MessageList({
             />
           );
         })}
-        {thread.isLoading && <StreamingIndicator className="my-4" />}
+        {thread.isLoading && (
+          <StreamingStatus
+            className="my-4"
+            phase={inferStreamingPhase(
+              messages,
+              messages.some((m) => m.id?.startsWith("opt-")),
+            )}
+          />
+        )}
+        <StepTimeline
+          className="sticky bottom-4 mx-auto"
+          onScrollToStep={handleScrollToStep}
+        />
         <div style={{ height: `${paddingBottom}px` }} />
       </ConversationContent>
     </Conversation>

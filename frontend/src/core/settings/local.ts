@@ -14,7 +14,8 @@ export const DEFAULT_LOCAL_SETTINGS: LocalSettings = {
   },
 };
 
-const LOCAL_SETTINGS_KEY = "deerflow.local-settings";
+const LOCAL_SETTINGS_KEY = "allo.local-settings";
+const LEGACY_LOCAL_SETTINGS_KEY = "deerflow.local-settings";
 
 export interface LocalSettings {
   notification: {
@@ -35,6 +36,12 @@ export interface LocalSettings {
 export function getLocalSettings(): LocalSettings {
   if (typeof window === "undefined") {
     return DEFAULT_LOCAL_SETTINGS;
+  }
+  // Migrate from legacy key
+  const legacy = localStorage.getItem(LEGACY_LOCAL_SETTINGS_KEY);
+  if (legacy && !localStorage.getItem(LOCAL_SETTINGS_KEY)) {
+    localStorage.setItem(LOCAL_SETTINGS_KEY, legacy);
+    localStorage.removeItem(LEGACY_LOCAL_SETTINGS_KEY);
   }
   const json = localStorage.getItem(LOCAL_SETTINGS_KEY);
   try {

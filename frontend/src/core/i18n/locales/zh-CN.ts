@@ -254,6 +254,118 @@ export const zhCN: Translations = {
     failed: "子任务失败",
   },
 
+  // Auth
+  auth: {
+    login: {
+      title: "登录",
+      description: "输入邮箱和密码以继续",
+      email: "邮箱",
+      password: "密码",
+      emailPlaceholder: "you@example.com",
+      submit: "登录",
+      submitting: "登录中…",
+      failed: "登录失败",
+      unexpectedError: "发生意外错误",
+      noAccount: "还没有账号？",
+      register: "注册",
+      devAccount: "本地开发账号",
+      fillDevAccount: "填入开发账号",
+    },
+    register: {
+      title: "创建账号",
+      description: "输入你的信息以开始使用",
+      name: "姓名",
+      namePlaceholder: "你的姓名",
+      email: "邮箱",
+      emailPlaceholder: "you@example.com",
+      password: "密码",
+      submit: "创建账号",
+      submitting: "创建中…",
+      failed: "注册失败",
+      unexpectedError: "发生意外错误",
+      hasAccount: "已有账号？",
+      signIn: "登录",
+    },
+  },
+
+  // Knowledge
+  knowledge: {
+    title: "知识库",
+    newButton: "新建",
+    createTitle: "创建知识库",
+    createDescription: "知识库用于存储文档，支持检索增强生成（RAG）。",
+    name: "名称",
+    namePlaceholder: "例如：产品文档",
+    description: "描述",
+    descriptionPlaceholder: "可选描述",
+    creating: "创建中...",
+    created: "知识库已创建",
+    createFailed: "创建知识库失败",
+    empty: "暂无知识库",
+    createFirst: "创建第一个",
+    searchPlaceholder: "搜索知识库...",
+    searching: "搜索中...",
+    searchButton: "搜索",
+    keywordSearch: "关键字搜索",
+    semanticSearch: "语义搜索",
+    noResults: "未找到结果",
+    noResultsIndexHint: "未找到结果，请确认文档已完成索引。",
+    resultCount: (count: number) => `${count} 条结果`,
+    matches: "匹配",
+    relevance: "相关度",
+    chunk: "片段",
+    keywordSearchFailed: "关键字搜索失败",
+    semanticSearchFailed: "语义搜索失败",
+  },
+
+  // Marketplace
+  marketplace: {
+    title: "市场",
+    description: "浏览并安装适用于你组织的 MCP 工具和技能。",
+    tools: "工具",
+    skills: "技能",
+    loadingTools: "加载工具中…",
+    loadingSkills: "加载技能中…",
+    noTools: "暂无可用工具。",
+    noSkills: "暂无可用技能。",
+    toolInstalled: "工具安装成功",
+    toolUninstalled: "工具已卸载",
+    skillInstalled: "技能安装成功",
+    skillUninstalled: "技能已卸载",
+    installToolFailed: "安装工具失败",
+    uninstallToolFailed: "卸载工具失败",
+    installSkillFailed: "安装技能失败",
+    uninstallSkillFailed: "卸载技能失败",
+    loadFailed: "加载市场数据失败",
+  },
+
+  // Soul / Personality
+  soul: {
+    title: "个性",
+    description:
+      "定义你的 AI 助手的个性、语气和行为风格。此设置会注入到每次对话中。",
+    placeholder:
+      "例如：你是一个友好且简洁的助手，使用轻松的语气交流...",
+    hint: "更改将在下次对话时生效。",
+    saving: "保存中...",
+  },
+
+  // Admin
+  admin: {
+    organizations: "组织",
+    organizationsDescription: "管理平台上的所有组织",
+    allOrganizations: "所有组织",
+    orgCount: (count: number) => `${count} 个组织`,
+  },
+
+  // Streaming status
+  streaming: {
+    connecting: "正在连接...",
+    thinking: "正在思考...",
+    executing: "正在执行任务...",
+    generating: "正在生成回复...",
+  },
+
   // Settings
   settings: {
     title: "设置",

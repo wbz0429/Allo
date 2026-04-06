@@ -18,6 +18,7 @@ import { Welcome } from "@/components/workspace/welcome";
 import { useI18n } from "@/core/i18n/hooks";
 import { useNotification } from "@/core/notification/hooks";
 import { useLocalSettings } from "@/core/settings";
+import { StepProvider } from "@/core/steps/context";
 import { useThreadStream } from "@/core/threads/hooks";
 import { loadPendingThreadMessage, savePendingThreadMessage } from "@/core/threads/pending";
 import { textOfMessage } from "@/core/threads/utils";
@@ -112,6 +113,7 @@ export default function ChatPage() {
 
   return (
     <ThreadContext.Provider value={{ thread, isMock }}>
+      <StepProvider>
       <ChatBox threadId={threadId}>
         <div className="relative flex size-full min-h-0 justify-between">
           <header
@@ -183,6 +185,7 @@ export default function ChatPage() {
           </main>
         </div>
       </ChatBox>
+      </StepProvider>
     </ThreadContext.Provider>
   );
 }

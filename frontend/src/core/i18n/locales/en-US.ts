@@ -267,6 +267,123 @@ export const enUS: Translations = {
     failed: "Subtask failed",
   },
 
+  // Auth
+  auth: {
+    login: {
+      title: "Sign in",
+      description: "Enter your email and password to continue",
+      email: "Email",
+      password: "Password",
+      emailPlaceholder: "you@example.com",
+      submit: "Sign in",
+      submitting: "Signing in\u2026",
+      failed: "Sign in failed",
+      unexpectedError: "An unexpected error occurred",
+      noAccount: "Don\u2019t have an account?",
+      register: "Register",
+      devAccount: "Local dev account",
+      fillDevAccount: "Fill local dev account",
+    },
+    register: {
+      title: "Create an account",
+      description: "Enter your details to get started",
+      name: "Name",
+      namePlaceholder: "Your name",
+      email: "Email",
+      emailPlaceholder: "you@example.com",
+      password: "Password",
+      submit: "Create account",
+      submitting: "Creating account\u2026",
+      failed: "Registration failed",
+      unexpectedError: "An unexpected error occurred",
+      hasAccount: "Already have an account?",
+      signIn: "Sign in",
+    },
+  },
+
+  // Knowledge
+  knowledge: {
+    title: "Knowledge Bases",
+    newButton: "New",
+    createTitle: "Create Knowledge Base",
+    createDescription:
+      "A knowledge base stores documents for retrieval-augmented generation.",
+    name: "Name",
+    namePlaceholder: "e.g. Product Documentation",
+    description: "Description",
+    descriptionPlaceholder: "Optional description",
+    creating: "Creating...",
+    created: "Knowledge base created",
+    createFailed: "Failed to create knowledge base",
+    empty: "No knowledge bases yet",
+    createFirst: "Create your first",
+    searchPlaceholder: "Search knowledge base...",
+    searching: "Searching...",
+    searchButton: "Search",
+    keywordSearch: "Keyword Search",
+    semanticSearch: "Semantic Search",
+    noResults: "No results found",
+    noResultsIndexHint:
+      "No results found. Make sure documents have been indexed.",
+    resultCount: (count: number) =>
+      `${count} result${count !== 1 ? "s" : ""}`,
+    matches: "matches",
+    relevance: "relevance",
+    chunk: "Chunk",
+    keywordSearchFailed: "Keyword search failed",
+    semanticSearchFailed: "Semantic search failed",
+  },
+
+  // Marketplace
+  marketplace: {
+    title: "Marketplace",
+    description:
+      "Browse and install MCP tools and skills for your organization.",
+    tools: "Tools",
+    skills: "Skills",
+    loadingTools: "Loading tools\u2026",
+    loadingSkills: "Loading skills\u2026",
+    noTools: "No tools available yet.",
+    noSkills: "No skills available yet.",
+    toolInstalled: "Tool installed successfully",
+    toolUninstalled: "Tool uninstalled",
+    skillInstalled: "Skill installed successfully",
+    skillUninstalled: "Skill uninstalled",
+    installToolFailed: "Failed to install tool",
+    uninstallToolFailed: "Failed to uninstall tool",
+    installSkillFailed: "Failed to install skill",
+    uninstallSkillFailed: "Failed to uninstall skill",
+    loadFailed: "Failed to load marketplace data",
+  },
+
+  // Soul / Personality
+  soul: {
+    title: "Personality",
+    description:
+      "Define your AI assistant's personality, tone, and behavior style. This is injected into every conversation.",
+    placeholder:
+      "e.g. You are a friendly and concise assistant who speaks in a casual tone...",
+    hint: "Changes take effect on the next conversation.",
+    saving: "Saving...",
+  },
+
+  // Admin
+  admin: {
+    organizations: "Organizations",
+    organizationsDescription: "Manage all organizations on the platform",
+    allOrganizations: "All Organizations",
+    orgCount: (count: number) =>
+      `${count} organization${count !== 1 ? "s" : ""}`,
+  },
+
+  // Streaming status
+  streaming: {
+    connecting: "Connecting...",
+    thinking: "Thinking...",
+    executing: "Executing task...",
+    generating: "Generating response...",
+  },
+
   // Settings
   settings: {
     title: "Settings",

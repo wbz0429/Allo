@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InstallDialog } from "@/components/workspace/marketplace/install-dialog";
 import { SkillCard } from "@/components/workspace/marketplace/skill-card";
 import { ToolCard } from "@/components/workspace/marketplace/tool-card";
+import { useI18n } from "@/core/i18n/hooks";
 import {
   installSkill,
   installTool,
@@ -25,6 +26,7 @@ import type {
 } from "@/core/marketplace/types";
 
 export default function MarketplacePage() {
+  const { t } = useI18n();
   const [tools, setTools] = useState<MarketplaceTool[]>([]);
   const [skills, setSkills] = useState<MarketplaceSkill[]>([]);
   const [installedTools, setInstalledTools] = useState<OrgInstalledTool[]>([]);
@@ -53,12 +55,12 @@ export default function MarketplacePage() {
       setInstalledSkills(orgSkills);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to load marketplace data",
+        error instanceof Error ? error.message : t.marketplace.loadFailed,
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void fetchData();
@@ -87,14 +89,14 @@ export default function MarketplacePage() {
         setInstalledTools((prev) => [...prev, installed]);
         setInstallDialogOpen(false);
         setSelectedTool(null);
-        toast.success("Tool installed successfully");
+        toast.success(t.marketplace.toolInstalled);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to install tool");
+        toast.error(error instanceof Error ? error.message : t.marketplace.installToolFailed);
       } finally {
         setActionLoading(null);
       }
     },
-    [],
+    [t],
   );
 
   const handleToolUninstall = useCallback(async (tool: MarketplaceTool) => {
@@ -102,26 +104,26 @@ export default function MarketplacePage() {
     try {
       await uninstallTool(tool.id);
       setInstalledTools((prev) => prev.filter((t) => t.tool.id !== tool.id));
-      toast.success("Tool uninstalled");
+      toast.success(t.marketplace.toolUninstalled);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to uninstall tool");
+      toast.error(error instanceof Error ? error.message : t.marketplace.uninstallToolFailed);
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [t]);
 
   const handleSkillInstall = useCallback(async (skill: MarketplaceSkill) => {
     setActionLoading(skill.id);
     try {
       const installed = await installSkill(skill.id);
       setInstalledSkills((prev) => [...prev, installed]);
-      toast.success("Skill installed successfully");
+      toast.success(t.marketplace.skillInstalled);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to install skill");
+      toast.error(error instanceof Error ? error.message : t.marketplace.installSkillFailed);
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [t]);
 
   const handleSkillUninstall = useCallback(async (skill: MarketplaceSkill) => {
     setActionLoading(skill.id);
@@ -130,35 +132,35 @@ export default function MarketplacePage() {
       setInstalledSkills((prev) =>
         prev.filter((s) => s.skill.id !== skill.id),
       );
-      toast.success("Skill uninstalled");
+      toast.success(t.marketplace.skillUninstalled);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to uninstall skill");
+      toast.error(error instanceof Error ? error.message : t.marketplace.uninstallSkillFailed);
     } finally {
       setActionLoading(null);
     }
-  }, []);
+  }, [t]);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-8">
-      <h1 className="mb-1 text-2xl font-semibold">Marketplace</h1>
+      <h1 className="mb-1 text-2xl font-semibold">{t.marketplace.title}</h1>
       <p className="text-muted-foreground mb-6 text-sm">
-        Browse and install MCP tools and skills for your organization.
+        {t.marketplace.description}
       </p>
 
       <Tabs defaultValue="tools">
         <TabsList>
-          <TabsTrigger value="tools">Tools</TabsTrigger>
-          <TabsTrigger value="skills">Skills</TabsTrigger>
+          <TabsTrigger value="tools">{t.marketplace.tools}</TabsTrigger>
+          <TabsTrigger value="skills">{t.marketplace.skills}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tools" className="mt-4">
           {loading ? (
             <div className="text-muted-foreground py-12 text-center text-sm">
-              Loading tools…
+              {t.marketplace.loadingTools}
             </div>
           ) : tools.length === 0 ? (
             <div className="text-muted-foreground py-12 text-center text-sm">
-              No tools available yet.
+              {t.marketplace.noTools}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -179,11 +181,11 @@ export default function MarketplacePage() {
         <TabsContent value="skills" className="mt-4">
           {loading ? (
             <div className="text-muted-foreground py-12 text-center text-sm">
-              Loading skills…
+              {t.marketplace.loadingSkills}
             </div>
           ) : skills.length === 0 ? (
             <div className="text-muted-foreground py-12 text-center text-sm">
-              No skills available yet.
+              {t.marketplace.noSkills}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

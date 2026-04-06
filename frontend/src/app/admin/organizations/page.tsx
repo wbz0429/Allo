@@ -14,8 +14,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { listOrganizations } from "@/core/admin/api";
 import type { OrgSummary } from "@/core/admin/types";
+import { useI18n } from "@/core/i18n/hooks";
 
 export default function AdminOrganizationsPage() {
+  const { t } = useI18n();
   const [orgs, setOrgs] = useState<OrgSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,17 +33,17 @@ export default function AdminOrganizationsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Organizations</h1>
+        <h1 className="text-2xl font-semibold">{t.admin.organizations}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage all organizations on the platform
+          {t.admin.organizationsDescription}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Organizations</CardTitle>
+          <CardTitle>{t.admin.allOrganizations}</CardTitle>
           <CardDescription>
-            {loading ? "Loading\u2026" : `${orgs.length} organization${orgs.length !== 1 ? "s" : ""}`}
+            {loading ? `${t.common.loading}` : t.admin.orgCount(orgs.length)}
           </CardDescription>
         </CardHeader>
         <CardContent>

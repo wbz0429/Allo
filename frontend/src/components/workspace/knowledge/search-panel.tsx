@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useI18n } from "@/core/i18n/hooks";
 import {
   useKeywordSearch,
   useSearchKnowledgeBase,
@@ -15,6 +16,7 @@ import {
 import type { KeywordSearchResult, SearchResult } from "@/core/knowledge/types";
 
 export function SearchPanel({ kbId }: { kbId: string }) {
+  const { t } = useI18n();
   const semanticMutation = useSearchKnowledgeBase(kbId);
   const keywordMutation = useKeywordSearch(kbId);
   const [query, setQuery] = useState("");
@@ -31,10 +33,10 @@ export function SearchPanel({ kbId }: { kbId: string }) {
       setKeywordResults(data);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Keyword search failed",
+        err instanceof Error ? err.message : t.knowledge.keywordSearchFailed,
       );
     }
-  }, [query, keywordMutation]);
+  }, [query, keywordMutation, t]);
 
   const handleSemanticSearch = useCallback(async () => {
     if (!query.trim()) return;
@@ -43,10 +45,10 @@ export function SearchPanel({ kbId }: { kbId: string }) {
       setSemanticResults(data);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Semantic search failed",
+        err instanceof Error ? err.message : t.knowledge.semanticSearchFailed,
       );
     }
-  }, [query, semanticMutation]);
+  }, [query, semanticMutation, t]);
 
   const handleSearch = useCallback(() => {
     if (activeTab === "keyword") {
@@ -65,7 +67,7 @@ export function SearchPanel({ kbId }: { kbId: string }) {
     <div className="flex flex-col gap-4">
       <div className="flex gap-2">
         <Input
-          placeholder="Search knowledge base..."
+          placeholder={t.knowledge.searchPlaceholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -74,29 +76,28 @@ export function SearchPanel({ kbId }: { kbId: string }) {
         />
         <Button onClick={handleSearch} disabled={!query.trim() || isPending}>
           <SearchIcon className="mr-1 size-4" />
-          {isPending ? "Searching..." : "Search"}
+          {isPending ? t.knowledge.searching : t.knowledge.searchButton}
         </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList variant="line">
-          <TabsTrigger value="keyword">关键字搜索</TabsTrigger>
-          <TabsTrigger value="semantic">语义搜索</TabsTrigger>
+          <TabsTrigger value="keyword">{t.knowledge.keywordSearch}</TabsTrigger>
+          <TabsTrigger value="semantic">{t.knowledge.semanticSearch}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="keyword" className="mt-4">
           {keywordResults.length > 0 && (
             <div className="flex flex-col gap-3">
               <p className="text-muted-foreground text-xs">
-                {keywordResults.length} result
-                {keywordResults.length !== 1 ? "s" : ""}
+                {t.knowledge.resultCount(keywordResults.length)}
               </p>
               {keywordResults.map((result, i) => (
                 <div key={`${result.doc_id}-${i}`} className="rounded-lg border p-4">
                   <div className="mb-2 flex items-center gap-2">
                     <Badge variant="outline">{result.filename}</Badge>
                     <span className="text-muted-foreground text-xs">
-                      {result.score.toFixed(0)} matches
+                      {result.score.toFixed(0)} {t.knowledge.matches}
                     </span>
                   </div>
                   <p className="whitespace-pre-wrap text-sm">
@@ -110,7 +111,7 @@ export function SearchPanel({ kbId }: { kbId: string }) {
             keywordResults.length === 0 &&
             keywordMutation.isSuccess && (
               <div className="text-muted-foreground py-8 text-center text-sm">
-                No results found
+                {t.knowledge.noResults}
               </div>
             )}
         </TabsContent>
@@ -119,8 +120,7 @@ export function SearchPanel({ kbId }: { kbId: string }) {
           {semanticResults.length > 0 && (
             <div className="flex flex-col gap-3">
               <p className="text-muted-foreground text-xs">
-                {semanticResults.length} result
-                {semanticResults.length !== 1 ? "s" : ""}
+                {t.knowledge.resultCount(semanticResults.length)}
               </p>
               {semanticResults.map((result, i) => (
                 <div
@@ -129,10 +129,10 @@ export function SearchPanel({ kbId }: { kbId: string }) {
                 >
                   <div className="mb-2 flex items-center gap-2">
                     <Badge variant="outline">
-                      {(result.score * 100).toFixed(1)}% relevance
+                      {(result.score * 100).toFixed(1)}% {t.knowledge.relevance}
                     </Badge>
                     <span className="text-muted-foreground text-xs">
-                      Chunk #{result.chunk.chunk_index + 1}
+                      {t.knowledge.chunk} #{result.chunk.chunk_index + 1}
                     </span>
                   </div>
                   <p className="whitespace-pre-wrap text-sm">
@@ -146,7 +146,7 @@ export function SearchPanel({ kbId }: { kbId: string }) {
             semanticResults.length === 0 &&
             semanticMutation.isSuccess && (
               <div className="text-muted-foreground py-8 text-center text-sm">
-                No results found. Make sure documents have been indexed.
+                {t.knowledge.noResultsIndexHint}
               </div>
             )}
         </TabsContent>

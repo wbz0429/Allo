@@ -19,6 +19,7 @@ import { useAgent } from "@/core/agents";
 import { useI18n } from "@/core/i18n/hooks";
 import { useNotification } from "@/core/notification/hooks";
 import { useLocalSettings } from "@/core/settings";
+import { StepProvider } from "@/core/steps/context";
 import { useThreadStream } from "@/core/threads/hooks";
 import { textOfMessage } from "@/core/threads/utils";
 import { env } from "@/env";
@@ -81,6 +82,7 @@ export default function AgentChatPage() {
 
   return (
     <ThreadContext.Provider value={{ thread }}>
+      <StepProvider>
       <ChatBox threadId={threadId}>
         <div className="relative flex size-full min-h-0 justify-between">
           <header
@@ -176,6 +178,7 @@ export default function AgentChatPage() {
           </main>
         </div>
       </ChatBox>
+      </StepProvider>
     </ThreadContext.Provider>
   );
 }
