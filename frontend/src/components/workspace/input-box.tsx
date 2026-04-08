@@ -86,8 +86,13 @@ import { Tooltip } from "./tooltip";
 
 type InputMode = "autonomous" | "precise" | "express";
 
-function getResolvedMode(mode: InputMode | undefined): InputMode {
-  return mode ?? "autonomous";
+const VALID_MODES = new Set<string>(["autonomous", "precise", "express"]);
+
+function getResolvedMode(mode: string | undefined): InputMode {
+  if (mode && VALID_MODES.has(mode)) {
+    return mode as InputMode;
+  }
+  return "autonomous";
 }
 
 export function InputBox({
