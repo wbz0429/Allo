@@ -25,7 +25,7 @@ export interface LocalSettings {
     AgentThreadContext,
     "thread_id" | "is_plan_mode" | "thinking_enabled" | "subagent_enabled"
   > & {
-    mode: "flash" | "thinking" | "pro" | "ultra" | undefined;
+    mode: "autonomous" | "precise" | "express" | undefined;
     reasoning_effort?: "minimal" | "low" | "medium" | "high";
   };
   layout: {

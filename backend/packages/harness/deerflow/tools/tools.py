@@ -52,6 +52,7 @@ def get_available_tools(
     include_mcp: bool = True,
     model_name: str | None = None,
     subagent_enabled: bool = False,
+    interaction_style: str = "autonomous",
     runtime_config: dict | None = None,
 ) -> list[BaseTool]:
     """Get all available tools from config.
@@ -97,6 +98,10 @@ def get_available_tools(
 
     # Conditionally add tools based on config
     builtin_tools = BUILTIN_TOOLS.copy()
+
+    # Remove ask_clarification in express mode (no user interruptions)
+    if interaction_style == "express":
+        builtin_tools = [t for t in builtin_tools if t.name != "ask_clarification"]
 
     # Add subagent tools only if enabled via runtime parameter
     if subagent_enabled:

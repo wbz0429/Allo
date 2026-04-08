@@ -5,23 +5,21 @@ import type { Translations } from "@/core/i18n/locales/types";
 
 import { Tooltip } from "./tooltip";
 
-export type AgentMode = "flash" | "thinking" | "pro" | "ultra";
+export type AgentMode = "autonomous" | "precise" | "express";
 
 function getModeLabelKey(
   mode: AgentMode,
 ): keyof Pick<
   Translations["inputBox"],
-  "flashMode" | "reasoningMode" | "proMode" | "ultraMode"
+  "autonomousMode" | "preciseMode" | "expressMode"
 > {
   switch (mode) {
-    case "flash":
-      return "flashMode";
-    case "thinking":
-      return "reasoningMode";
-    case "pro":
-      return "proMode";
-    case "ultra":
-      return "ultraMode";
+    case "autonomous":
+      return "autonomousMode";
+    case "precise":
+      return "preciseMode";
+    case "express":
+      return "expressMode";
   }
 }
 
@@ -29,17 +27,15 @@ function getModeDescriptionKey(
   mode: AgentMode,
 ): keyof Pick<
   Translations["inputBox"],
-  "flashModeDescription" | "reasoningModeDescription" | "proModeDescription" | "ultraModeDescription"
+  "autonomousModeDescription" | "preciseModeDescription" | "expressModeDescription"
 > {
   switch (mode) {
-    case "flash":
-      return "flashModeDescription";
-    case "thinking":
-      return "reasoningModeDescription";
-    case "pro":
-      return "proModeDescription";
-    case "ultra":
-      return "ultraModeDescription";
+    case "autonomous":
+      return "autonomousModeDescription";
+    case "precise":
+      return "preciseModeDescription";
+    case "express":
+      return "expressModeDescription";
   }
 }
 

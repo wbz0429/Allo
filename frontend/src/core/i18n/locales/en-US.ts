@@ -72,17 +72,15 @@ export const enUS: Translations = {
       "We're going to build a new skill step by step with `skill-creator`. To start, what do you want this skill to do?",
     addAttachments: "Add attachments",
     mode: "Mode",
-    flashMode: "Flash",
-    flashModeDescription: "Fast and efficient, but may not be accurate",
-    reasoningMode: "Reasoning",
-    reasoningModeDescription:
-      "Reasoning before action, balance between time and accuracy",
-    proMode: "Pro",
-    proModeDescription:
-      "Reasoning, planning and executing, get more accurate results, may take more time",
-    ultraMode: "Ultra",
-    ultraModeDescription:
-      "Pro mode with subagents to divide work; best for complex multi-step tasks",
+    autonomousMode: "Autonomous",
+    autonomousModeDescription:
+      "Makes decisions autonomously, only confirms at critical points",
+    preciseMode: "Precise",
+    preciseModeDescription:
+      "Confirms each step for precise results, ideal for critical tasks",
+    expressMode: "Express",
+    expressModeDescription:
+      "Delivers end-to-end without interruptions, ideal for quick results",
     reasoningEffort: "Reasoning Effort",
     reasoningEffortMinimal: "Minimal",
     reasoningEffortMinimalDescription: "Retrieval + Direct Output",

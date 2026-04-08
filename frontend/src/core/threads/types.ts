@@ -19,6 +19,7 @@ export interface AgentThreadContext extends Record<string, unknown> {
   thinking_enabled: boolean;
   is_plan_mode: boolean;
   subagent_enabled: boolean;
+  interaction_style?: "autonomous" | "precise" | "express";
   reasoning_effort?: "minimal" | "low" | "medium" | "high";
   agent_name?: string;
   kb_ids?: string[];

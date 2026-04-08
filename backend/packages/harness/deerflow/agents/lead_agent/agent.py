@@ -347,8 +347,9 @@ def make_lead_agent(config: RunnableConfig):
     thinking_enabled = cfg.get("thinking_enabled", True)
     reasoning_effort = cfg.get("reasoning_effort", None)
     requested_model_name: str | None = cfg.get("model_name") or cfg.get("model")
-    is_plan_mode = cfg.get("is_plan_mode", False)
-    subagent_enabled = cfg.get("subagent_enabled", False)
+    is_plan_mode = True
+    subagent_enabled = True
+    interaction_style = cfg.get("interaction_style", "autonomous")
     max_concurrent_subagents = cfg.get("max_concurrent_subagents", 3)
     is_bootstrap = cfg.get("is_bootstrap", False)
     agent_name = cfg.get("agent_name")
@@ -443,11 +444,12 @@ def make_lead_agent(config: RunnableConfig):
 
         return create_agent(
             model=create_chat_model(**model_kwargs),
-            tools=get_available_tools(model_name=model_name, subagent_enabled=subagent_enabled, runtime_config=config) + [setup_agent],
+            tools=get_available_tools(model_name=model_name, subagent_enabled=subagent_enabled, interaction_style=interaction_style, runtime_config=config) + [setup_agent],
             middleware=_build_middlewares(config, model_name=model_name, user_id=user_id, memory_store=memory_store, soul_store=soul_store, mcp_config_store=mcp_config_store),
             system_prompt=apply_prompt_template(
                 subagent_enabled=subagent_enabled,
                 max_concurrent_subagents=max_concurrent_subagents,
+                interaction_style=interaction_style,
                 available_skills=set(["bootstrap"]),
                 user_id=user_id,
                 enabled_skill_names=enabled_skill_names,
@@ -471,7 +473,7 @@ def make_lead_agent(config: RunnableConfig):
     t_tools = time.monotonic()
     logger.info("[perf:harness] create_chat_model=%.1fms", (t_tools - t_model) * 1000)
 
-    tools = get_available_tools(model_name=model_name, groups=agent_config.tool_groups if agent_config else None, subagent_enabled=subagent_enabled, runtime_config=config)
+    tools = get_available_tools(model_name=model_name, groups=agent_config.tool_groups if agent_config else None, subagent_enabled=subagent_enabled, interaction_style=interaction_style, runtime_config=config)
     t_middleware = time.monotonic()
     logger.info("[perf:harness] get_available_tools=%.1fms", (t_middleware - t_tools) * 1000)
 
@@ -490,6 +492,7 @@ def make_lead_agent(config: RunnableConfig):
     system_prompt = apply_prompt_template(
         subagent_enabled=subagent_enabled,
         max_concurrent_subagents=max_concurrent_subagents,
+        interaction_style=interaction_style,
         agent_name=agent_name,
         user_id=user_id,
         enabled_skill_names=enabled_skill_names,

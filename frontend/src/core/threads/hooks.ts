@@ -450,9 +450,10 @@ export function useThreadStream({
           ...context,
           user_id: sessionUserId,
           org_id: sessionOrgId,
-          thinking_enabled: context.mode !== "flash",
-          is_plan_mode: context.mode === "pro" || context.mode === "ultra",
-          subagent_enabled: context.mode === "ultra",
+          thinking_enabled: true,
+          is_plan_mode: true,
+          subagent_enabled: true,
+          interaction_style: context.mode ?? "autonomous",
           thread_id: gatewayThreadId,
           kb_ids: message.knowledgeBases?.map((kb) => kb.id),
         };
@@ -462,7 +463,7 @@ export function useThreadStream({
           streamSubgraphs: true,
           streamResumable: true,
           context: runContext,
-          config: { recursion_limit: DEFAULT_THREAD_RECURSION_LIMIT },
+          config: { recursion_limit: context.mode === "express" ? 300 : context.mode === "precise" ? 100 : DEFAULT_THREAD_RECURSION_LIMIT },
         });
         void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
       } catch (error) {

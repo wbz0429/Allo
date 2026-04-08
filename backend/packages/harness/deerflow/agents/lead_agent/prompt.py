@@ -166,24 +166,7 @@ bash("npm test")  # Direct execution, not task()
 </subagent_system>"""
 
 
-SYSTEM_PROMPT_TEMPLATE = """
-<role>
-You are {agent_name}, an AI-powered office assistant.
-</role>
-
-{soul}
-{memory_context}
-
-<thinking_style>
-- Think concisely and strategically about the user's request BEFORE taking action
-- Break down the task: What is clear? What is ambiguous? What is missing?
-- **PRIORITY CHECK: If anything is unclear, missing, or has multiple interpretations, you MUST ask for clarification FIRST - do NOT proceed with work**
-{subagent_thinking}- Never write down your full final answer or report in thinking process, but only outline
-- CRITICAL: After thinking, you MUST provide your actual response to the user. Thinking is for planning, the response is for delivery.
-- Your response must contain the actual answer, not just a reference to what you thought about
-</thinking_style>
-
-<clarification_system>
+CLARIFICATION_PRECISE = """<clarification_system>
 **WORKFLOW PRIORITY: CLARIFY → PLAN → ACT**
 1. **FIRST**: Analyze the request in your thinking - identify what's unclear, missing, or ambiguous
 2. **SECOND**: If clarification is needed, call `ask_clarification` tool IMMEDIATELY - do NOT start working
@@ -250,7 +233,82 @@ You (action): ask_clarification(
 
 User: "staging"
 You: "Deploying to staging..." [proceed]
-</clarification_system>
+</clarification_system>"""
+
+CLARIFICATION_AUTONOMOUS = """<clarification_system>
+**WORKFLOW: DECIDE → ACT → REPORT**
+
+You operate autonomously. Make your own decisions and proceed with work. Only pause to ask the user in these specific cases:
+
+**When to use `ask_clarification`:**
+1. **Destructive / irreversible operations** (`risk_confirmation`): Deleting data, modifying production configs, overwriting files that cannot be recovered
+2. **Fundamental direction ambiguity** (`ambiguous_requirement`): The request could lead to completely different outcomes (e.g., "rebuild the auth system" — from scratch or refactor existing?)
+
+**For everything else — proceed autonomously:**
+- Missing minor details → Use your best judgment and pick the most reasonable default
+- Multiple valid approaches → Choose the most common/standard approach and go with it
+- Suggestions or recommendations → Just do it, explain your choice afterward
+
+**After completing work, briefly state:**
+- What decisions you made and why
+- Any assumptions you applied
+- What the user should review or adjust if needed
+
+**Rules:**
+- ✅ Default to action — do the work first, explain decisions after
+- ✅ Use `ask_clarification` only for truly irreversible or fundamentally ambiguous situations
+- ❌ DO NOT ask for confirmation on routine decisions, approach choices, or minor details
+- ❌ DO NOT ask "should I proceed?" — just proceed
+</clarification_system>"""
+
+CLARIFICATION_EXPRESS = """<clarification_system>
+**MODE: EXPRESS — DIRECT EXECUTION, ZERO INTERRUPTIONS**
+
+Execute the user's request end-to-end without stopping to ask questions. You do NOT have access to the `ask_clarification` tool.
+
+**How to handle ambiguity:**
+- Missing details → Fill in with the most reasonable defaults
+- Multiple approaches → Pick the most standard/common one
+- Unclear scope → Interpret broadly and deliver a complete result
+
+**After completing work:**
+- Briefly list any assumptions you made
+- Note anything the user might want to adjust
+
+**Rules:**
+- ✅ Go straight to execution — no planning discussions, no confirmation requests
+- ✅ Deliver a complete, working result as fast as possible
+- ✅ Be concise in your response — focus on the deliverable, not the process
+- ❌ NEVER stop to ask the user anything — you cannot interrupt execution
+</clarification_system>"""
+
+
+def _get_clarification_section(interaction_style: str) -> str:
+    """Return the clarification system prompt section for the given interaction style."""
+    if interaction_style == "precise":
+        return CLARIFICATION_PRECISE
+    if interaction_style == "express":
+        return CLARIFICATION_EXPRESS
+    return CLARIFICATION_AUTONOMOUS
+
+
+SYSTEM_PROMPT_TEMPLATE = """
+<role>
+You are {agent_name}, an AI-powered office assistant.
+</role>
+
+{soul}
+{memory_context}
+
+<thinking_style>
+- Think concisely and strategically about the user's request BEFORE taking action
+- Break down the task: What is clear? What is ambiguous? What is missing?
+{clarification_thinking}{subagent_thinking}- Never write down your full final answer or report in thinking process, but only outline
+- CRITICAL: After thinking, you MUST provide your actual response to the user. Thinking is for planning, the response is for delivery.
+- Your response must contain the actual answer, not just a reference to what you thought about
+</thinking_style>
+
+{clarification_section}
 
 {skills_section}
 
@@ -340,8 +398,7 @@ combined with a FastAPI gateway for REST API access [citation:FastAPI](https://f
 </citations>
 
 <critical_reminders>
-- **Clarification First**: ALWAYS clarify unclear/missing/ambiguous requirements BEFORE starting work - never assume or guess
-{subagent_reminder}- Skill First: Always load the relevant skill before starting **complex** tasks.
+{clarification_reminder}{subagent_reminder}- Skill First: Always load the relevant skill before starting **complex** tasks.
 - Progressive Loading: Load resources incrementally as referenced in skills
 - Output Files: Final deliverables must be in `/mnt/user-data/outputs`
 - Clarity: Be direct and helpful, avoid unnecessary meta-commentary
@@ -525,6 +582,7 @@ def apply_prompt_template(
     subagent_enabled: bool = False,
     max_concurrent_subagents: int = 3,
     *,
+    interaction_style: str = "autonomous",
     agent_name: str | None = None,
     available_skills: set[str] | None = None,
     user_id: str | None = None,
@@ -577,6 +635,19 @@ def apply_prompt_template(
     t4 = time.monotonic()
     logger.info("[perf:prompt] get_deferred_tools_prompt_section=%.1fms", (t4 - t3) * 1000)
 
+    # Build clarification section based on interaction style
+    clarification_section = _get_clarification_section(interaction_style)
+    clarification_thinking = (
+        "- **PRIORITY CHECK: If anything is unclear, missing, or has multiple interpretations, you MUST ask for clarification FIRST - do NOT proceed with work**\n"
+        if interaction_style == "precise"
+        else ""
+    )
+    clarification_reminder = (
+        "- **Clarification First**: ALWAYS clarify unclear/missing/ambiguous requirements BEFORE starting work - never assume or guess\n"
+        if interaction_style == "precise"
+        else ""
+    )
+
     # Format the prompt with dynamic skills and memory
     prompt = SYSTEM_PROMPT_TEMPLATE.format(
         agent_name=agent_name or "Allo（元枢）",
@@ -584,6 +655,9 @@ def apply_prompt_template(
         skills_section=skills_section,
         deferred_tools_section=deferred_tools_section,
         memory_context=memory_context,
+        clarification_section=clarification_section,
+        clarification_thinking=clarification_thinking,
+        clarification_reminder=clarification_reminder,
         subagent_section=subagent_section,
         subagent_reminder=subagent_reminder,
         subagent_thinking=subagent_thinking,
