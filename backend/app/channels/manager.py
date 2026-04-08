@@ -18,7 +18,7 @@ DEFAULT_LANGGRAPH_URL = "http://localhost:2024"
 DEFAULT_GATEWAY_URL = "http://localhost:8001"
 DEFAULT_ASSISTANT_ID = "lead_agent"
 
-DEFAULT_RUN_CONFIG: dict[str, Any] = {"recursion_limit": 100}
+DEFAULT_RUN_CONFIG: dict[str, Any] = {"recursion_limit": 250}
 DEFAULT_RUN_CONTEXT: dict[str, Any] = {
     "thinking_enabled": True,
     "is_plan_mode": False,

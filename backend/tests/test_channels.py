@@ -564,6 +564,36 @@ class TestChannelManager:
 
         _run(go())
 
+    def test_handle_chat_uses_higher_default_recursion_limit(self):
+        from app.channels.manager import ChannelManager
+
+        async def go():
+            bus = MessageBus()
+            store = ChannelStore(path=Path(tempfile.mkdtemp()) / "store.json")
+            manager = ChannelManager(bus=bus, store=store)
+
+            outbound_received = []
+
+            async def capture_outbound(msg):
+                outbound_received.append(msg)
+
+            bus.subscribe_outbound(capture_outbound)
+
+            mock_client = _make_mock_langgraph_client()
+            manager._client = mock_client
+
+            await manager.start()
+
+            inbound = InboundMessage(channel_name="telegram", chat_id="chat1", user_id="user1", text="hi")
+            await bus.publish_inbound(inbound)
+            await _wait_for(lambda: len(outbound_received) >= 1)
+            await manager.stop()
+
+            call_args = mock_client.runs.wait.call_args
+            assert call_args[1]["config"]["recursion_limit"] == 250
+
+        _run(go())
+
     def test_handle_feishu_chat_streams_multiple_outbound_updates(self, monkeypatch):
         from app.channels.manager import ChannelManager
 

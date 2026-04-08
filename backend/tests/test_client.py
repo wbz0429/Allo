@@ -1653,7 +1653,7 @@ class TestGatewayConformance:
         mem_cfg.max_facts = 100
         mem_cfg.fact_confidence_threshold = 0.7
         mem_cfg.injection_enabled = True
-        mem_cfg.max_injection_tokens = 2000
+        mem_cfg.max_injection_tokens = 6000
 
         with patch("deerflow.config.memory_config.get_memory_config", return_value=mem_cfg):
             result = client.get_memory_config()
@@ -1670,7 +1670,7 @@ class TestGatewayConformance:
         mem_cfg.max_facts = 100
         mem_cfg.fact_confidence_threshold = 0.7
         mem_cfg.injection_enabled = True
-        mem_cfg.max_injection_tokens = 2000
+        mem_cfg.max_injection_tokens = 6000
 
         memory_data = {
             "version": "1.0",

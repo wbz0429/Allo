@@ -50,7 +50,7 @@ class MemoryConfig(BaseModel):
         description="Whether to inject memory into system prompt",
     )
     max_injection_tokens: int = Field(
-        default=2000,
+        default=6000,
         ge=100,
         le=8000,
         description="Maximum tokens to use for memory injection",
