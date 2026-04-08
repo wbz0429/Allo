@@ -398,7 +398,7 @@ memory:
   max_facts: 100 # Maximum number of facts to store
   fact_confidence_threshold: 0.7 # Minimum confidence for storing facts
   injection_enabled: true # Whether to inject memory into system prompt
-  max_injection_tokens: 2000 # Maximum tokens for memory injection
+  max_injection_tokens: 6000 # Maximum tokens for memory injection
 
 # ============================================================================
 # Checkpointer Configuration

@@ -26,6 +26,8 @@ import {
 } from "./threads-api";
 import type { AgentThread, AgentThreadState } from "./types";
 
+const DEFAULT_THREAD_RECURSION_LIMIT = 250;
+
 export type ToolEndEvent = {
   name: string;
   data: unknown;
@@ -460,7 +462,7 @@ export function useThreadStream({
           streamSubgraphs: true,
           streamResumable: true,
           context: runContext,
-          config: { recursion_limit: 150 },
+          config: { recursion_limit: DEFAULT_THREAD_RECURSION_LIMIT },
         });
         void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
       } catch (error) {
