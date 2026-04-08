@@ -12,19 +12,22 @@ cd frontend && pnpm lint --quiet && pnpm typecheck
 ## 推送代码
 
 ```bash
-git push origin feature/pre_develop_local
+git push origin feature/dev_0405
 ```
 
 ## 服务器拉取
 
 ```bash
-# 服务器上（gitclone.com 镜像有延迟，用 SCP 更快）
-# 方式 1: git pull（镜像同步后）
+# 服务器上
+# 首次切换仓库（从 VaaT-Flow 切到 Allo）：
+#   cd /srv/allo && git remote set-url origin git@github.com:wbz0429/Allo.git && git fetch origin && git checkout main && git pull
+#
+# 日常部署：
 ssh ubuntu@146.56.239.94 "cd /srv/allo && git pull"
 
-# 方式 2: SCP 单文件（镜像未同步时）
-scp <file> ubuntu@146.56.239.94:/tmp/<file>
-ssh ubuntu@146.56.239.94 "sudo cp /tmp/<file> /srv/allo/<path> && sudo chown allo:allo /srv/allo/<path>"
+# 紧急部署（git 未同步时用 SCP）：
+# scp <file> ubuntu@146.56.239.94:/tmp/<file>
+# ssh ubuntu@146.56.239.94 "sudo cp /tmp/<file> /srv/allo/<path> && sudo chown allo:allo /srv/allo/<path>"
 ```
 
 ## 后端部署
@@ -148,9 +151,12 @@ SQLite 在 systemd 环境下因权限问题无法创建文件。
 
 本地 PG 连接不需要 SSL，但 asyncpg 默认尝试 SSL 客户端证书，被 `ProtectHome=true` 阻止。
 
-### 7. gitclone.com 镜像同步延迟
+### 7. 仓库地址
 
-GitHub 推送后 gitclone.com 镜像可能需要几分钟同步。紧急部署用 SCP。
+线上仓库已从 `wbz0429/VaaT-Flow` 迁移到 `wbz0429/Allo`。
+- 本地开发仍在 VaaT-Flow 目录，通过 `git push origin feature/dev_0405` 推送
+- 新仓库同步：本地需要手动同步到 Allo 仓库（`git remote add allo git@github.com:wbz0429/Allo.git && git push allo`）
+- 服务器 `/srv/allo` 的 remote 应指向 `git@github.com:wbz0429/Allo.git` 的 `main` 分支
 
 ### 8. uv 安装位置
 
