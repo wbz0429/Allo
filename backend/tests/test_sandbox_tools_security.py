@@ -354,3 +354,83 @@ def test_replace_virtual_paths_in_command_does_not_rewrite_similar_custom_skill_
     result = replace_virtual_paths_in_command(cmd, _THREAD_DATA)
 
     assert result == cmd
+
+
+# ---------- .venv path isolation ----------
+
+
+def test_validate_local_bash_command_paths_blocks_venv_bin_path() -> None:
+    """Host .venv/bin paths must be rejected to prevent service Python leakage."""
+    with pytest.raises(PermissionError, match="Unsafe absolute paths"):
+        validate_local_bash_command_paths(
+            "/srv/allo/backend/.venv/bin/python /mnt/user-data/workspace/script.py",
+            _THREAD_DATA,
+        )
+
+
+def test_validate_local_bash_command_paths_blocks_venv_directory() -> None:
+    """Even bare .venv directory references should be rejected."""
+    with pytest.raises(PermissionError, match="Unsafe absolute paths"):
+        validate_local_bash_command_paths(
+            "ls /home/user/project/.venv",
+            _THREAD_DATA,
+        )
+
+
+def test_validate_local_bash_command_paths_blocks_local_mac_venv() -> None:
+    """macOS-style .venv paths should also be blocked."""
+    with pytest.raises(PermissionError, match="Unsafe absolute paths"):
+        validate_local_bash_command_paths(
+            "/Users/steven/VaaT-Flow/backend/.venv/bin/python3 script.py",
+            _THREAD_DATA,
+        )
+
+
+def test_mask_local_paths_in_output_masks_venv_bin_python() -> None:
+    """Host .venv/bin/python paths should be masked to python3."""
+    output = "/srv/allo/backend/.venv/bin/python"
+    masked = mask_local_paths_in_output(output, _THREAD_DATA)
+    assert masked == "python3"
+
+
+def test_mask_local_paths_in_output_masks_venv_bin_python3() -> None:
+    output = "/srv/allo/backend/.venv/bin/python3"
+    masked = mask_local_paths_in_output(output, _THREAD_DATA)
+    assert masked == "python3"
+
+
+def test_mask_local_paths_in_output_masks_venv_bin_python312() -> None:
+    output = "/srv/allo/backend/.venv/bin/python3.12"
+    masked = mask_local_paths_in_output(output, _THREAD_DATA)
+    assert masked == "python3"
+
+
+def test_mask_local_paths_in_output_masks_venv_bin_pip() -> None:
+    output = "/Users/steven/VaaT-Flow/backend/.venv/bin/pip"
+    masked = mask_local_paths_in_output(output, _THREAD_DATA)
+    assert masked == "pip3"
+
+
+def test_mask_local_paths_in_output_masks_venv_bin_other_command() -> None:
+    """Non-python .venv/bin commands should be masked to bare command name."""
+    output = "/srv/allo/backend/.venv/bin/uvicorn"
+    masked = mask_local_paths_in_output(output, _THREAD_DATA)
+    assert masked == "uvicorn"
+
+
+def test_mask_local_paths_in_output_masks_venv_in_which_output() -> None:
+    """Simulates `which python` output containing .venv path."""
+    output = "/srv/allo/backend/.venv/bin/python\n"
+    masked = mask_local_paths_in_output(output, _THREAD_DATA)
+    assert "/srv/allo" not in masked
+    assert ".venv" not in masked
+    assert "python3" in masked
+
+
+def test_mask_local_paths_in_output_masks_venv_in_mixed_output() -> None:
+    """Mixed output with both .venv and normal paths."""
+    output = "Python: /srv/allo/backend/.venv/bin/python3.12\nNode: /usr/bin/node"
+    masked = mask_local_paths_in_output(output, _THREAD_DATA)
+    assert ".venv" not in masked
+    assert "python3" in masked
+    assert "/usr/bin/node" in masked

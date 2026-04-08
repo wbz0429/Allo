@@ -15,6 +15,37 @@ class LocalSandbox(Sandbox):
             id: Sandbox identifier
         """
         super().__init__(id)
+        self._sandbox_env: dict[str, str] | None = None
+
+    @staticmethod
+    def _build_sandbox_env() -> dict[str, str]:
+        """Build a clean environment for sandbox subprocess execution.
+
+        Removes service-process virtualenv paths from PATH to prevent
+        the agent from discovering and using the host's .venv.
+        Also injects pip mirror configuration for reliable package installation.
+        """
+        env = os.environ.copy()
+
+        # Remove .venv entries from PATH to isolate agent from service Python
+        path_dirs = env.get("PATH", "").split(os.pathsep)
+        clean_path = os.pathsep.join(d for d in path_dirs if ".venv" not in d)
+        env["PATH"] = clean_path
+
+        # Remove VIRTUAL_ENV to prevent python from thinking it's in a venv
+        env.pop("VIRTUAL_ENV", None)
+
+        # Set pip mirror for reliable package installation (China mainland)
+        env.setdefault("PIP_INDEX_URL", "https://pypi.tuna.tsinghua.edu.cn/simple/")
+        env.setdefault("PIP_TRUSTED_HOST", "pypi.tuna.tsinghua.edu.cn")
+
+        return env
+
+    def _get_sandbox_env(self) -> dict[str, str]:
+        """Get or create the cached sandbox environment."""
+        if self._sandbox_env is None:
+            self._sandbox_env = self._build_sandbox_env()
+        return self._sandbox_env
 
     @staticmethod
     def _get_shell() -> str:
@@ -40,6 +71,7 @@ class LocalSandbox(Sandbox):
             capture_output=True,
             text=True,
             timeout=600,
+            env=self._get_sandbox_env(),
         )
         output = result.stdout
         if result.stderr:

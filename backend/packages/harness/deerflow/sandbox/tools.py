@@ -296,6 +296,20 @@ def mask_local_paths_in_output(output: str, thread_data: ThreadDataState | None)
 
             result = pattern.sub(replace_match, result)
 
+    # Mask any .venv/bin paths to prevent model from learning host venv locations.
+    # This is a fallback defense — PATH sanitization in LocalSandbox is the primary barrier.
+    _VENV_BIN_PATTERN = re.compile(r"/[^\s\"';&|<>()]*\.venv/bin/([^\s\"';&|<>()]+)")
+
+    def _replace_venv_bin(match: re.Match) -> str:
+        cmd = match.group(1)
+        if cmd in ("python", "python3") or cmd.startswith("python3."):
+            return "python3"
+        if cmd == "pip" or cmd.startswith("pip3"):
+            return "pip3"
+        return cmd
+
+    result = _VENV_BIN_PATTERN.sub(_replace_venv_bin, result)
+
     return result
 
 
@@ -420,6 +434,11 @@ def validate_local_bash_command_paths(command: str, thread_data: ThreadDataState
 
         if _user_skills_virtual_path_for_host_path(absolute_path, thread_data):
             _reject_path_traversal(absolute_path)
+            continue
+
+        # Explicitly reject host .venv paths — agent must not use the service process's Python
+        if "/.venv/" in absolute_path or absolute_path.endswith("/.venv"):
+            unsafe_paths.append(absolute_path)
             continue
 
         if any(absolute_path == prefix.rstrip("/") or absolute_path.startswith(prefix) for prefix in _LOCAL_BASH_SYSTEM_PATH_PREFIXES):
@@ -621,8 +640,69 @@ def ensure_thread_directories_exist(runtime: ToolRuntime[ContextT, ThreadState] 
         if path:
             os.makedirs(path, exist_ok=True)
 
+    # Create /mnt/user-data and /mnt/skills symlinks so that Python scripts
+    # containing hardcoded virtual paths can resolve them at runtime.
+    _ensure_virtual_path_symlinks(thread_data)
+
     # Mark as created to avoid redundant operations
     runtime.state["thread_directories_created"] = True
+
+
+def _ensure_virtual_path_symlinks(thread_data: ThreadDataState) -> None:
+    """Create /mnt/user-data and /mnt/skills symlinks for the current thread.
+
+    This allows Python scripts that hardcode virtual paths like
+    ``/mnt/user-data/workspace/...`` to resolve them on the host filesystem.
+    The symlinks are per-thread: /mnt/user-data points to the thread's
+    user-data parent directory so that workspace/uploads/outputs all work.
+    /mnt/skills points to the global skills host directory.
+
+    Symlinks are updated atomically (unlink + symlink) when the target changes.
+    """
+    import os
+
+    # --- /mnt/user-data → thread's user-data parent ---
+    workspace = thread_data.get("workspace_path")
+    if workspace:
+        # workspace_path is like .../user-data/workspace, parent is user-data
+        user_data_dir = str(Path(workspace).parent)
+        _atomic_symlink(VIRTUAL_PATH_PREFIX, user_data_dir)
+
+    # --- /mnt/skills → global skills host directory ---
+    skills_host = _get_skills_host_path()
+    if skills_host:
+        skills_container = _get_skills_container_path()
+        _atomic_symlink(skills_container, skills_host)
+
+    # --- custom skills: create symlink inside the resolved skills directory ---
+    # /mnt/skills is a symlink to e.g. /srv/allo/skills, so /mnt/skills/custom
+    # resolves to /srv/allo/skills/custom. We create the symlink there.
+    user_skills = thread_data.get("user_skills_path")
+    if user_skills and skills_host:
+        real_custom_link = os.path.join(skills_host, "custom")
+        _atomic_symlink(real_custom_link, user_skills)
+
+
+def _atomic_symlink(link_path: str, target: str) -> None:
+    """Create or update a symlink atomically. No-op if already correct."""
+    import os
+
+    try:
+        existing = os.readlink(link_path)
+        if existing == target:
+            return
+        os.unlink(link_path)
+    except FileNotFoundError:
+        pass
+    except OSError:
+        # link_path exists but is not a symlink (e.g. a real directory)
+        return
+
+    os.makedirs(os.path.dirname(link_path), exist_ok=True)
+    try:
+        os.symlink(target, link_path)
+    except OSError:
+        pass  # Permission denied on /mnt — non-fatal, bash path replacement still works
 
 
 @tool("bash", parse_docstring=True)
@@ -680,7 +760,10 @@ def ls_tool(runtime: ToolRuntime[ContextT, ThreadState], description: str, path:
         children = sandbox.list_dir(path)
         if not children:
             return "(empty)"
-        return "\n".join(children)
+        result = "\n".join(children)
+        if is_local_sandbox(runtime):
+            result = mask_local_paths_in_output(result, get_thread_data(runtime))
+        return result
     except SandboxError as e:
         return f"Error: {e}"
     except FileNotFoundError:
@@ -725,6 +808,8 @@ def read_file_tool(
             return "(empty)"
         if start_line is not None and end_line is not None:
             content = "\n".join(content.splitlines()[start_line - 1 : end_line])
+        if is_local_sandbox(runtime):
+            content = mask_local_paths_in_output(content, get_thread_data(runtime))
         return content
     except SandboxError as e:
         return f"Error: {e}"
