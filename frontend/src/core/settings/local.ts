@@ -1,5 +1,21 @@
 import type { AgentThreadContext } from "../threads";
 
+function normalizeMode(mode: unknown):
+  | "autonomous"
+  | "precise"
+  | "express"
+  | undefined {
+  if (mode === undefined || mode === null || mode === "") {
+    return undefined;
+  }
+
+  if (mode === "autonomous" || mode === "precise" || mode === "express") {
+    return mode;
+  }
+
+  return "autonomous";
+}
+
 export const DEFAULT_LOCAL_SETTINGS: LocalSettings = {
   notification: {
     enabled: true,
@@ -52,6 +68,7 @@ export function getLocalSettings(): LocalSettings {
         context: {
           ...DEFAULT_LOCAL_SETTINGS.context,
           ...settings.context,
+          mode: normalizeMode(settings?.context?.mode),
         },
         layout: {
           ...DEFAULT_LOCAL_SETTINGS.layout,
