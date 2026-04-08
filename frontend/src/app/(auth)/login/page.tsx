@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -19,12 +19,13 @@ import { useI18n } from "@/core/i18n/hooks";
 
 export default function LoginPage() {
   const { t } = useI18n();
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const isDev = process.env.NODE_ENV !== "production";
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/workspace";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -39,7 +40,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/workspace");
+      window.location.assign(callbackUrl);
     } catch {
       setError(t.auth.login.unexpectedError);
     } finally {
