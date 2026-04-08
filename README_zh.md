@@ -1,4 +1,4 @@
-# 🦌 DeerFlow - 2.0
+# Allo（元枢）
 
 [English](./README.md) | 中文
 
@@ -6,494 +6,423 @@
 [![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white)](./Makefile)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-<a href="https://trendshift.io/repositories/14699" target="_blank"><img src="https://trendshift.io/api/badge/repositories/14699" alt="bytedance%2Fdeer-flow | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-> 2026 年 2 月 28 日，DeerFlow 2 发布后登上 GitHub Trending 第 1 名。非常感谢社区的支持，这是大家一起做到的。
+Allo（元枢）是一个面向团队的 Web 端 AI 工作台与 SaaS 产品，用来处理调研、编程、分析和内容生成等多步骤任务。它把聊天线程、知识库、自定义 Agents、Marketplace、管理后台，以及可扩展的 Agent Runtime 组合在一个完整产品里。
 
-DeerFlow（**D**eep **E**xploration and **E**fficient **R**esearch **Flow**）是一个开源的 **super agent harness**。它把 **sub-agents**、**memory** 和 **sandbox** 组织在一起，再配合可扩展的 **skills**，让 agent 可以完成几乎任何事情。
+Allo 同时支持 SaaS 交付和企业本地部署。对于有数据隐私、合规审查、网络隔离和内部治理要求的团队，可以把从模型接入到网关、运行时、存储、反向代理在内的整套服务部署在自己的环境中，在保留 Web 产品体验的同时，把数据路径控制在企业边界内。
 
-https://github.com/user-attachments/assets/a8bcadc4-e040-4cf2-8fda-dd768b999c18
-
-> [!NOTE]
-> **DeerFlow 2.0 是一次彻底重写。** 它和 v1 没有共用代码。如果你要找的是最初的 Deep Research 框架，可以前往 [`1.x` 分支](https://github.com/bytedance/deer-flow/tree/main-1.x)。那里仍然欢迎贡献；当前的主要开发已经转向 2.0。
-
-## 官网
-
-[<img width="2880" height="1600" alt="image" src="https://github.com/user-attachments/assets/a598c49f-3b2f-41ea-a052-05e21349188a" />](https://deerflow.tech)
-
-想了解更多，或者直接看**真实演示**，可以访问[**官网**](https://deerflow.tech)。
-
-## 字节跳动火山引擎方舟 Coding Plan
-
-<img width="4808" height="2400" alt="codingplan -banner 素材" src="https://github.com/user-attachments/assets/d30dae52-84f2-4021-b32f-6d281252b9ea" />
-
-- 我们推荐使用 Doubao-Seed-2.0-Code、DeepSeek v3.2 和 Kimi 2.5 运行 DeerFlow
-- [现在就加入 Coding Plan](https://www.volcengine.com/activity/codingplan?utm_campaign=deer_flow&utm_content=deer_flow&utm_medium=devrel&utm_source=OWO&utm_term=deer_flow)
-- [海外地区的开发者请点击这里](https://www.byteplus.com/en/activity/codingplan?utm_campaign=deer_flow&utm_content=deer_flow&utm_medium=devrel&utm_source=OWO&utm_term=deer_flow)
+> 产品品牌是 **Allo（元枢）**。当前仓库中的部分内部包名、脚本名和运行时模块，仍然保留历史 `deerflow` 命名。
 
 ## 目录
 
-- [🦌 DeerFlow - 2.0](#-deerflow---20)
-  - [官网](#官网)
-  - [InfoQuest](#infoquest)
-  - [目录](#目录)
-  - [快速开始](#快速开始)
-    - [配置](#配置)
-    - [运行应用](#运行应用)
-      - [方式一：Docker（推荐）](#方式一docker推荐)
-      - [方式二：本地开发](#方式二本地开发)
-    - [进阶配置](#进阶配置)
-      - [Sandbox 模式](#sandbox-模式)
-      - [MCP Server](#mcp-server)
-      - [IM 渠道](#im-渠道)
-  - [从 Deep Research 到 Super Agent Harness](#从-deep-research-到-super-agent-harness)
-  - [核心特性](#核心特性)
-    - [Skills 与 Tools](#skills-与-tools)
-      - [Claude Code 集成](#claude-code-集成)
-    - [Sub-Agents](#sub-agents)
-    - [Sandbox 与文件系统](#sandbox-与文件系统)
-    - [Context Engineering](#context-engineering)
-    - [长期记忆](#长期记忆)
-  - [推荐模型](#推荐模型)
-  - [内嵌 Python Client](#内嵌-python-client)
-  - [文档](#文档)
-  - [参与贡献](#参与贡献)
-  - [许可证](#许可证)
-  - [致谢](#致谢)
-    - [核心贡献者](#核心贡献者)
-  - [Star History](#star-history)
+- [Allo 是什么](#allo-是什么)
+- [团队为什么选择 Allo](#团队为什么选择-allo)
+- [核心产品能力](#核心产品能力)
+  - [聊天与工作模式](#聊天与工作模式)
+  - [知识库](#知识库)
+  - [自定义 Agents](#自定义-agents)
+  - [Marketplace](#marketplace)
+  - [管理后台与团队运营](#管理后台与团队运营)
+- [SaaS 与团队基础能力](#saas-与团队基础能力)
+- [企业部署与数据隐私](#企业部署与数据隐私)
+- [Agent 平台能力](#agent-平台能力)
+- [系统架构](#系统架构)
+- [快速开始](#快速开始)
+  - [本地开发](#本地开发)
+  - [Docker 开发](#docker-开发)
+  - [生产风格 Docker 部署](#生产风格-docker-部署)
+- [开发命令](#开发命令)
+- [仓库结构](#仓库结构)
+- [许可证](#许可证)
+
+## Allo 是什么
+
+Allo 同时面向两类读者：
+
+- **团队与业务负责人**：需要一个支持账号、组织、知识、管理和扩展能力的 Web 端 AI 工作台
+- **开发者与自托管团队**：需要这套产品背后的完整技术栈，包括前端、API Gateway、Agent Runtime、Sandbox、Skills、MCP、Memory 和渠道接入
+
+落到实际能力上，Allo 提供：
+
+- 面向长任务和复杂任务的 Web 工作台
+- 基于组织作用域的数据隔离与会话鉴权
+- 带规划、推理、工具调用和子代理能力的 Agent 编排
+- 可扩展的 Skills 与 MCP 工具体系
+- 知识库导入、索引与检索能力
+- 同时适用于 SaaS 交付和企业自控部署的落地方式
+
+## 团队为什么选择 Allo
+
+Allo 介于“只能聊天的 AI 应用”和“完全碎片化的内部 AI 技术栈”之间。
+
+它把下面这些能力放在一个统一产品面里：
+
+- 多步骤 AI 工作，而不只是一次性提问
+- 共享知识与可复用 Agents，而不只是个人对话
+- 组织级管理与可见性，而不只是个人使用记录
+- 通过 Skills、Tools 和 MCP 做扩展，而不是固定助手
+- 在数据隐私、网络边界和合规要求更高时，提供企业可控的部署方式
+
+对于企业用户，关键不只是“Allo 有这些产品能力”，而是“这套产品可以作为完整系统部署在企业自己的环境中”。
+
+## 核心产品能力
+
+### 聊天与工作模式
+
+Allo 的工作台围绕持久化聊天线程和运行记录组织。当前提供三种工作模式：
+
+- **Autonomous**：默认的端到端执行风格，适合复杂任务
+- **Precise**：更强调控制感和明确交互的执行风格
+- **Express**：更强调反馈速度和短回路执行的模式
+
+这三种模式都保留规划、推理和子代理能力，差异主要在交互风格与运行预算，而不是能力阉割。
+
+线程层面的能力还包括：
+
+- 多模型选择
+- 对支持的模型设置 reasoning effort
+- 把文件上传到线程作用域存储
+- 访问生成文件与 artifacts
+- 生成后续追问建议
+- 在聊天上下文中挂接知识库
+
+### 知识库
+
+Allo 提供组织作用域的知识库，用来为 Agent 工作提供业务上下文。
+
+当前能力包括：
+
+- 创建、读取、更新、删除知识库
+- 上传不超过 50 MB 的文档
+- 把支持的文件转换成 Markdown，供后续检索使用
+- 按需触发索引，而不是导入后立刻全量嵌入
+- 支持关键词检索与语义检索
+- 读取处理后的内容，并下载原始文件
+
+这让知识库既可以作为产品能力使用，也可以作为面向业务场景的 Agent 基础设施使用。
+
+### 自定义 Agents
+
+团队不必只依赖一个默认助手，也可以在工作台里定义自己的 Agents。
+
+当前能力包括：
+
+- 校验名称可用性与命名合法性
+- 创建、读取、更新、删除自定义 Agents
+- 为 Agent 单独配置模型
+- 为 Agent 单独配置工具组
+- 通过 `SOUL.md` 编辑 Agent 的人格与行为约束
+- 为特定 Agent 提供独立聊天入口
+
+这使团队可以把重复流程打包成具名 Agent，在同一工作台中持续复用。
+
+### Marketplace
+
+Allo 提供 Marketplace，用来安装可复用的 Skills 和 Tools。
+
+当前能力包括：
+
+- 浏览公开 Tools 与公开 Skills
+- 以组织维度安装和卸载条目
+- 为新创建的组织自动安装公开 Marketplace 条目
+- 保存组织级安装记录
+- 上传自定义 `.zip` 或 `.skill` 包
+- 重新上传同名自定义 Skill 并覆盖安装
+- 删除用户上传的自定义 Skill
+- 在最终 Skill Catalog 之上叠加用户级启用 / 禁用开关
+
+这让 Allo 同时具备平台分发能力和用户自定义能力。
+
+### 管理后台与团队运营
+
+Allo 已经具备面向产品的后台和团队管理能力，而不只是开发者 API。
+
+当前能力包括：
+
+- 平台级 usage 汇总接口
+- 组织成员列表、添加、移除
+- 组织级 usage 汇总接口
+- 后台总览页面与组织页面
+- 对鉴权请求记录 usage 数据
+
+仓库中也已经具备更严格治理能力所需的基础，包括提供方密钥管理、组织感知的管理模型，以及 usage 可见性，这些能力可以继续向更完整的 SaaS 治理能力演进。
+
+## SaaS 与团队基础能力
+
+Allo 不是一个只做演示的 Agent 界面。当前代码已经包含 SaaS 化产品需要的核心基础能力：
+
+- **鉴权与会话**：邮箱注册、登录、退出、基于 Cookie 的会话，以及当前登录态查询
+- **组织模型**：用户归属组织，主要产品数据按 `org_id` 隔离
+- **租户配置基础**：数据模型已经包含组织级配置记录
+- **用户资料**：包含用户资料与 locale 处理
+- **Usage Tracking**：中间件会把鉴权请求记录成 usage records
+- **Provider Key 管理**：用户 API Key 管理接口为 BYOK 方向提供基础
+- **Marketplace 安装模型**：Skills 和 Tools 可以按组织安装
+- **渠道接入**：后端服务层可以管理 Feishu、Slack、Telegram 渠道
+
+对外描述时，比较准确的总结是：
+
+- Allo 已经覆盖团队 AI 工作台所需的核心产品面。
+- 同时也具备继续扩展到更深层 BYOK、治理、租户配置和 usage 管理流程的技术基础。
+
+## 企业部署与数据隐私
+
+Allo 不只适合托管式 SaaS，也适合企业自控部署。
+
+### 企业可控部署的范围
+
+当前仓库已经支持把完整应用栈部署在企业自有环境中，包括：
+
+- Web 前端
+- API Gateway
+- 基于 LangGraph 的运行时服务
+- nginx 反向代理
+- 基于 PostgreSQL 的应用数据存储
+- 基于 Redis 的会话与缓存链路
+- 与 Sandbox 相关的运行时组件
+- 本地模式或容器模式的服务编排
+
+这意味着企业可以把应用平面放在自己的环境中，而不是被迫把产品流量经过第三方托管控制面。
+
+### 模型与服务的部署灵活性
+
+Allo 的结构也允许企业控制模型侧链路。
+
+你可以：
+
+- 在 `config.yaml` 中配置自己的模型提供方
+- 通过 `base_url` 指向 OpenAI 兼容网关
+- 对接企业自己的模型中继或内部模型服务
+- 把工作流服务、数据存储与模型访问都放在同一受控环境中
+
+这也是 Allo 在数据隐私上的核心价值：它可以作为 SaaS 交付，但并不被锁死在 SaaS-only 的运行方式里。
+
+### 数据隐私定位
+
+对于数据敏感团队，真正重要的是部署控制权。
+
+Allo 的设计允许组织：
+
+- 把用户会话、组织数据、知识文件和 usage 记录保留在自己的基础设施内
+- 把整套应用放在自己的网络边界之后运行
+- 使用自己选择的模型与模型网关
+- 在内部政策不允许时，避免把业务数据强制送入外部托管产品栈
+
+如果你的诉求是“既要 Web 产品体验，又要企业可控的数据路径”，那这正是 Allo 当前代码结构支持的方向。
+
+## Agent 平台能力
+
+在 Web 产品层之下，Allo 仍然具备完整的 Agent 平台能力。
+
+### Skills
+
+Skills 是结构化能力模块，可以被打包、安装、启用、禁用和分发。
+
+Allo 当前支持：
+
+- 内置公开 Skills
+- Marketplace 管理的 Skills
+- 用户上传的自定义 Skills
+- 用户级 Skill 开关
+- 由底层运行时驱动的渐进式 Skill 加载
+
+### MCP
+
+Allo 提供用户作用域的 MCP 配置管理。
+
+包括：
+
+- 命名的 MCP Server 定义
+- `stdio` 和远程服务相关配置字段
+- Header 与环境变量配置
+- OAuth 相关配置字段，例如 token URL、client credentials、refresh token、scope 和 audience
+
+### Memory 与 Soul
+
+Allo 把可复用的个人上下文与临时线程状态分开处理。
+
+- **Memory** 用来保存长期上下文
+- **Soul** 用来保存用户的人格与行为约束内容
+- 运行时在执行前会预加载 memory、soul、知识库引用和 skill catalog 状态
+
+### Sandbox、上传与 Artifacts
+
+Allo 支持以文件为中心的 Agent 工作流，而不只是纯聊天。
+
+- 上传文件到线程作用域存储
+- 把支持的 Office 文件转换成 Markdown
+- 在需要时把上传内容同步到运行时可见的 Sandbox 路径
+- 通过 HTTP 接口暴露生成文件与 artifacts
+- 通过 artifact 路由读取打包 Skill 的内容
+
+### 规划与子代理
+
+Allo 的底层运行时是为多步骤任务设计的，不只是单轮对话引擎。
+
+它支持：
+
+- 计划模式上下文
+- 面向交互风格的运行配置
+- 在线程上下文中启用子代理
+- 递归执行预算
+- 基于 LangGraph 的长任务编排
+
+## 系统架构
+
+Allo 是一套同时包含 Web 产品层和 Agent Runtime 层的全栈系统。
+
+### 技术栈
+
+- **前端**：Next.js 16、React 19、TypeScript
+- **Gateway**：FastAPI
+- **Agent Runtime**：基于 LangGraph 的运行时与内部 `deerflow` harness 包
+- **存储**：PostgreSQL 应用数据与 Redis 会话 / 缓存链路
+- **反向代理**：运行在 `2026` 端口的 nginx
+
+### 本地运行布局
+
+典型本地环境包括：
+
+- **Frontend** 负责 Web 应用
+- **Gateway** 提供 auth、knowledge bases、marketplace、admin、settings 等产品 API
+- **LangGraph Runtime** 负责 Agent 执行
+- **Sandbox Provider** 负责文件和代码执行环境
+- **nginx** 把所有入口统一到一个本地访问地址
 
 ## 快速开始
 
-### 配置
+### 本地开发
 
-1. **克隆 DeerFlow 仓库**
+在仓库根目录执行：
+
+1. 检查环境依赖
 
    ```bash
-   git clone https://github.com/bytedance/deer-flow.git
-   cd deer-flow
+   make check
    ```
 
-2. **生成本地配置文件**
+2. 安装依赖
 
-   在项目根目录（`deer-flow/`）执行：
+   ```bash
+   make install
+   ```
+
+3. 生成本地配置文件
 
    ```bash
    make config
    ```
 
-   这个命令会基于示例模板生成本地配置文件。
+4. 配置模型与环境变量
 
-3. **配置你要使用的模型**
+   - 编辑 `config.yaml`
+   - 编辑 `.env`
+   - 至少配置一个可用模型
+   - 补充对应提供方的 API Key
 
-   编辑 `config.yaml`，至少定义一个模型：
+5. 启动完整本地栈
 
-   ```yaml
-   models:
-     - name: gpt-4                       # 内部标识
-       display_name: GPT-4               # 展示名称
-       use: langchain_openai:ChatOpenAI  # LangChain 类路径
-       model: gpt-4                      # API 使用的模型标识
-       api_key: $OPENAI_API_KEY          # API key（推荐使用环境变量）
-       max_tokens: 4096                  # 单次请求最大 tokens
-       temperature: 0.7                  # 采样温度
-
-     - name: openrouter-gemini-2.5-flash
-       display_name: Gemini 2.5 Flash (OpenRouter)
-       use: langchain_openai:ChatOpenAI
-       model: google/gemini-2.5-flash-preview
-       api_key: $OPENAI_API_KEY          # 这里 OpenRouter 依然沿用 OpenAI 兼容字段名
-       base_url: https://openrouter.ai/api/v1
-   ```
-
-   OpenRouter 以及类似的 OpenAI 兼容网关，建议通过 `langchain_openai:ChatOpenAI` 配合 `base_url` 来配置。如果你更想用 provider 自己的环境变量名，也可以直接把 `api_key` 指向对应变量，例如 `api_key: $OPENROUTER_API_KEY`。
-
-4. **为已配置的模型设置 API key**
-
-   可任选以下一种方式：
-
-- 方式 A：编辑项目根目录下的 `.env` 文件（推荐）
-
-   ```bash
-   TAVILY_API_KEY=your-tavily-api-key
-   OPENAI_API_KEY=your-openai-api-key
-   # 如果配置使用的是 langchain_openai:ChatOpenAI + base_url，OpenRouter 也会读取 OPENAI_API_KEY
-   # 其他 provider 的 key 按需补充
-   INFOQUEST_API_KEY=your-infoquest-api-key
-   ```
-
-- 方式 B：在 shell 中导出环境变量
-
-   ```bash
-   export OPENAI_API_KEY=your-openai-api-key
-   ```
-
-- 方式 C：直接编辑 `config.yaml`（不建议用于生产环境）
-
-   ```yaml
-   models:
-     - name: gpt-4
-       api_key: your-actual-api-key-here  # 替换为真实 key
-   ```
-
-### 运行应用
-
-#### 方式一：Docker（推荐）
-
-**开发模式**（支持热更新，挂载源码）：
-
-```bash
-make docker-init    # 拉取 sandbox 镜像（首次运行或镜像更新时执行）
-make docker-start   # 启动服务（会根据 config.yaml 自动判断 sandbox 模式）
-```
-
-如果 `config.yaml` 使用的是 provisioner 模式（`sandbox.use: deerflow.community.aio_sandbox:AioSandboxProvider` 且配置了 `provisioner_url`），`make docker-start` 才会启动 `provisioner`。
-
-**生产模式**（本地构建镜像，并挂载运行期配置与数据）：
-
-```bash
-make up     # 构建镜像并启动全部生产服务
-make down   # 停止并移除容器
-```
-
-> [!NOTE]
-> 当前 LangGraph agent server 通过开源 CLI 服务 `langgraph dev` 运行。
-
-访问地址：http://localhost:2026
-
-更完整的 Docker 开发说明见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-#### 方式二：本地开发
-
-如果你更希望直接在本地启动各个服务：
-
-前提：先完成上面的“配置”步骤（`make config` 和模型 API key 配置）。`make dev` 需要有效配置文件，默认读取项目根目录下的 `config.yaml`，也可以通过 `DEER_FLOW_CONFIG_PATH` 覆盖。
-
-1. **检查依赖环境**：
-   ```bash
-   make check  # 校验 Node.js 22+、pnpm、uv、nginx
-   ```
-
-2. **安装依赖**：
-   ```bash
-   make install  # 安装 backend + frontend 依赖
-   ```
-
-3. **（可选）预拉取 sandbox 镜像**：
-   ```bash
-   # 如果使用 Docker / Container sandbox，建议先执行
-   make setup-sandbox
-   ```
-
-4. **启动服务**：
    ```bash
    make dev
    ```
 
-5. **访问地址**：http://localhost:2026
+6. 打开应用
 
-### 进阶配置
-#### Sandbox 模式
+   ```text
+   http://localhost:2026
+   ```
 
-DeerFlow 支持多种 sandbox 执行方式：
-- **本地执行**（直接在宿主机上运行 sandbox 代码）
-- **Docker 执行**（在隔离的 Docker 容器里运行 sandbox 代码）
-- **Docker + Kubernetes 执行**（通过 provisioner 服务在 Kubernetes Pod 中运行 sandbox 代码）
+### Docker 开发
 
-Docker 开发时，服务启动行为会遵循 `config.yaml` 里的 sandbox 模式。在 Local / Docker 模式下，不会启动 `provisioner`。
-
-如果要配置你自己的模式，参见 [Sandbox 配置指南](backend/docs/CONFIGURATION.md#sandbox)。
-
-#### MCP Server
-
-DeerFlow 支持可配置的 MCP Server 和 skills，用来扩展能力。
-对于 HTTP/SSE MCP Server，还支持 OAuth token 流程（`client_credentials`、`refresh_token`）。
-详细说明见 [MCP Server 指南](backend/docs/MCP_SERVER.md)。
-
-#### IM 渠道
-
-DeerFlow 支持从即时通讯应用接收任务。只要配置完成，对应渠道会自动启动，而且都不需要公网 IP。
-
-| 渠道 | 传输方式 | 上手难度 |
-|---------|-----------|------------|
-| Telegram | Bot API（long-polling） | 简单 |
-| Slack | Socket Mode | 中等 |
-| Feishu / Lark | WebSocket | 中等 |
-
-**`config.yaml` 中的配置示例：**
-
-```yaml
-channels:
-  # LangGraph Server URL（默认：http://localhost:2024）
-  langgraph_url: http://localhost:2024
-  # Gateway API URL（默认：http://localhost:8001）
-  gateway_url: http://localhost:8001
-
-  # 可选：所有移动端渠道共用的全局 session 默认值
-  session:
-    assistant_id: lead_agent
-    config:
-      recursion_limit: 100
-    context:
-      thinking_enabled: true
-      is_plan_mode: false
-      subagent_enabled: false
-
-  feishu:
-    enabled: true
-    app_id: $FEISHU_APP_ID
-    app_secret: $FEISHU_APP_SECRET
-
-  slack:
-    enabled: true
-    bot_token: $SLACK_BOT_TOKEN     # xoxb-...
-    app_token: $SLACK_APP_TOKEN     # xapp-...（Socket Mode）
-    allowed_users: []               # 留空表示允许所有人
-
-  telegram:
-    enabled: true
-    bot_token: $TELEGRAM_BOT_TOKEN
-    allowed_users: []               # 留空表示允许所有人
-
-    # 可选：按渠道 / 按用户单独覆盖 session 配置
-    session:
-      assistant_id: mobile_agent
-      context:
-        thinking_enabled: false
-      users:
-        "123456789":
-          assistant_id: vip_agent
-          config:
-            recursion_limit: 150
-          context:
-            thinking_enabled: true
-            subagent_enabled: true
-```
-
-在 `.env` 里设置对应的 API key：
+如果要使用基于 Docker 的开发环境：
 
 ```bash
-# Telegram
-TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrSTUvwxYZ
-
-# Slack
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_APP_TOKEN=xapp-...
-
-# Feishu / Lark
-FEISHU_APP_ID=cli_xxxx
-FEISHU_APP_SECRET=your_app_secret
+make config
+make docker-init
+make docker-start
 ```
 
-**Telegram 配置**
-
-1. 打开 [@BotFather](https://t.me/BotFather)，发送 `/newbot`，复制生成的 HTTP API token。
-2. 在 `.env` 中设置 `TELEGRAM_BOT_TOKEN`，并在 `config.yaml` 里启用该渠道。
-
-**Slack 配置**
-
-1. 前往 [api.slack.com/apps](https://api.slack.com/apps) 创建 Slack App：Create New App → From scratch。
-2. 在 **OAuth & Permissions** 中添加 Bot Token Scopes：`app_mentions:read`、`chat:write`、`im:history`、`im:read`、`im:write`、`files:write`。
-3. 启用 **Socket Mode**，生成带 `connections:write` 权限的 App-Level Token（`xapp-...`）。
-4. 在 **Event Subscriptions** 中订阅 bot events：`app_mention`、`message.im`。
-5. 在 `.env` 中设置 `SLACK_BOT_TOKEN` 和 `SLACK_APP_TOKEN`，并在 `config.yaml` 中启用该渠道。
-
-**Feishu / Lark 配置**
-
-1. 在 [飞书开放平台](https://open.feishu.cn/) 创建应用，并启用 **Bot** 能力。
-2. 添加权限：`im:message`、`im:message.p2p_msg:readonly`、`im:resource`。
-3. 在 **事件订阅** 中订阅 `im.message.receive_v1`，连接方式选择 **长连接**。
-4. 复制 App ID 和 App Secret，在 `.env` 中设置 `FEISHU_APP_ID` 和 `FEISHU_APP_SECRET`，并在 `config.yaml` 中启用该渠道。
-
-**命令**
-
-渠道连接完成后，你可以直接在聊天窗口里和 DeerFlow 交互：
-
-| 命令 | 说明 |
-|---------|-------------|
-| `/new` | 开启新对话 |
-| `/status` | 查看当前 thread 信息 |
-| `/models` | 列出可用模型 |
-| `/memory` | 查看 memory |
-| `/help` | 查看帮助 |
-
-> 没有命令前缀的消息会被当作普通聊天处理。DeerFlow 会自动创建 thread，并以对话方式回复。
-
-## 从 Deep Research 到 Super Agent Harness
-
-DeerFlow 最初是一个 Deep Research 框架，后来社区把它一路推到了更远的地方。上线之后，开发者拿它去做的事情早就不止研究：搭数据流水线、生成演示文稿、快速起 dashboard、自动化内容流程，很多方向一开始连我们自己都没想到。
-
-这让我们意识到一件事：DeerFlow 不只是一个研究工具。它更像一个 **harness**，一个真正让 agents 把事情做完的运行时基础设施。
-
-所以我们把它从头重做了一遍。
-
-DeerFlow 2.0 不再是一个需要你自己拼装的 framework。它是一个开箱即用、同时又足够可扩展的 super agent harness。基于 LangGraph 和 LangChain 构建，默认就带上了 agent 真正会用到的关键能力：文件系统、memory、skills、sandbox 执行环境，以及为复杂多步骤任务做规划、拉起 sub-agents 的能力。
-
-你可以直接拿来用，也可以拆开重组，改成你自己的样子。
-
-## 核心特性
-
-### Skills 与 Tools
-
-Skills 是 DeerFlow 能做“几乎任何事”的关键。
-
-标准的 Agent Skill 是一种结构化能力模块，通常就是一个 Markdown 文件，里面定义了工作流、最佳实践，以及相关的参考资源。DeerFlow 自带一批内置 skills，覆盖研究、报告生成、演示文稿制作、网页生成、图像和视频生成等场景。真正有意思的地方在于它的扩展性：你可以加自己的 skills，替换内置 skills，或者把多个 skills 组合成复合工作流。
-
-Skills 采用按需渐进加载，不会一次性把所有内容都塞进上下文。只有任务确实需要时才加载，这样能把上下文窗口控制得更干净，也更适合对 token 比较敏感的模型。
-
-通过 Gateway 安装 `.skill` 压缩包时，DeerFlow 会接受标准的可选 frontmatter 元数据，比如 `version`、`author`、`compatibility`，不会把本来合法的外部 skill 拒之门外。
-
-Tools 也是同样的思路。DeerFlow 自带一组核心工具：网页搜索、网页抓取、文件操作、bash 执行；同时也支持通过 MCP Server 和 Python 函数扩展自定义工具。你可以替换任何一项，也可以继续往里加。
-
-Gateway 生成后续建议时，现在会先把普通字符串输出和 block/list 风格的富文本内容统一归一化，再去解析 JSON 数组响应，因此不同 provider 的内容包装方式不会再悄悄把建议吞掉。
+然后访问：
 
 ```text
-# sandbox 容器内的路径
-/mnt/skills/public
-├── research/SKILL.md
-├── report-generation/SKILL.md
-├── slide-creation/SKILL.md
-├── web-page/SKILL.md
-└── image-generation/SKILL.md
-
-/mnt/skills/custom
-└── your-custom-skill/SKILL.md      ← 你的 skill
+http://localhost:2026
 ```
 
-#### Claude Code 集成
+### 生产风格 Docker 部署
 
-借助 `claude-to-deerflow` skill，你可以直接在 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 里和正在运行的 DeerFlow 实例交互。不用离开终端，就能下发研究任务、查看状态、管理 threads。
-
-**安装这个 skill：**
+如果要在本地构建并运行生产风格 Docker 栈：
 
 ```bash
-npx skills add https://github.com/bytedance/deer-flow --skill claude-to-deerflow
+make up
 ```
 
-然后确认 DeerFlow 已经启动（默认地址是 `http://localhost:2026`），在 Claude Code 里使用 `/claude-to-deerflow` 命令即可。
-
-**你可以做的事情包括：**
-- 给 DeerFlow 发送消息，并接收流式响应
-- 选择执行模式：flash（更快）、standard、pro（规划模式）、ultra（sub-agents 模式）
-- 检查 DeerFlow 健康状态，列出 models / skills / agents
-- 管理 threads 和会话历史
-- 上传文件做分析
-
-**环境变量**（可选，用于自定义端点）：
+停止命令：
 
 ```bash
-DEERFLOW_URL=http://localhost:2026            # 统一代理基地址
-DEERFLOW_GATEWAY_URL=http://localhost:2026    # Gateway API
-DEERFLOW_LANGGRAPH_URL=http://localhost:2026/api/langgraph  # LangGraph API
+make down
 ```
 
-完整 API 说明见 [`skills/public/claude-to-deerflow/SKILL.md`](skills/public/claude-to-deerflow/SKILL.md)。
+## 开发命令
 
-### Sub-Agents
+### Backend
 
-复杂任务通常不可能一次完成，DeerFlow 会先拆解，再执行。
+在 `backend/` 目录执行：
 
-lead agent 可以按需动态拉起 sub-agents。每个 sub-agent 都有自己独立的上下文、工具和终止条件。只要条件允许，它们就会并行运行，返回结构化结果，最后再由 lead agent 汇总成一份完整输出。
+```bash
+make lint
+make test
+make dev
+make gateway
+```
 
-这也是 DeerFlow 能处理从几分钟到几小时任务的原因。比如一个研究任务，可以拆成十几个 sub-agents，分别探索不同方向，最后合并成一份报告，或者一个网站，或者一套带生成视觉内容的演示文稿。一个 harness，多路并行。
+单测示例：
 
-### Sandbox 与文件系统
+```bash
+PYTHONPATH=. uv run pytest tests/test_model_factory.py -v
+PYTHONPATH=. uv run pytest tests/test_model_factory.py::test_create_chat_model_with_valid_name -v
+```
 
-DeerFlow 不只是“会说它能做”，它是真的有一台自己的“电脑”。
+### Frontend
 
-每个任务都运行在隔离的 Docker 容器里，里面有完整的文件系统，包括 skills、workspace、uploads、outputs。agent 可以读写和编辑文件，可以执行 bash 命令和代码，也可以查看图片。整个过程都在 sandbox 内完成，可审计、会隔离，不会在不同 session 之间互相污染。
+在 `frontend/` 目录执行：
 
-这就是“带工具的聊天机器人”和“真正有执行环境的 agent”之间的差别。
+```bash
+pnpm lint
+pnpm typecheck
+pnpm dev
+pnpm build
+```
+
+不要依赖 `pnpm check`，这里应分别执行 `pnpm lint` 与 `pnpm typecheck`。
+
+如果是涉及鉴权或环境校验的生产构建，需要设置 `BETTER_AUTH_SECRET`。
+
+### 全栈启动
+
+在仓库根目录执行：
+
+```bash
+make dev
+make stop
+```
+
+## 仓库结构
 
 ```text
-# sandbox 容器内的路径
-/mnt/user-data/
-├── uploads/          ← 你的文件
-├── workspace/        ← agents 的工作目录
-└── outputs/          ← 最终交付物
+backend/
+  app/
+    gateway/        FastAPI 产品 API：auth、threads、knowledge、marketplace、admin、settings
+    channels/       Feishu / Slack / Telegram 渠道接入
+  packages/harness/ 内部 Agent harness 包（`deerflow`）
+  tests/            后端测试
+frontend/
+  src/app/          Next.js App Router 页面
+  src/components/   产品组件与 UI 组件
+  src/core/         前端数据层与产品逻辑
+skills/public/      内置 Skills
+scripts/            启动、配置与部署脚本
+docker/             Docker 与 nginx 配置
 ```
-
-### Context Engineering
-
-**隔离的 Sub-Agent Context**：每个 sub-agent 都在自己独立的上下文里运行。它看不到主 agent 的上下文，也看不到其他 sub-agents 的上下文。这样做的目的很直接，就是让它只聚焦当前任务，不被无关信息干扰。
-
-**摘要压缩**：在单个 session 内，DeerFlow 会比较积极地管理上下文，包括总结已完成的子任务、把中间结果转存到文件系统、压缩暂时不重要的信息。这样在长链路、多步骤任务里，它也能保持聚焦，而不会轻易把上下文窗口打爆。
-
-### 长期记忆
-
-大多数 agents 会在对话结束后把一切都忘掉，DeerFlow 不一样。
-
-跨 session 使用时，DeerFlow 会逐步积累关于你的持久 memory，包括你的个人偏好、知识背景，以及长期沉淀下来的工作习惯。你用得越多，它越了解你的写作风格、技术栈和重复出现的工作流。memory 保存在本地，控制权也始终在你手里。
-
-## 推荐模型
-
-DeerFlow 对模型没有强绑定，只要实现了 OpenAI 兼容 API 的 LLM，理论上都可以接入。不过在下面这些能力上表现更强的模型，通常会更适合 DeerFlow：
-
-- **长上下文窗口**（100k+ tokens），适合深度研究和多步骤任务
-- **推理能力**，适合自适应规划和复杂拆解
-- **多模态输入**，适合理解图片和视频
-- **稳定的 tool use 能力**，适合可靠的函数调用和结构化输出
-
-## 内嵌 Python Client
-
-DeerFlow 也可以作为内嵌的 Python 库使用，不必启动完整的 HTTP 服务。`DeerFlowClient` 提供了进程内的直接访问方式，覆盖所有 agent 和 Gateway 能力，返回的数据结构与 HTTP Gateway API 保持一致：
-
-```python
-from deerflow.client import DeerFlowClient
-
-client = DeerFlowClient()
-
-# Chat
-response = client.chat("Analyze this paper for me", thread_id="my-thread")
-
-# Streaming（LangGraph SSE 协议：values、messages-tuple、end）
-for event in client.stream("hello"):
-    if event.type == "messages-tuple" and event.data.get("type") == "ai":
-        print(event.data["content"])
-
-# 配置与管理：返回值与 Gateway 对齐的 dict
-models = client.list_models()        # {"models": [...]}
-skills = client.list_skills()        # {"skills": [...]}
-client.update_skill("web-search", enabled=True)
-client.upload_files("thread-1", ["./report.pdf"])  # {"success": True, "files": [...]}
-```
-
-所有返回 dict 的方法都会在 CI 中通过 Gateway 的 Pydantic 响应模型校验（`TestGatewayConformance`），以确保内嵌 client 始终和 HTTP API schema 保持同步。完整 API 说明见 `backend/packages/harness/deerflow/client.py`。
-
-## 文档
-
-- [贡献指南](CONTRIBUTING.md) - 开发环境搭建与协作流程
-- [配置指南](backend/docs/CONFIGURATION.md) - 安装与配置说明
-- [架构概览](backend/CLAUDE.md) - 技术架构说明
-- [后端架构](backend/README.md) - 后端架构与 API 参考
-
-## 参与贡献
-
-欢迎参与贡献。开发环境、工作流和相关规范见 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-目前回归测试已经覆盖 Docker sandbox 模式识别，以及 `backend/tests/` 中 provisioner kubeconfig-path 处理相关测试。
 
 ## 许可证
 
-本项目采用 [MIT License](./LICENSE) 开源发布。
-
-## 致谢
-
-DeerFlow 建立在开源社区大量优秀工作的基础上。所有让 DeerFlow 成为可能的项目和贡献者，我们都心怀感谢。毫不夸张地说，我们是站在巨人的肩膀上继续往前走。
-
-特别感谢以下项目带来的关键支持：
-
-- **[LangChain](https://github.com/langchain-ai/langchain)**：它们提供的优秀框架支撑了我们的 LLM 交互与 chains，让整体集成和能力编排顺畅可用。
-- **[LangGraph](https://github.com/langchain-ai/langgraph)**：它们在多 agent 编排上的创新方式，是 DeerFlow 复杂工作流得以成立的重要基础。
-
-这些项目体现了开源协作真正的力量，我们也很高兴能继续建立在这些基础之上。
-
-### 核心贡献者
-
-感谢 `DeerFlow` 的核心作者，是他们的判断、投入和持续推进，才让这个项目真正落地：
-
-- **[Daniel Walnut](https://github.com/hetaoBackend/)**
-- **[Henry Li](https://github.com/magiccube/)**
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=bytedance/deer-flow&type=Date)](https://star-history.com/#bytedance/deer-flow&Date)
+MIT。
