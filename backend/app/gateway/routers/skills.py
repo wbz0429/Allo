@@ -173,7 +173,7 @@ def _get_user_custom_skills_dir(user_id: str) -> Path:
     return custom_dir
 
 
-def _install_skill_from_zip(zip_path: Path, target_base_dir: Path) -> tuple[str, str]:
+def _install_skill_from_zip(zip_path: Path, target_base_dir: Path, overwrite: bool = False) -> tuple[str, str]:
     """Extract, validate, and install a skill from a zip/skill file.
 
     Returns (skill_name, message) on success.
@@ -198,7 +198,10 @@ def _install_skill_from_zip(zip_path: Path, target_base_dir: Path) -> tuple[str,
 
         target_dir = target_base_dir / skill_name
         if target_dir.exists():
-            raise HTTPException(status_code=409, detail=f"Skill '{skill_name}' already exists. Remove it first or use a different name.")
+            if overwrite:
+                shutil.rmtree(target_dir)
+            else:
+                raise HTTPException(status_code=409, detail=f"Skill '{skill_name}' already exists. Remove it first or use a different name.")
 
         shutil.copytree(skill_dir, target_dir)
 
@@ -404,6 +407,32 @@ async def update_skill(
         raise HTTPException(status_code=500, detail=f"Failed to update skill: {str(e)}")
 
 
+@router.delete(
+    "/skills/{skill_name}",
+    summary="Delete Custom Skill",
+    description="Delete a user-uploaded custom skill by name.",
+)
+async def delete_skill(skill_name: str, auth: AuthContext = Depends(get_auth_context)):
+    """Delete a custom skill from the user's custom skills directory."""
+    custom_dir = _get_user_custom_skills_dir(auth.user_id)
+    skill_dir = custom_dir / skill_name
+
+    if not skill_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Custom skill '{skill_name}' not found")
+
+    # Safety: ensure the resolved path is still under custom_dir
+    if not skill_dir.resolve().is_relative_to(custom_dir.resolve()):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        shutil.rmtree(skill_dir)
+        logger.info("Skill '%s' deleted for user %s", skill_name, auth.user_id)
+        return {"success": True, "message": f"Skill '{skill_name}' deleted successfully"}
+    except Exception as e:
+        logger.error(f"Failed to delete skill '{skill_name}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete skill: {str(e)}")
+
+
 @router.post(
     "/skills/install",
     response_model=SkillInstallResponse,
@@ -458,7 +487,7 @@ async def install_skill(request: SkillInstallRequest, auth: AuthContext = Depend
             raise HTTPException(status_code=400, detail="File must have .skill extension")
 
         custom_dir = _get_user_custom_skills_dir(auth.user_id)
-        skill_name, message = _install_skill_from_zip(skill_file_path, custom_dir)
+        skill_name, message = _install_skill_from_zip(skill_file_path, custom_dir, overwrite=True)
 
         logger.info("Skill '%s' installed for user %s", skill_name, auth.user_id)
         return SkillInstallResponse(success=True, skill_name=skill_name, message=message)
@@ -499,7 +528,7 @@ async def upload_skill(
 
         try:
             custom_dir = _get_user_custom_skills_dir(auth.user_id)
-            skill_name, message = _install_skill_from_zip(tmp_path, custom_dir)
+            skill_name, message = _install_skill_from_zip(tmp_path, custom_dir, overwrite=True)
             logger.info("Skill '%s' uploaded and installed for user %s", skill_name, auth.user_id)
             return SkillInstallResponse(success=True, skill_name=skill_name, message=message)
         finally:

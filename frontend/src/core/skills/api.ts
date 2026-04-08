@@ -58,6 +58,25 @@ export async function uploadSkill(file: File): Promise<InstallSkillResponse> {
   return response.json();
 }
 
+export async function deleteSkill(skillName: string): Promise<{ success: boolean; message: string }> {
+  const response = await fetch(
+    `${getBackendBaseURL()}/api/skills/${skillName}`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage =
+      errorData.detail ?? `HTTP ${response.status}: ${response.statusText}`;
+    return { success: false, message: errorMessage };
+  }
+
+  return response.json();
+}
+
 export async function installSkill(
   request: InstallSkillRequest,
 ): Promise<InstallSkillResponse> {

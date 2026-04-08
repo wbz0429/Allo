@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { enableSkill } from "./api";
+import { deleteSkill, enableSkill } from "./api";
 
 import { loadSkills } from ".";
 
@@ -23,6 +23,18 @@ export function useEnableSkill() {
       enabled: boolean;
     }) => {
       await enableSkill(skillName, enabled);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["skills"] });
+    },
+  });
+}
+
+export function useDeleteSkill() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (skillName: string) => {
+      return deleteSkill(skillName);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["skills"] });

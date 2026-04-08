@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { SparklesIcon, UploadIcon } from "lucide-react";
+import { SparklesIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -26,7 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/core/i18n/hooks";
 import { uploadSkill } from "@/core/skills/api";
-import { useEnableSkill, useSkills } from "@/core/skills/hooks";
+import { useDeleteSkill, useEnableSkill, useSkills } from "@/core/skills/hooks";
 import type { Skill } from "@/core/skills/type";
 import { env } from "@/env";
 
@@ -62,6 +62,7 @@ function SkillSettingsList({
   const router = useRouter();
   const [filter, setFilter] = useState<string>("public");
   const { mutate: enableSkill } = useEnableSkill();
+  const { mutate: deleteSkillMutation } = useDeleteSkill();
   const filteredSkills = useMemo(
     () => skills.filter((skill) => skill.category === filter),
     [skills, filter],
@@ -148,6 +149,27 @@ function SkillSettingsList({
               </ItemDescription>
             </ItemContent>
             <ItemActions>
+              {skill.category === "custom" && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-8 text-muted-foreground hover:text-destructive"
+                  onClick={() =>
+                    deleteSkillMutation(skill.name, {
+                      onSuccess: (result) => {
+                        if (result.success) {
+                          toast.success(result.message);
+                        } else {
+                          toast.error(result.message);
+                        }
+                      },
+                      onError: () => toast.error("Failed to delete skill"),
+                    })
+                  }
+                >
+                  <Trash2Icon className="size-4" />
+                </Button>
+              )}
               <Switch
                 checked={skill.enabled}
                 disabled={env.NEXT_PUBLIC_STATIC_WEBSITE_ONLY === "true"}
