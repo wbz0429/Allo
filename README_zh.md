@@ -12,6 +12,35 @@ Allo 同时支持 SaaS 交付和企业本地部署。对于有数据隐私、合
 
 > 产品品牌是 **Allo（元枢）**。当前仓库中的部分内部包名、脚本名和运行时模块，仍然保留历史 `deerflow` 命名。
 
+## 部署与隐私概览
+
+```mermaid
+flowchart LR
+    U[团队与用户] --> SaaS[Allo SaaS 部署]
+    U --> OnPrem[企业本地部署]
+
+    subgraph EnterpriseBoundary[企业可控环境]
+        direction TB
+        Web[Web 前端]
+        Nginx[nginx]
+        Gateway[API Gateway]
+        Runtime[LangGraph Runtime]
+        Storage[(PostgreSQL / Redis)]
+        Sandbox[Sandbox Runtime]
+        ModelGateway[企业内部模型网关]
+        Models[自部署模型或受控模型服务]
+
+        Web --> Nginx --> Gateway --> Runtime
+        Gateway --> Storage
+        Runtime --> Sandbox
+        Runtime --> ModelGateway --> Models
+    end
+
+    SaaS -. 托管路径 .-> Web
+    OnPrem --> Web
+    Storage --> Privacy[会话、知识、usage 与组织数据保留在企业控制边界内]
+```
+
 ## 目录
 
 - [Allo 是什么](#allo-是什么)
@@ -287,6 +316,34 @@ Allo 是一套同时包含 Web 产品层和 Agent Runtime 层的全栈系统。
 - **LangGraph Runtime** 负责 Agent 执行
 - **Sandbox Provider** 负责文件和代码执行环境
 - **nginx** 把所有入口统一到一个本地访问地址
+
+### 系统总览
+
+```mermaid
+flowchart TD
+    Browser[浏览器 / 团队用户] --> Nginx[nginx :2026]
+    Nginx --> Frontend[Next.js 前端]
+    Nginx --> Gateway[FastAPI Gateway]
+    Nginx --> LangGraph[LangGraph Runtime]
+
+    Gateway --> Auth[鉴权 / 会话]
+    Gateway --> Knowledge[知识库]
+    Gateway --> Marketplace[Marketplace]
+    Gateway --> Admin[后台 / usage]
+    Gateway --> Agents[自定义 Agents]
+    Gateway --> Mcp[MCP 配置]
+    Gateway --> Memory[Memory / Soul]
+    Gateway --> Channels[Feishu / Slack / Telegram]
+
+    Gateway --> Postgres[(PostgreSQL)]
+    Gateway --> Redis[(Redis)]
+    LangGraph --> Sandbox[Sandbox Provider]
+    LangGraph --> Skills[Skills / Tools]
+    LangGraph --> Knowledge
+    LangGraph --> Agents
+    LangGraph --> Mcp
+    LangGraph --> Memory
+```
 
 ## 快速开始
 

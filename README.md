@@ -10,6 +10,35 @@ Allo is designed for organizations that want a polished web product without givi
 
 > Product brand: **Allo（元枢）**. Some internal package names, scripts, and runtime modules still use the historical `deerflow` naming.
 
+## Deployment and privacy at a glance
+
+```mermaid
+flowchart LR
+    U[Teams and users] --> SaaS[Allo SaaS deployment]
+    U --> OnPrem[Enterprise on-prem deployment]
+
+    subgraph EnterpriseBoundary[Enterprise-controlled environment]
+        direction TB
+        Web[Web frontend]
+        Nginx[nginx]
+        Gateway[API gateway]
+        Runtime[LangGraph runtime]
+        Storage[(PostgreSQL / Redis)]
+        Sandbox[Sandbox runtime]
+        ModelGateway[Internal model gateway]
+        Models[Self-hosted or approved models]
+
+        Web --> Nginx --> Gateway --> Runtime
+        Gateway --> Storage
+        Runtime --> Sandbox
+        Runtime --> ModelGateway --> Models
+    end
+
+    SaaS -. managed path .-> Web
+    OnPrem --> Web
+    Storage --> Privacy[Sessions, knowledge, usage, and org data stay within enterprise control]
+```
+
 ## Table of Contents
 
 - [What is Allo](#what-is-allo)
@@ -285,6 +314,34 @@ A typical local setup looks like this:
 - **LangGraph runtime** handles agent execution
 - **Sandbox provider** handles file and code execution contexts
 - **nginx** unifies access behind a single local entrypoint
+
+### System overview
+
+```mermaid
+flowchart TD
+    Browser[Browser / Team users] --> Nginx[nginx :2026]
+    Nginx --> Frontend[Next.js frontend]
+    Nginx --> Gateway[FastAPI gateway]
+    Nginx --> LangGraph[LangGraph runtime]
+
+    Gateway --> Auth[Auth / sessions]
+    Gateway --> Knowledge[Knowledge bases]
+    Gateway --> Marketplace[Marketplace]
+    Gateway --> Admin[Admin / usage]
+    Gateway --> Agents[Custom agents]
+    Gateway --> Mcp[MCP config]
+    Gateway --> Memory[Memory / soul]
+    Gateway --> Channels[Feishu / Slack / Telegram]
+
+    Gateway --> Postgres[(PostgreSQL)]
+    Gateway --> Redis[(Redis)]
+    LangGraph --> Sandbox[Sandbox provider]
+    LangGraph --> Skills[Skills / tools]
+    LangGraph --> Knowledge
+    LangGraph --> Agents
+    LangGraph --> Mcp
+    LangGraph --> Memory
+```
 
 ## Quick Start
 
