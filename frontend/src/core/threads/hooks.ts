@@ -213,6 +213,18 @@ export function useThreadStream({
       listeners.current.onFinish?.(state.values);
       void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
     },
+    onError(error) {
+      console.error("Stream error:", error);
+      toast.error(t.streaming.error);
+      void syncThreadRun({
+        status: "failed",
+        finished_at: new Date().toISOString(),
+        error_message:
+          error instanceof Error ? error.message : "Unknown stream error",
+      });
+      currentRunIdRef.current = null;
+      setOptimisticMessages([]);
+    },
   });
 
   // Optimistic messages shown before the server stream responds

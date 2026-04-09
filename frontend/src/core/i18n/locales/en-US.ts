@@ -415,6 +415,7 @@ export const enUS: Translations = {
     thinking: "Thinking...",
     executing: "Executing task...",
     generating: "Generating response...",
+    error: "Model service error. Please try again later.",
   },
 
   // Settings

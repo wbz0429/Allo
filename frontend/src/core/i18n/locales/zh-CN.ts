@@ -396,6 +396,7 @@ export const zhCN: Translations = {
     thinking: "正在思考...",
     executing: "正在执行任务...",
     generating: "正在生成回复...",
+    error: "模型服务异常，请稍后重试。",
   },
 
   // Settings

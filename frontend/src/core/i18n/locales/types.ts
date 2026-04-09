@@ -345,6 +345,7 @@ export interface Translations {
     thinking: string;
     executing: string;
     generating: string;
+    error: string;
   };
 
   // Settings

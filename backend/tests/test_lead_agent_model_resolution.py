@@ -73,7 +73,8 @@ def test_resolve_model_name_raises_when_no_models_configured(monkeypatch):
         lead_agent_module._resolve_model_name("missing-model")
 
 
-def test_make_lead_agent_disables_thinking_when_model_does_not_support_it(monkeypatch):
+def test_make_lead_agent_passes_thinking_through_regardless_of_supports_thinking(monkeypatch):
+    """Thinking should be passed through to create_chat_model even when model doesn't declare supports_thinking."""
     app_config = _make_app_config([_make_model("safe-model", supports_thinking=False)])
 
     import deerflow.tools as tools_module
@@ -105,7 +106,8 @@ def test_make_lead_agent_disables_thinking_when_model_does_not_support_it(monkey
     )
 
     assert captured["name"] == "safe-model"
-    assert captured["thinking_enabled"] is False
+    # thinking_enabled is passed through, not overridden to False
+    assert captured["thinking_enabled"] is True
     assert result["model"] is not None
 
 

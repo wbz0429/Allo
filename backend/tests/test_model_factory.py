@@ -103,26 +103,28 @@ def test_raises_when_model_not_found(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_thinking_enabled_raises_when_not_supported_but_when_thinking_enabled_is_set(monkeypatch):
-    """supports_thinking guard fires only when when_thinking_enabled is configured —
-    the factory uses that as the signal that the caller explicitly expects thinking to work."""
+def test_thinking_enabled_applies_settings_regardless_of_supports_thinking(monkeypatch):
+    """when_thinking_enabled settings should be applied even when supports_thinking=False.
+    We no longer gate on supports_thinking — all models are treated uniformly."""
     wte = {"thinking": {"type": "enabled", "budget_tokens": 5000}}
     cfg = _make_app_config([_make_model("no-think", supports_thinking=False, when_thinking_enabled=wte)])
     _patch_factory(monkeypatch, cfg)
 
-    with pytest.raises(ValueError, match="does not support thinking"):
-        factory_module.create_chat_model(name="no-think", thinking_enabled=True)
+    FakeChatModel.captured_kwargs = {}
+    factory_module.create_chat_model(name="no-think", thinking_enabled=True)
+
+    assert FakeChatModel.captured_kwargs.get("thinking") == {"type": "enabled", "budget_tokens": 5000}
 
 
-def test_thinking_enabled_raises_for_empty_when_thinking_enabled_explicitly_set(monkeypatch):
-    """supports_thinking guard fires when when_thinking_enabled is set to an empty dict —
-    the user explicitly provided the section, so the guard must still fire even though
-    effective_wte would be falsy."""
+def test_thinking_enabled_with_empty_when_thinking_enabled_is_noop(monkeypatch):
+    """Empty when_thinking_enabled with thinking_enabled=True should not crash — just a no-op merge."""
     cfg = _make_app_config([_make_model("no-think-empty", supports_thinking=False, when_thinking_enabled={})])
     _patch_factory(monkeypatch, cfg)
 
-    with pytest.raises(ValueError, match="does not support thinking"):
-        factory_module.create_chat_model(name="no-think-empty", thinking_enabled=True)
+    FakeChatModel.captured_kwargs = {}
+    factory_module.create_chat_model(name="no-think-empty", thinking_enabled=True)
+    # No crash, model created successfully
+    assert FakeChatModel.captured_kwargs.get("model") == "no-think-empty"
 
 
 def test_thinking_enabled_merges_when_thinking_enabled_settings(monkeypatch):
