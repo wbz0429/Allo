@@ -99,3 +99,18 @@ class KnowledgeBaseStore(ABC):
 
     @abstractmethod
     async def list_knowledge_bases(self, org_id: str) -> list[dict]: ...
+
+
+class UsageRecordStore(ABC):
+    """Abstract store for persisting usage records from harness runtime."""
+
+    @abstractmethod
+    async def record_llm_token(
+        self,
+        *,
+        user_id: str,
+        org_id: str,
+        model_name: str | None,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> None: ...

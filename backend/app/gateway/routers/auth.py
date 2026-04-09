@@ -11,7 +11,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.gateway.auth import SESSION_COOKIE_NAME, AuthContext, cache_auth_context, clear_auth_context_cache, get_auth_context
+from app.gateway.auth import SESSION_COOKIE_NAME, AuthContext, cache_auth_context, clear_auth_context_cache, get_auth_context, is_platform_admin
 from app.gateway.db.database import get_db_session
 from app.gateway.db.models import Organization, OrganizationMember, Session, User
 from app.gateway.redis_client import get_redis
@@ -39,6 +39,7 @@ class SessionResponse(BaseModel):
     avatar_url: str | None
     locale: str
     org_id: str
+    is_platform_admin: bool
 
 
 def _normalize_email(email: str) -> str:
@@ -105,7 +106,7 @@ async def _get_primary_membership(user_id: str, db: AsyncSession) -> Organizatio
     return result.scalar_one_or_none()
 
 
-def _build_session_response(user: User, org_id: str) -> SessionResponse:
+def _build_session_response(user: User, org_id: str, is_platform_admin_flag: bool) -> SessionResponse:
     return SessionResponse(
         user_id=user.id,
         email=user.email,
@@ -113,6 +114,7 @@ def _build_session_response(user: User, org_id: str) -> SessionResponse:
         avatar_url=user.avatar_url,
         locale=user.locale,
         org_id=org_id,
+        is_platform_admin=is_platform_admin_flag,
     )
 
 
@@ -164,6 +166,7 @@ async def register(
     # Auto-install all public marketplace skills and tools for the new org
     try:
         from app.gateway.db.models import MarketplaceSkill, MarketplaceTool, OrgInstalledSkill, OrgInstalledTool
+
         skill_result = await db.execute(select(MarketplaceSkill.id).where(MarketplaceSkill.is_public.is_(True)))
         for row in skill_result.all():
             db.add(OrgInstalledSkill(org_id=organization.id, skill_id=row[0]))
@@ -177,7 +180,7 @@ async def register(
     auth_context = AuthContext(user_id=user.id, org_id=organization.id, role="admin")
     await cache_auth_context(session.token, auth_context)
     _set_session_cookie(response, session.token)
-    return _build_session_response(user, organization.id)
+    return _build_session_response(user, organization.id, is_platform_admin(auth_context))
 
 
 @router.post("/login", response_model=SessionResponse)
@@ -204,7 +207,7 @@ async def login(
     auth_context = AuthContext(user_id=user.id, org_id=membership.org_id, role=membership.role)
     await cache_auth_context(session.token, auth_context)
     _set_session_cookie(response, session.token)
-    return _build_session_response(user, membership.org_id)
+    return _build_session_response(user, membership.org_id, is_platform_admin(auth_context))
 
 
 @router.post("/logout")
@@ -234,7 +237,7 @@ async def get_session(
     user = await db.get(User, auth.user_id)
     if user is None or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found")
-    return _build_session_response(user, auth.org_id)
+    return _build_session_response(user, auth.org_id, is_platform_admin(auth))
 
 
 @router.get("/check")

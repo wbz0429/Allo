@@ -357,6 +357,8 @@ export const zhCN: Translations = {
     dashboardDescription: "查看平台级运行指标与近期使用情况。",
     usage: "用量",
     usageDescription: "全平台使用统计",
+    platformOverview: "平台总览",
+    platformOverviewDescription: "展示当前平台的真实调用量与 token 消耗概览。",
     platformAdmin: "平台管理后台",
     backToWorkspace: "返回工作区",
     checkingAccess: "正在检查访问权限...",
@@ -388,6 +390,11 @@ export const zhCN: Translations = {
     tokensUsed: "已用 Tokens",
     created: "创建时间",
     noOrganizationsFound: "暂无组织",
+    user: "用户",
+    email: "邮箱",
+    userUsageRanking: "用户用量排行",
+    userUsageRankingDescription: "按用户汇总全平台 API 调用与 token 消耗。",
+    platformOnly: "仅平台",
   },
 
   // Streaming status

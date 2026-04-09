@@ -9,6 +9,7 @@ export type Session = {
   avatar_url: string | null;
   locale: string;
   org_id: string;
+  is_platform_admin: boolean;
 };
 
 export type AuthResult<T> = {

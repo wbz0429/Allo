@@ -375,6 +375,9 @@ export const enUS: Translations = {
     dashboardDescription: "Platform-wide operational metrics and recent usage.",
     usage: "Usage",
     usageDescription: "Global platform usage statistics",
+    platformOverview: "Platform Overview",
+    platformOverviewDescription:
+      "Shows real platform-wide API volume and token consumption.",
     platformAdmin: "Platform Admin",
     backToWorkspace: "Back to Workspace",
     checkingAccess: "Checking access...",
@@ -407,6 +410,12 @@ export const enUS: Translations = {
     tokensUsed: "Tokens Used",
     created: "Created",
     noOrganizationsFound: "No organizations found",
+    user: "User",
+    email: "Email",
+    userUsageRanking: "User Usage Ranking",
+    userUsageRankingDescription:
+      "Platform-wide API calls and token usage aggregated by user.",
+    platformOnly: "Platform only",
   },
 
   // Streaming status

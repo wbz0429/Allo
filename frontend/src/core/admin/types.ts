@@ -29,13 +29,20 @@ export interface UsageSummary {
   total_input_tokens: number;
   total_output_tokens: number;
   total_sandbox_seconds: number;
-  record_count: number;
+  total_usage_records: number;
 }
 
-export interface OrgUsageBreakdown {
-  org_id: string;
-  org_name: string;
+export interface UserUsageBreakdown {
+  user_id: string;
+  display_name: string | null;
+  email: string;
   input_tokens: number;
   output_tokens: number;
+  total_tokens: number;
   api_calls: number;
+}
+
+export interface UserUsageRanking {
+  metric: "total_tokens" | "api_calls" | "input_tokens" | "output_tokens";
+  items: UserUsageBreakdown[];
 }

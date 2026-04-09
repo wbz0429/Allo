@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { UsageChart } from "@/components/admin/usage-chart";
 import {
   Card,
   CardContent,
@@ -13,8 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getUsageByOrg, getUsageSummary } from "@/core/admin/api";
-import type { OrgUsageBreakdown, UsageSummary } from "@/core/admin/types";
+import { getUsageSummary } from "@/core/admin/api";
+import type { UsageSummary } from "@/core/admin/types";
 import { useI18n } from "@/core/i18n/hooks";
 
 function formatNumber(n: number): string {
@@ -26,15 +25,11 @@ function formatNumber(n: number): string {
 export default function AdminDashboardPage() {
   const { t } = useI18n();
   const [summary, setSummary] = useState<UsageSummary | null>(null);
-  const [orgUsage, setOrgUsage] = useState<OrgUsageBreakdown[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getUsageSummary(), getUsageByOrg()])
-      .then(([s, u]) => {
-        setSummary(s);
-        setOrgUsage(u);
-      })
+    getUsageSummary()
+      .then(setSummary)
       .catch((err: Error) => {
         toast.error(err.message || t.admin.usageLoadFailed);
       })
@@ -62,19 +57,15 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const stats = [
-    { label: t.admin.organizations, value: orgUsage.length, href: "/admin/organizations" },
-    { label: t.admin.usageRecords, value: summary?.record_count ?? 0 },
-    { label: t.admin.inputTokens, value: summary?.total_input_tokens ?? 0, href: "/admin/usage" },
-    { label: t.admin.apiCallsLabel, value: summary?.total_api_calls ?? 0, href: "/admin/usage" },
-  ];
+  const totalTokens =
+    (summary?.total_input_tokens ?? 0) + (summary?.total_output_tokens ?? 0);
 
-  const chartBars = orgUsage.slice(0, 10).map((o) => ({
-    id: o.org_id,
-    label: o.org_name.length > 8 ? `${o.org_name.slice(0, 8)}\u2026` : o.org_name,
-    value: o.input_tokens,
-    secondaryValue: o.output_tokens,
-  }));
+  const stats = [
+    { label: t.admin.usageRecords, value: summary?.total_usage_records ?? 0 },
+    { label: t.admin.totalTokens, value: totalTokens, href: "/admin/usage" },
+    { label: t.admin.totalApiCalls, value: summary?.total_api_calls ?? 0, href: "/admin/usage" },
+    { label: t.admin.organization, value: 0, displayValue: t.admin.platformOnly },
+  ];
 
   return (
     <div className="flex flex-col gap-8">
@@ -92,9 +83,9 @@ export default function AdminDashboardPage() {
                 <CardDescription>{stat.label}</CardDescription>
               </CardHeader>
               <CardContent>
-                <CardTitle className="text-2xl tabular-nums">
-                  {formatNumber(stat.value)}
-                </CardTitle>
+                  <CardTitle className="text-2xl tabular-nums">
+                  {stat.displayValue ?? formatNumber(stat.value)}
+                  </CardTitle>
               </CardContent>
             </Card>
           );
@@ -108,23 +99,26 @@ export default function AdminDashboardPage() {
         })}
       </div>
 
-      {/* Usage chart by org */}
-      {chartBars.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t.admin.tokenUsageByOrganization}</CardTitle>
-            <CardDescription>{t.admin.topOrganizationsByTokenConsumption}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <UsageChart
-              title=""
-              bars={chartBars}
-              primaryLabel={t.admin.inputTokensLabel}
-              secondaryLabel={t.admin.outputTokensLabel}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t.admin.platformOverview}</CardTitle>
+          <CardDescription>{t.admin.platformOverviewDescription}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border p-4">
+            <p className="text-sm text-muted-foreground">{t.admin.inputTokens}</p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">
+              {formatNumber(summary?.total_input_tokens ?? 0)}
+            </p>
+          </div>
+          <div className="rounded-lg border p-4">
+            <p className="text-sm text-muted-foreground">{t.admin.outputTokens}</p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums">
+              {formatNumber(summary?.total_output_tokens ?? 0)}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

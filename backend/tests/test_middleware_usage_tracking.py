@@ -74,7 +74,8 @@ class TestUsageTrackingMiddleware:
         request = self._make_request(user_id="user-1", org_id="org-1")
         call_next = AsyncMock(return_value=MagicMock(status_code=200))
 
-        mock_session = AsyncMock()
+        mock_session = MagicMock()
+        mock_session.commit = AsyncMock()
         mock_ctx = AsyncMock()
         mock_ctx.__aenter__ = AsyncMock(return_value=mock_session)
         mock_ctx.__aexit__ = AsyncMock(return_value=False)

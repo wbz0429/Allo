@@ -27,12 +27,18 @@ export default function AdminLayout({
 
   useEffect(() => {
     void getSession().then((res) => {
-        if (!res.data?.user_id) {
-          if (res.error) {
-            toast.error(res.error.message ?? "Failed to verify session");
+      if (!res.data?.user_id) {
+        if (res.error) {
+          toast.error(res.error.message ?? "Failed to verify session");
         }
 
         router.replace("/login?callbackUrl=" + encodeURIComponent(pathname));
+        return;
+      }
+
+      if (!res.data.is_platform_admin) {
+        toast.error("Platform admin access required");
+        router.replace("/workspace");
         return;
       }
 

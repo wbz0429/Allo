@@ -3,6 +3,7 @@
 import { BookOpenIcon, BotIcon, MessagesSquare, ShoppingBagIcon, ShieldIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import {
   SidebarGroup,
@@ -10,11 +11,20 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { getSession } from "@/core/auth/api";
 import { useI18n } from "@/core/i18n/hooks";
 
 export function WorkspaceNavChatList() {
   const { t } = useI18n();
   const pathname = usePathname();
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
+
+  useEffect(() => {
+    void getSession().then((res) => {
+      setIsPlatformAdmin(Boolean(res.data?.is_platform_admin));
+    });
+  }, []);
+
   return (
     <SidebarGroup className="pt-1">
       <SidebarMenu>
@@ -59,17 +69,19 @@ export function WorkspaceNavChatList() {
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            isActive={pathname.startsWith("/admin")}
-            asChild
-          >
-            <Link className="text-muted-foreground" href="/admin">
-              <ShieldIcon />
-              <span>{t.sidebar.admin}</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+        {isPlatformAdmin && (
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={pathname.startsWith("/admin")}
+              asChild
+            >
+              <Link className="text-muted-foreground" href="/admin">
+                <ShieldIcon />
+                <span>{t.sidebar.admin}</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
       </SidebarMenu>
     </SidebarGroup>
   );

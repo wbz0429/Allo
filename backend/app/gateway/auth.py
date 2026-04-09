@@ -19,6 +19,11 @@ SESSION_COOKIE_NAME = "session_token"
 SESSION_CACHE_TTL_SECONDS = 300
 
 
+def get_platform_admin_ids() -> set[str]:
+    raw = os.getenv("PLATFORM_ADMIN_IDS", "")
+    return {uid.strip() for uid in raw.split(",") if uid.strip()} if raw else set()
+
+
 def _get_runtime_env() -> str:
     return os.getenv("ENV", os.getenv("NODE_ENV", "development")).lower()
 
@@ -140,6 +145,15 @@ async def get_auth_context(request: Request, db: AsyncSession = Depends(get_db_s
 
     _stamp_request_state(request, ctx)
     return ctx
+
+
+def is_platform_admin(auth: AuthContext) -> bool:
+    if _get_runtime_skip_auth():
+        return True
+    platform_ids = get_platform_admin_ids()
+    if platform_ids:
+        return auth.user_id in platform_ids
+    return auth.role == "admin"
 
 
 async def get_optional_auth_context(request: Request, db: AsyncSession = Depends(get_db_session)) -> AuthContext | None:

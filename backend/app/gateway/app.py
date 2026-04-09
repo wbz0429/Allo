@@ -36,6 +36,7 @@ from app.gateway.services.model_key_resolver_pg import PostgresModelKeyResolver
 from app.gateway.services.skill_catalog_store_pg import PostgresSkillCatalogStore
 from app.gateway.services.skill_config_store_pg import PostgresSkillConfigStore
 from app.gateway.services.soul_store_pg import PostgresSoulStore
+from app.gateway.services.usage_record_store_pg import PostgresUsageRecordStore
 from deerflow.config.app_config import get_app_config
 from deerflow.store_registry import register_store
 
@@ -77,6 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     register_store("marketplace", PostgresMarketplaceInstallStore(async_session_factory))
     register_store("key", PostgresModelKeyResolver(async_session_factory, get_redis))
     register_store("kb", PostgresKBStore(async_session_factory))
+    register_store("usage", PostgresUsageRecordStore(async_session_factory))
     logger.info("PG stores registered (%.1fs)", time.monotonic() - t1)
 
     # Ensure a stable local dev account exists (idempotent).

@@ -1,16 +1,15 @@
 """Platform and enterprise administration API."""
 
 import logging
-import os
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.gateway.auth import AuthContext, get_auth_context
+from app.gateway.auth import AuthContext, get_auth_context, is_platform_admin
 from app.gateway.db.database import get_db_session
-from app.gateway.db.models import Organization, OrganizationMember, UsageRecord
+from app.gateway.db.models import Organization, OrganizationMember, UsageRecord, User
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -47,22 +46,6 @@ class AddMemberRequest(BaseModel):
     role: str = "member"
 
 
-# ---------------------------------------------------------------------------
-# Platform admin IDs — in production, use a DB table or env var list.
-# Override via PLATFORM_ADMIN_IDS env var (comma-separated user IDs).
-# ---------------------------------------------------------------------------
-
-_PLATFORM_ADMIN_IDS: set[str] | None = None
-
-
-def _get_platform_admin_ids() -> set[str]:
-    global _PLATFORM_ADMIN_IDS
-    if _PLATFORM_ADMIN_IDS is None:
-        raw = os.getenv("PLATFORM_ADMIN_IDS", "")
-        _PLATFORM_ADMIN_IDS = {uid.strip() for uid in raw.split(",") if uid.strip()} if raw else set()
-    return _PLATFORM_ADMIN_IDS
-
-
 class UsageStatsResponse(BaseModel):
     """Aggregated usage statistics."""
 
@@ -70,7 +53,26 @@ class UsageStatsResponse(BaseModel):
     total_input_tokens: int
     total_output_tokens: int
     total_sandbox_seconds: float
-    record_count: int
+    total_usage_records: int
+
+
+class UserUsageItemResponse(BaseModel):
+    """Platform-wide per-user usage aggregate."""
+
+    user_id: str
+    display_name: str | None
+    email: str
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    api_calls: int
+
+
+class UserUsageRankingResponse(BaseModel):
+    """Ranked platform-wide usage by user."""
+
+    metric: str
+    items: list[UserUsageItemResponse]
 
 
 # ---------------------------------------------------------------------------
@@ -85,21 +87,9 @@ def _require_org_admin(auth: AuthContext) -> None:
 
 
 def _require_platform_admin(auth: AuthContext) -> None:
-    """Raise 403 if the authenticated user is not a platform admin.
-
-    Platform admins are identified by PLATFORM_ADMIN_IDS env var.
-    In SKIP_AUTH dev mode, the dev user is always a platform admin.
-    """
-    from app.gateway.auth import SKIP_AUTH
-
-    if SKIP_AUTH:
-        return  # dev mode — allow all
-    platform_ids = _get_platform_admin_ids()
-    if platform_ids and auth.user_id not in platform_ids:
+    """Raise 403 if the authenticated user is not a platform admin."""
+    if not is_platform_admin(auth):
         raise HTTPException(status_code=403, detail="Platform admin access required")
-    # If PLATFORM_ADMIN_IDS is not configured, fall back to org admin check
-    if not platform_ids and auth.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
 
 
 # ---------------------------------------------------------------------------
@@ -176,27 +166,29 @@ async def get_platform_usage(
     _require_platform_admin(auth)
 
     stmt = select(
-        func.count().label("record_count"),
-        func.coalesce(func.sum(UsageRecord.input_tokens), 0).label("total_input_tokens"),
-        func.coalesce(func.sum(UsageRecord.output_tokens), 0).label("total_output_tokens"),
-        func.coalesce(func.sum(UsageRecord.duration_seconds), 0.0).label("total_sandbox_seconds"),
+        func.count().label("total_usage_records"),
+        func.coalesce(func.sum(case((UsageRecord.record_type == "api_call", 1), else_=0)), 0).label("total_api_calls"),
+        func.coalesce(func.sum(case((UsageRecord.record_type == "llm_token", UsageRecord.input_tokens), else_=0)), 0).label("total_input_tokens"),
+        func.coalesce(func.sum(case((UsageRecord.record_type == "llm_token", UsageRecord.output_tokens), else_=0)), 0).label("total_output_tokens"),
+        func.coalesce(func.sum(case((UsageRecord.record_type == "sandbox_time", UsageRecord.duration_seconds), else_=0.0)), 0.0).label("total_sandbox_seconds"),
     ).select_from(UsageRecord)
     result = await db.execute(stmt)
     row = result.one()
 
     logger.info(
-        "Admin: get_platform_usage success record_count=%s input=%s output=%s sandbox=%s",
-        row.record_count,
+        "Admin: get_platform_usage success total_usage_records=%s api_calls=%s input=%s output=%s sandbox=%s",
+        row.total_usage_records,
+        row.total_api_calls,
         row.total_input_tokens,
         row.total_output_tokens,
         row.total_sandbox_seconds,
     )
     return UsageStatsResponse(
-        total_api_calls=row.record_count,
-        total_input_tokens=row.total_input_tokens,
-        total_output_tokens=row.total_output_tokens,
+        total_api_calls=int(row.total_api_calls),
+        total_input_tokens=int(row.total_input_tokens),
+        total_output_tokens=int(row.total_output_tokens),
         total_sandbox_seconds=float(row.total_sandbox_seconds),
-        record_count=row.record_count,
+        total_usage_records=int(row.total_usage_records),
     )
 
 
@@ -269,6 +261,64 @@ async def remove_org_member(
     logger.info(f"Removed member id={member_id} from org={auth.org_id}")
 
 
+@router.get("/usage/users", response_model=UserUsageRankingResponse, summary="Get Platform Usage By User")
+async def get_platform_usage_users(
+    auth: AuthContext = Depends(get_auth_context),
+    db: AsyncSession = Depends(get_db_session),
+    metric: str = Query(default="total_tokens"),
+) -> UserUsageRankingResponse:
+    """Get platform-wide usage ranking grouped by user."""
+    _require_platform_admin(auth)
+
+    input_tokens_expr = func.coalesce(func.sum(case((UsageRecord.record_type == "llm_token", UsageRecord.input_tokens), else_=0)), 0)
+    output_tokens_expr = func.coalesce(func.sum(case((UsageRecord.record_type == "llm_token", UsageRecord.output_tokens), else_=0)), 0)
+    api_calls_expr = func.coalesce(func.sum(case((UsageRecord.record_type == "api_call", 1), else_=0)), 0)
+    total_tokens_expr = input_tokens_expr + output_tokens_expr
+
+    sort_options = {
+        "total_tokens": total_tokens_expr,
+        "api_calls": api_calls_expr,
+        "input_tokens": input_tokens_expr,
+        "output_tokens": output_tokens_expr,
+    }
+    sort_expr = sort_options.get(metric)
+    if sort_expr is None:
+        raise HTTPException(status_code=422, detail="Unsupported ranking metric")
+
+    stmt = (
+        select(
+            UsageRecord.user_id,
+            User.display_name,
+            User.email,
+            input_tokens_expr.label("input_tokens"),
+            output_tokens_expr.label("output_tokens"),
+            total_tokens_expr.label("total_tokens"),
+            api_calls_expr.label("api_calls"),
+        )
+        .join(User, User.id == UsageRecord.user_id)
+        .group_by(UsageRecord.user_id, User.display_name, User.email)
+        .order_by(sort_expr.desc(), UsageRecord.user_id.asc())
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    return UserUsageRankingResponse(
+        metric=metric,
+        items=[
+            UserUsageItemResponse(
+                user_id=row.user_id,
+                display_name=row.display_name,
+                email=row.email,
+                input_tokens=int(row.input_tokens),
+                output_tokens=int(row.output_tokens),
+                total_tokens=int(row.total_tokens),
+                api_calls=int(row.api_calls),
+            )
+            for row in rows
+        ],
+    )
+
+
 @router.get("/org/usage", response_model=UsageStatsResponse, summary="Get Org Usage Stats")
 async def get_org_usage(
     auth: AuthContext = Depends(get_auth_context),
@@ -277,10 +327,11 @@ async def get_org_usage(
     """Get usage stats for the authenticated organization."""
     stmt = (
         select(
-            func.count().label("record_count"),
-            func.coalesce(func.sum(UsageRecord.input_tokens), 0).label("total_input_tokens"),
-            func.coalesce(func.sum(UsageRecord.output_tokens), 0).label("total_output_tokens"),
-            func.coalesce(func.sum(UsageRecord.duration_seconds), 0.0).label("total_sandbox_seconds"),
+            func.count().label("total_usage_records"),
+            func.coalesce(func.sum(case((UsageRecord.record_type == "api_call", 1), else_=0)), 0).label("total_api_calls"),
+            func.coalesce(func.sum(case((UsageRecord.record_type == "llm_token", UsageRecord.input_tokens), else_=0)), 0).label("total_input_tokens"),
+            func.coalesce(func.sum(case((UsageRecord.record_type == "llm_token", UsageRecord.output_tokens), else_=0)), 0).label("total_output_tokens"),
+            func.coalesce(func.sum(case((UsageRecord.record_type == "sandbox_time", UsageRecord.duration_seconds), else_=0.0)), 0.0).label("total_sandbox_seconds"),
         )
         .select_from(UsageRecord)
         .where(UsageRecord.org_id == auth.org_id)
@@ -289,9 +340,9 @@ async def get_org_usage(
     row = result.one()
 
     return UsageStatsResponse(
-        total_api_calls=row.record_count,
-        total_input_tokens=row.total_input_tokens,
-        total_output_tokens=row.total_output_tokens,
+        total_api_calls=int(row.total_api_calls),
+        total_input_tokens=int(row.total_input_tokens),
+        total_output_tokens=int(row.total_output_tokens),
         total_sandbox_seconds=float(row.total_sandbox_seconds),
-        record_count=row.record_count,
+        total_usage_records=int(row.total_usage_records),
     )

@@ -4,8 +4,8 @@ import type {
   OrgDetail,
   OrgQuotas,
   OrgSummary,
-  OrgUsageBreakdown,
   UsageSummary,
+  UserUsageRanking,
 } from "./types";
 
 export async function listOrganizations(): Promise<OrgSummary[]> {
@@ -50,17 +50,15 @@ export async function getUsageSummary(): Promise<UsageSummary> {
   return res.json() as Promise<UsageSummary>;
 }
 
-export async function getUsageByOrg(): Promise<OrgUsageBreakdown[]> {
-  const res = await fetch(`${getBackendBaseURL()}/api/admin/organizations`, {
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error(`Failed to get usage by org: ${res.statusText}`);
-  const orgs = (await res.json()) as OrgSummary[];
-  return orgs.map((org) => ({
-    org_id: org.id,
-    org_name: org.name,
-    input_tokens: 0,
-    output_tokens: 0,
-    api_calls: 0,
-  }));
+export async function getUserUsageRanking(
+  metric: "total_tokens" | "api_calls" | "input_tokens" | "output_tokens" = "total_tokens",
+): Promise<UserUsageRanking> {
+  const res = await fetch(
+    `${getBackendBaseURL()}/api/admin/usage/users?metric=${metric}`,
+    {
+      credentials: "include",
+    },
+  );
+  if (!res.ok) throw new Error(`Failed to get user usage ranking: ${res.statusText}`);
+  return res.json() as Promise<UserUsageRanking>;
 }

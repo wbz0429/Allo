@@ -9,6 +9,7 @@ from deerflow.config.app_config import AppConfig
 from deerflow.config.model_config import ModelConfig
 from deerflow.config.sandbox_config import SandboxConfig
 from deerflow.models import factory as factory_module
+from deerflow.stores import UsageRecordStore
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -453,6 +454,32 @@ def test_openai_compatible_provider_passes_base_url(monkeypatch):
     assert captured.get("api_key") == "test-key"
     assert captured.get("temperature") == 1.0
     assert captured.get("max_tokens") == 4096
+
+
+class _FakeUsageStore(UsageRecordStore):
+    async def record_llm_token(
+        self,
+        *,
+        user_id: str,
+        org_id: str,
+        model_name: str | None,
+        input_tokens: int,
+        output_tokens: int,
+    ) -> None:
+        return None
+
+
+def test_create_chat_model_attaches_usage_callback_when_store_registered(monkeypatch):
+    cfg = _make_app_config([_make_model("usage-model")])
+    _patch_factory(monkeypatch, cfg)
+
+    fake_store = _FakeUsageStore()
+    monkeypatch.setattr(factory_module, "get_store", lambda name: fake_store if name == "usage" else None)
+
+    model = factory_module.create_chat_model(name="usage-model")
+
+    assert model.callbacks is not None
+    assert any(callback.__class__.__name__ == "UsageTrackingCallbackHandler" for callback in model.callbacks)
 
 
 def test_openai_compatible_provider_multiple_models(monkeypatch):

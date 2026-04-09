@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { UsageChart } from "@/components/admin/usage-chart";
 import {
   Card,
   CardContent,
@@ -12,8 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getUsageByOrg, getUsageSummary } from "@/core/admin/api";
-import type { OrgUsageBreakdown, UsageSummary } from "@/core/admin/types";
+import { getUsageSummary, getUserUsageRanking } from "@/core/admin/api";
+import type { UsageSummary, UserUsageRanking } from "@/core/admin/types";
 import { useI18n } from "@/core/i18n/hooks";
 
 function formatNumber(n: number): string {
@@ -25,14 +24,14 @@ function formatNumber(n: number): string {
 export default function AdminUsagePage() {
   const { t } = useI18n();
   const [summary, setSummary] = useState<UsageSummary | null>(null);
-  const [orgUsage, setOrgUsage] = useState<OrgUsageBreakdown[]>([]);
+  const [ranking, setRanking] = useState<UserUsageRanking | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([getUsageSummary(), getUsageByOrg()])
+    Promise.all([getUsageSummary(), getUserUsageRanking()])
       .then(([s, u]) => {
         setSummary(s);
-        setOrgUsage(u);
+        setRanking(u);
       })
       .catch((err: Error) => {
         toast.error(err.message || t.admin.usageLoadFailed);
@@ -61,18 +60,7 @@ export default function AdminUsagePage() {
     );
   }
 
-  const tokenBars = orgUsage.map((o) => ({
-    id: `tokens-${o.org_id}`,
-    label: o.org_name.length > 8 ? `${o.org_name.slice(0, 8)}…` : o.org_name,
-    value: o.input_tokens,
-    secondaryValue: o.output_tokens,
-  }));
-
-  const apiCallBars = orgUsage.map((o) => ({
-    id: `calls-${o.org_id}`,
-    label: o.org_name.length > 8 ? `${o.org_name.slice(0, 8)}…` : o.org_name,
-    value: o.api_calls,
-  }));
+  const items = ranking?.items ?? [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -109,7 +97,7 @@ export default function AdminUsagePage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>{t.admin.tokensToday}</CardDescription>
+            <CardDescription>{t.admin.inputTokens}</CardDescription>
           </CardHeader>
           <CardContent>
             <CardTitle className="text-2xl tabular-nums">
@@ -119,97 +107,70 @@ export default function AdminUsagePage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>{t.admin.apiCallsToday}</CardDescription>
+            <CardDescription>{t.admin.usageRecords}</CardDescription>
           </CardHeader>
           <CardContent>
             <CardTitle className="text-2xl tabular-nums">
-              {formatNumber(summary?.record_count ?? 0)}
+              {formatNumber(summary?.total_usage_records ?? 0)}
             </CardTitle>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      {items.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>{t.admin.tokenUsageByOrganization}</CardTitle>
-            <CardDescription>{t.admin.topOrganizationsByTokenConsumption}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {tokenBars.length > 0 ? (
-              <UsageChart
-                title=""
-                bars={tokenBars}
-                primaryLabel={t.admin.inputTokensLabel}
-                secondaryLabel={t.admin.outputTokensLabel}
-              />
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                {t.admin.noUsageData}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{t.admin.apiCallsByOrganization}</CardTitle>
-            <CardDescription>{t.admin.totalApiCallVolume}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {apiCallBars.length > 0 ? (
-              <UsageChart
-                title=""
-                bars={apiCallBars}
-                primaryLabel={t.admin.apiCallsLabel}
-              />
-            ) : (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                {t.admin.noUsageData}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {orgUsage.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t.admin.detailedBreakdown}</CardTitle>
-            <CardDescription>{t.admin.usagePerOrganization}</CardDescription>
+            <CardTitle>{t.admin.userUsageRanking}</CardTitle>
+            <CardDescription>{t.admin.userUsageRankingDescription}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto rounded-md border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left font-medium">{t.admin.organization}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t.admin.user}</th>
+                    <th className="px-4 py-3 text-left font-medium">{t.admin.email}</th>
                     <th className="px-4 py-3 text-right font-medium">{t.admin.inputTokens}</th>
                     <th className="px-4 py-3 text-right font-medium">{t.admin.outputTokens}</th>
+                    <th className="px-4 py-3 text-right font-medium">{t.admin.totalTokens}</th>
                     <th className="px-4 py-3 text-right font-medium">{t.admin.apiCallsLabel}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {orgUsage.map((o) => (
+                  {items.map((item) => (
                     <tr
-                      key={o.org_id}
+                      key={item.user_id}
                       className="border-b transition-colors hover:bg-muted/30"
                     >
-                      <td className="px-4 py-3 font-medium">{o.org_name}</td>
+                      <td className="px-4 py-3 font-medium">
+                        {item.display_name ?? item.user_id}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{item.email}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {formatNumber(o.input_tokens)}
+                        {formatNumber(item.input_tokens)}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {formatNumber(o.output_tokens)}
+                        {formatNumber(item.output_tokens)}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {formatNumber(o.api_calls)}
+                        {formatNumber(item.total_tokens)}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {formatNumber(item.api_calls)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent>
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {t.admin.noUsageData}
+            </p>
           </CardContent>
         </Card>
       )}

@@ -306,6 +306,8 @@ export interface Translations {
     dashboardDescription: string;
     usage: string;
     usageDescription: string;
+    platformOverview: string;
+    platformOverviewDescription: string;
     platformAdmin: string;
     backToWorkspace: string;
     checkingAccess: string;
@@ -337,6 +339,11 @@ export interface Translations {
     tokensUsed: string;
     created: string;
     noOrganizationsFound: string;
+    user: string;
+    email: string;
+    userUsageRanking: string;
+    userUsageRankingDescription: string;
+    platformOnly: string;
   };
 
   // Streaming status

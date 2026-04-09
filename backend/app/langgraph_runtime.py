@@ -24,6 +24,7 @@ from app.gateway.services.model_key_resolver_pg import PostgresModelKeyResolver
 from app.gateway.services.skill_catalog_store_pg import PostgresSkillCatalogStore
 from app.gateway.services.skill_config_store_pg import PostgresSkillConfigStore
 from app.gateway.services.soul_store_pg import PostgresSoulStore
+from app.gateway.services.usage_record_store_pg import PostgresUsageRecordStore
 from deerflow.agents import make_lead_agent as harness_make_lead_agent
 from deerflow.context import UserContext, get_user_context
 from deerflow.store_registry import get_store, register_store
@@ -51,6 +52,8 @@ def _ensure_runtime_stores_registered() -> None:
         register_store("key", PostgresModelKeyResolver(runtime_async_session_factory, get_redis))
     if get_store("kb") is None:
         register_store("kb", PostgresKBStore(runtime_async_session_factory))
+    if get_store("usage") is None:
+        register_store("usage", PostgresUsageRecordStore(runtime_async_session_factory))
 
 
 async def _resolve_user_from_thread(config: dict) -> UserContext | None:
@@ -81,9 +84,7 @@ async def _resolve_user_from_auth_id(auth_user_id: str) -> UserContext | None:
     """Fallback: resolve org_id from organization_members table using auth user ID."""
     try:
         async with runtime_async_session_factory() as session:
-            result = await session.execute(
-                select(OrganizationMember.org_id).where(OrganizationMember.user_id == auth_user_id).limit(1)
-            )
+            result = await session.execute(select(OrganizationMember.org_id).where(OrganizationMember.user_id == auth_user_id).limit(1))
             row = result.one_or_none()
             if row is not None:
                 logger.info("Resolved user context from org_members: user_id=%s org_id=%s", auth_user_id, row.org_id)
