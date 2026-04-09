@@ -8,7 +8,6 @@ Allo is a web-based AI workspace and team-oriented SaaS for research, coding, an
 
 Allo is designed for organizations that want a polished web product without giving up deployment control. You can run it as a SaaS-style platform, or deploy the full stack inside your own environment — from models and runtime services to storage, gateway, and workflow execution — to meet data privacy, compliance, and internal governance requirements.
 
-> Product brand: **Allo（元枢）**. Some internal package names, scripts, and runtime modules still use the historical `deerflow` naming.
 
 ## Deployment and privacy at a glance
 
