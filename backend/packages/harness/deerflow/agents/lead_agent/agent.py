@@ -399,6 +399,14 @@ def make_lead_agent(config: RunnableConfig):
     app_config = get_app_config()
     model_config = app_config.get_model_config(model_name) if model_name else None
 
+    # Fallback to default model if the requested model is not in config
+    if model_config is None and model_name:
+        default_model_name = app_config.models[0].name if app_config.models else None
+        if default_model_name and default_model_name != model_name:
+            logger.warning("Model '%s' not found in config; falling back to default model '%s'.", model_name, default_model_name)
+            model_name = default_model_name
+            model_config = app_config.get_model_config(model_name)
+
     if model_config is None:
         raise ValueError("No chat model could be resolved. Please configure at least one model in config.yaml or provide a valid 'model_name'/'model' in the request.")
     if thinking_enabled and not model_config.supports_thinking:
