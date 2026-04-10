@@ -109,6 +109,14 @@ For complex queries, break them down into focused sub-tasks and execute in paral
 
 **⛔ VIOLATION: Launching more than {n} `task` calls in a single response is a HARD ERROR. The system WILL discard excess calls and you WILL lose work. Always batch.**
 
+**⚠️ LARGE FILE / LARGE OUTPUT TASKS — MANDATORY SPLITTING:**
+When a task involves processing a large file (e.g., enriching/rewriting a JSON with many sections, translating a long document, generating a large report):
+- **DO NOT** assign the entire file to a single subagent — it will likely timeout
+- **SPLIT by sections/chapters/parts**: Each subagent handles one section independently
+- **Each subagent prompt must specify**: which section to process, input path, and output path (use unique filenames like `chapter1_enriched.json`, `chapter2_enriched.json`)
+- **After all subagents complete**: Synthesize/merge the results yourself if needed
+- **Rule of thumb**: If the input file has multiple top-level sections or >100 lines of structured content, split it
+
 **Remember: Subagents are for parallel decomposition, not for wrapping single tasks.**
 
 **How It Works:**
