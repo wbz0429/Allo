@@ -211,9 +211,10 @@ def test_thinking_disabled_langchain_anthropic_format(monkeypatch):
     assert captured.get("reasoning_effort") is None
 
 
-def test_thinking_disabled_no_when_thinking_enabled_does_nothing(monkeypatch):
-    """If when_thinking_enabled is not set, disabling thinking must not inject any kwargs."""
-    cfg = _make_app_config([_make_model("plain", supports_thinking=True, when_thinking_enabled=None)])
+def test_thinking_disabled_no_when_thinking_enabled_openai_compat_injects_disabled(monkeypatch):
+    """If supports_thinking=True but when_thinking_enabled is not set, OpenAI-compatible models
+    must still get thinking explicitly disabled to prevent API errors in multi-turn conversations."""
+    cfg = _make_app_config([_make_model("plain", use="langchain_openai:ChatOpenAI", supports_thinking=True, when_thinking_enabled=None)])
     _patch_factory(monkeypatch, cfg)
 
     captured: dict = {}
@@ -227,10 +228,28 @@ def test_thinking_disabled_no_when_thinking_enabled_does_nothing(monkeypatch):
 
     factory_module.create_chat_model(name="plain", thinking_enabled=False)
 
+    assert captured.get("extra_body") == {"thinking": {"type": "disabled"}}
+
+
+def test_thinking_disabled_no_when_thinking_enabled_non_openai_does_nothing(monkeypatch):
+    """Non-OpenAI models with supports_thinking=True but no when_thinking_enabled should not
+    get any thinking kwargs injected (we don't know their disable format)."""
+    cfg = _make_app_config([_make_model("plain-anthropic", use="langchain_anthropic:ChatAnthropic", supports_thinking=True, when_thinking_enabled=None)])
+    _patch_factory(monkeypatch, cfg)
+
+    captured: dict = {}
+
+    class CapturingModel(FakeChatModel):
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+            BaseChatModel.__init__(self, **kwargs)
+
+    monkeypatch.setattr(factory_module, "resolve_class", lambda path, base: CapturingModel)
+
+    factory_module.create_chat_model(name="plain-anthropic", thinking_enabled=False)
+
     assert "extra_body" not in captured
     assert "thinking" not in captured
-    # reasoning_effort not forced (supports_reasoning_effort defaults to False → cleared)
-    assert captured.get("reasoning_effort") is None
 
 
 # ---------------------------------------------------------------------------

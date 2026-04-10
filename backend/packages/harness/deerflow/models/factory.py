@@ -129,6 +129,16 @@ def create_chat_model(name: str | None = None, thinking_enabled: bool = False, *
         elif effective_wte.get("thinking", {}).get("type"):
             # Native langchain_anthropic: thinking is a direct constructor parameter
             kwargs.update({"thinking": {"type": "disabled"}})
+    if not thinking_enabled and not has_thinking_settings and model_config.supports_thinking:
+        # Model supports thinking but has no explicit when_thinking_enabled config.
+        # Some APIs enable thinking by default (e.g. Kimi coding API), so we must
+        # explicitly disable it to avoid reasoning_content requirements in multi-turn
+        # conversations. This applies to models using the OpenAI-compatible protocol
+        # (PatchedChatOpenAI, PatchedChatDeepSeek, etc.) where the disable format is
+        # extra_body.thinking.type=disabled.
+        uses_openai_protocol = "openai" in model_config.use.lower() or "deepseek" in model_config.use.lower()
+        if uses_openai_protocol:
+            kwargs.update({"extra_body": {"thinking": {"type": "disabled"}}})
     if not model_config.supports_reasoning_effort and "reasoning_effort" in kwargs:
         del kwargs["reasoning_effort"]
 
