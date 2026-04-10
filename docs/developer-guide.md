@@ -182,6 +182,56 @@ Nginx (:80)
 | allo-gateway | `uv run uvicorn app.gateway.app:app --workers 2` | 8001 |
 | allo-frontend | `node .next/standalone/server.js` | 3000 |
 
+### 运行目录与用户一致性
+
+线上环境要明确区分 **登录/部署用户** 和 **服务运行用户**：
+
+- `ubuntu`：用于 SSH 登录、上传 bundle、执行 `sudo`
+- `allo`：systemd 服务实际运行用户，也是代码目录和运行时数据目录的 owner
+
+当前开发机上的路径约定是：
+
+- 代码目录：`/srv/allo`
+- 环境变量文件：`/etc/allo/allo.env`
+- runtime 数据目录：当前落在 `/srv/allo/backend/.deer-flow`
+
+这里要注意两点：
+
+1. `/srv/allo` 只是当前机器的部署约定，不是产品硬编码。企业环境可以换成别的目录。
+2. 真正重要的不是目录名，而是 **runtime 数据目录必须归服务运行用户所有**。
+
+也就是说，企业部署时不需要有 `allo` 这个目录名，但需要保证：
+
+- systemd 运行用户明确（例如 `allo`、`svc-allo`、`appuser`）
+- `DEER_FLOW_HOME` 或运行时解析出的 base dir 归这个用户所有
+- 不要让 `ubuntu` 或 `root` 成为 `.deer-flow` 的长期 owner
+
+如果用 `ubuntu`/`root` 去解压、恢复、拷贝 `.deer-flow`，可能出现：
+
+- 新 thread 无法创建工作目录
+- `read_file` / `ls` / `write_file` 工具持续报 `PermissionError`
+- subagent 持续重试，最终触发 `GRAPH_RECURSION_LIMIT`
+
+推荐检查命令：
+
+```bash
+# 查看服务实际运行用户
+sudo systemctl cat allo-langgraph
+sudo systemctl cat allo-gateway
+
+# 查看 runtime 数据目录 owner
+sudo ls -ld /srv/allo/backend/.deer-flow
+
+# 当前机器如需修复 owner
+sudo chown -R allo:allo /srv/allo/backend/.deer-flow
+```
+
+团队约定：
+
+- `ubuntu` 只负责登录、传包、执行 sudo
+- 所有 `git / uv / pnpm` 操作都通过 `sudo -u allo` 执行
+- `.deer-flow` 及其子目录必须保持 `allo:allo`
+
 ### 代码部署流程
 
 服务器的 git origin 用的是镜像，同步有延迟。用 `git bundle` 传代码最可靠。

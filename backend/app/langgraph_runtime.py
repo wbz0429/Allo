@@ -16,6 +16,7 @@ from sqlalchemy.pool import NullPool
 from app.gateway.db.database import DATABASE_URL
 from app.gateway.db.models import OrganizationMember, Thread
 from app.gateway.redis_client import get_redis
+from app.gateway.runtime_paths_guard import verify_runtime_base_dir_ownership
 from app.gateway.services.kb_store_pg import PostgresKBStore
 from app.gateway.services.marketplace_install_store_pg import PostgresMarketplaceInstallStore
 from app.gateway.services.mcp_config_store_pg import PostgresMcpConfigStore
@@ -139,6 +140,8 @@ def _is_history_request(config: dict) -> bool:
 
 
 async def make_lead_agent(config):
+    verify_runtime_base_dir_ownership()
+
     t0 = time.monotonic()
     _ensure_runtime_stores_registered()
 

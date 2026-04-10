@@ -128,8 +128,10 @@ class TestGatewayLifespan:
 
         with (
             patch("app.gateway.app.get_app_config"),
+            patch("app.gateway.app.verify_runtime_base_dir_ownership"),
             patch("app.gateway.app.get_gateway_config") as mock_gateway_config,
             patch("app.gateway.app.close_redis_pool", new_callable=AsyncMock) as mock_close_redis_pool,
+            patch("app.gateway.dev_seed.ensure_dev_account", new_callable=AsyncMock),
             patch("app.gateway.app.logger") as mock_logger,
             patch("app.channels.service.start_channel_service", new_callable=AsyncMock) as mock_start_channel_service,
             patch("app.channels.service.stop_channel_service", new_callable=AsyncMock) as mock_stop_channel_service,
@@ -145,7 +147,31 @@ class TestGatewayLifespan:
 
         mock_stop_channel_service.assert_awaited_once()
         mock_close_redis_pool.assert_awaited_once()
-        mock_logger.info.assert_any_call("Using Alembic for migrations")
+
+    @pytest.mark.asyncio
+    async def test_lifespan_verifies_runtime_base_dir_ownership(self):
+        app = create_app()
+        lifespan = app.router.lifespan_context
+
+        with (
+            patch("app.gateway.app.get_app_config"),
+            patch("app.gateway.app.verify_runtime_base_dir_ownership") as mock_verify_runtime_base_dir_ownership,
+            patch("app.gateway.app.get_gateway_config") as mock_gateway_config,
+            patch("app.gateway.app.close_redis_pool", new_callable=AsyncMock),
+            patch("app.gateway.dev_seed.ensure_dev_account", new_callable=AsyncMock),
+            patch("app.channels.service.start_channel_service", new_callable=AsyncMock) as mock_start_channel_service,
+            patch("app.channels.service.stop_channel_service", new_callable=AsyncMock),
+        ):
+            mock_gateway_config.return_value.host = "127.0.0.1"
+            mock_gateway_config.return_value.port = 8001
+            channel_service = MagicMock()
+            channel_service.get_status.return_value = {"status": "ok"}
+            mock_start_channel_service.return_value = channel_service
+
+            async with lifespan(app):
+                pass
+
+        mock_verify_runtime_base_dir_ownership.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

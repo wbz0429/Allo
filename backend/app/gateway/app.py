@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.gateway.config import get_gateway_config
 from app.gateway.db.database import async_session_factory
 from app.gateway.redis_client import close_redis_pool, get_redis
+from app.gateway.runtime_paths_guard import verify_runtime_base_dir_ownership
 from app.gateway.routers import (
     admin,
     agents,
@@ -60,6 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Load config and check necessary environment variables at startup
     try:
         get_app_config()
+        verify_runtime_base_dir_ownership()
         logger.info("Configuration loaded successfully (%.1fs)", time.monotonic() - t0)
     except Exception as e:
         error_msg = f"Failed to load configuration during gateway startup: {e}"
