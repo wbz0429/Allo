@@ -2,6 +2,43 @@
 
 本文档面向 Allo 项目的开发人员，覆盖本地开发环境搭建和线上服务器部署两条路径。
 
+## 开发流程总览
+
+```mermaid
+flowchart TD
+    Start([开始]) --> Check[make check<br/>验证环境依赖]
+    Check --> Install[make install<br/>安装前后端依赖]
+    Install --> Config[make config<br/>生成 config.yaml / .env]
+    Config --> EditConfig[编辑 config.yaml<br/>配置模型和 API Key]
+    EditConfig --> Symlink[ln -s ../.env backend/.env]
+
+    Symlink --> DevOrDeploy{本地开发 or 线上部署?}
+
+    %% ── 本地开发 ──
+    DevOrDeploy -->|本地开发| MakeDev[make dev<br/>启动 4 个服务]
+    MakeDev --> LocalApp([localhost:2026<br/>开始开发])
+    LocalApp --> Code[编写代码]
+    Code --> Lint{提交前检查}
+    Lint --> BackendLint[cd backend<br/>make lint && make test]
+    Lint --> FrontendLint[cd frontend<br/>pnpm lint && pnpm typecheck]
+    BackendLint --> Commit[git commit]
+    FrontendLint --> Commit
+
+    %% ── 线上部署 ──
+    DevOrDeploy -->|线上部署| Bundle[git bundle create<br/>打包新 commit]
+    Bundle --> SCP[scp 传到服务器]
+    SCP --> Fetch[sudo -u allo<br/>git fetch + merge]
+    Fetch --> Deps{改了什么?}
+    Deps -->|后端| UvSync[uv sync]
+    Deps -->|前端| PnpmBuild[pnpm install && pnpm build]
+    Deps -->|都改了| Both[uv sync + pnpm build]
+    UvSync --> Restart[systemctl restart<br/>重启受影响的服务]
+    PnpmBuild --> Restart
+    Both --> Restart
+    Restart --> Health[健康检查<br/>curl 三个端口]
+    Health --> Live([线上生效])
+```
+
 ## 环境要求
 
 | 工具 | 版本要求 | 安装方式 |
