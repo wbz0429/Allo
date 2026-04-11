@@ -214,6 +214,20 @@ export function useThreadStream({
       void queryClient.invalidateQueries({ queryKey: ["threads", "search"] });
     },
     onError(error) {
+      // fetchStateHistory may 404 for threads not yet synced to LangGraph —
+      // this is normal (Gateway created the thread but LangGraph sync failed
+      // or hasn't happened yet). Don't show a toast or mark the run as failed
+      // for these history-fetch errors; the next submit will auto-create the
+      // LangGraph thread.
+      const is404 =
+        error instanceof Error &&
+        (error.message.includes("not found") ||
+          error.message.includes("404"));
+      if (is404 && !currentRunIdRef.current) {
+        console.warn("Thread not found in LangGraph (will be created on first message):", error);
+        return;
+      }
+
       console.error("Stream error:", error);
       toast.error(t.streaming.error);
       void syncThreadRun({
